@@ -1,11 +1,513 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
+
+/// Role represents the global role assigned to users in the SIMANTIK system.
+/// Types: Manager, Tester, Developer
+/// Determines what actions a user can perform at the system level.
+model Role {
+  id          String           @id @default(uuid()) @db.Char(36)
+  name        String           @unique @db.VarChar(50)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+  users       User[]
+  permissions RolePermission[]
+
+  @@index([deletedAt])
+  @@map("roles")
+}
+
+/// User represents a person who uses the SIMANTIK system.
+/// Contains identity information, credentials, and global role.
+model User {
+  id                 String          @id @default(uuid()) @db.Char(36)
+  name               String          @db.VarChar(255)
+  email              String          @unique @db.VarChar(255)
+  password           String          @db.VarChar(255)
+  avatar             String?         @db.VarChar(500)
+  phoneNumber        String?         @map("phone_number") @db.VarChar(20)
+  jobTitle           String?         @map("job_title") @db.VarChar(100)
+  bio                String?         @db.Text
+  isActive           Boolean         @default(true) @map("is_active")
+  mustChangePassword Boolean         @default(true) @map("must_change_password")
+  tokenVersion       Int             @default(0) @map("token_version")
+  lastLoginAt        DateTime?       @map("last_login_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  deletedAt          DateTime?       @map("deleted_at")
+  roleId             String          @map("role_id") @db.Char(36)
+  role               Role            @relation(fields: [roleId], references: [id])
+  projectsCreated    Project[]       @relation("ProjectCreator")
+  projectMemberships ProjectMember[]
+  testCasesCreated   TestCase[]      @relation("TestCaseCreator")
+  testRunsExecuted   TestRun[]
+  executions         Execution[]
+  bugsReported       BugReport[]     @relation("BugReporter")
+  bugsAssigned       BugReport[]     @relation("BugAssignee")
+  bugComments        BugComment[]
+  bugAttachments     BugAttachment[]
+  bugHistoryChanges  BugHistory[]
+  activityLogs       ActivityLog[]
+  notifications      Notification[]
+  uploadedFiles      UploadedFile[]
+
+  @@index([roleId])
+  @@index([email])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+/// Project represents a testing project in the SIMANTIK system.
+/// Projects are the primary container for test cases, runs, and executions.
+model Project {
+  id          String          @id @default(uuid()) @db.Char(36)
+  code        String          @unique @db.VarChar(50)
+  name        String          @db.VarChar(255)
+  slug        String          @unique @db.VarChar(255)
+  description String?         @db.Text
+  status      ProjectStatus   @default(PLANNING)
+  startDate   DateTime?       @map("start_date")
+  endDate     DateTime?       @map("end_date")
+  createdById String          @map("created_by_id") @db.Char(36)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
+  createdBy   User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  members     ProjectMember[]
+  testCases   TestCase[]
+  testRuns    TestRun[]
+  bugReports  BugReport[]
+
+  @@index([code])
+  @@index([status])
+  @@index([createdById])
+  @@index([startDate])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  TESTING
+  COMPLETED
+  ARCHIVED
+}
+
+/// ProjectMember represents a user's membership in a project.
+/// User's responsibilities are determined by their global Role.
+model ProjectMember {
+  id        String   @id @default(uuid()) @db.Char(36)
+  projectId String   @map("project_id") @db.Char(36)
+  userId    String   @map("user_id") @db.Char(36)
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+/// TestCase represents a reusable test case in the SIMANTIK system.
+/// Test cases define the steps to be executed during test runs.
+model TestCase {
+  id           String         @id @default(uuid()) @db.Char(36)
+  code         String         @unique @db.VarChar(50)
+  title        String         @db.VarChar(255)
+  description  String?        @db.Text
+  precondition String?        @db.Text
+  priority     TestPriority   @default(MEDIUM)
+  status       TestCaseStatus @default(DRAFT)
+  projectId    String         @map("project_id") @db.Char(36)
+  createdById  String         @map("created_by_id") @db.Char(36)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy  User        @relation("TestCaseCreator", fields: [createdById], references: [id])
+  steps      TestStep[]
+  executions Execution[]
+
+  @@index([projectId])
+  @@index([createdById])
+  @@index([status])
+  @@index([priority])
+  @@index([deletedAt])
+  @@map("test_cases")
+}
+
+/// TestStep represents an individual step within a test case.
+/// Each step contains an action to perform and expected result.
+model TestStep {
+  id             String    @id @default(uuid()) @db.Char(36)
+  testCaseId     String    @map("test_case_id") @db.Char(36)
+  stepNumber     Int       @map("step_number")
+  action         String    @db.Text
+  expectedResult String    @map("expected_result") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  testCase TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([testCaseId, stepNumber])
+  @@index([testCaseId])
+  @@index([deletedAt])
+  @@map("test_steps")
+}
+
+enum TestPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TestCaseStatus {
+  DRAFT
+  READY
+  OBSOLETE
+}
+
+enum TestRunStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// TestRun represents one execution session for a project.
+/// A test run groups multiple test case executions together.
+model TestRun {
+  id           String        @id @default(uuid()) @db.Char(36)
+  code         String        @unique @db.VarChar(50)
+  name         String        @db.VarChar(255)
+  description  String?       @db.Text
+  projectId    String        @map("project_id") @db.Char(36)
+  executedById String        @map("executed_by_id") @db.Char(36)
+  status       TestRunStatus @default(PLANNED)
+  startedAt    DateTime?     @map("started_at")
+  completedAt  DateTime?     @map("completed_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  executedBy User        @relation(fields: [executedById], references: [id])
+  executions Execution[]
+
+  @@index([projectId])
+  @@index([executedById])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("test_runs")
+}
+
+/// Execution represents the execution of ONE test case inside ONE test run.
+/// One test case can only appear once per test run.
+model Execution {
+  id         String          @id @default(uuid()) @db.Char(36)
+  testRunId  String          @map("test_run_id") @db.Char(36)
+  testCaseId String          @map("test_case_id") @db.Char(36)
+  testerId   String          @map("tester_id") @db.Char(36)
+  status     ExecutionStatus @default(NOT_RUN)
+  executedAt DateTime?       @map("executed_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+
+  testRun   TestRun          @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testCase  TestCase         @relation(fields: [testCaseId], references: [id])
+  tester    User             @relation(fields: [testerId], references: [id])
+  result    ExecutionResult?
+  bugReport BugReport?
+
+  @@unique([testRunId, testCaseId])
+  @@index([testRunId])
+  @@index([testCaseId])
+  @@index([testerId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("executions")
+}
+
+enum ExecutionStatus {
+  NOT_RUN
+  PASSED
+  FAILED
+  BLOCKED
+  SKIPPED
+}
+
+/// ExecutionResult stores the detailed result of a test case execution.
+/// One-to-one relationship with Execution.
+model ExecutionResult {
+  id              String    @id @default(uuid()) @db.Char(36)
+  executionId     String    @unique @map("execution_id") @db.Char(36)
+  actualResult    String?   @map("actual_result") @db.Text
+  environment     String?   @db.VarChar(100)
+  browser         String?   @db.VarChar(100)
+  operatingSystem String?   @map("operating_system") @db.VarChar(100)
+  device          String?   @db.VarChar(100)
+  notes           String?   @db.Text
+  duration        Int?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  execution Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([deletedAt])
+  @@map("execution_results")
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  BLOCKER
+}
+
+enum BugPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum BugStatus {
+  OPEN
+  IN_PROGRESS
+  READY_FOR_RETEST
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+/// BugReport represents a defect discovered during test execution.
+/// One execution may produce zero or one bug report.
+model BugReport {
+  id           String      @id @default(uuid()) @db.Char(36)
+  code         String      @unique @db.VarChar(50)
+  title        String      @db.VarChar(255)
+  description  String?     @db.Text
+  severity     Severity    @default(MEDIUM)
+  priority     BugPriority @default(MEDIUM)
+  status       BugStatus   @default(OPEN)
+  executionId  String      @unique @map("execution_id") @db.Char(36)
+  projectId    String      @map("project_id") @db.Char(36)
+  reportedById String      @map("reported_by_id") @db.Char(36)
+  assignedToId String?     @map("assigned_to_id") @db.Char(36)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  deletedAt    DateTime?   @map("deleted_at")
+
+  execution   Execution       @relation(fields: [executionId], references: [id])
+  project     Project         @relation(fields: [projectId], references: [id])
+  reportedBy  User            @relation("BugReporter", fields: [reportedById], references: [id])
+  assignedTo  User?           @relation("BugAssignee", fields: [assignedToId], references: [id])
+  comments    BugComment[]
+  attachments BugAttachment[]
+  history     BugHistory[]
+
+  @@index([executionId])
+  @@index([projectId])
+  @@index([reportedById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([severity])
+  @@index([deletedAt])
+  @@map("bug_reports")
+}
+
+/// BugComment allows testers and developers to communicate inside a bug report.
+/// One bug report can have many comments.
+model BugComment {
+  id          String    @id @default(uuid()) @db.Char(36)
+  bugReportId String    @map("bug_report_id") @db.Char(36)
+  userId      String    @map("user_id") @db.Char(36)
+  message     String    @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  bugReport BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([bugReportId])
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("bug_comments")
+}
+
+/// BugAttachment stores files related to a bug report.
+/// Supports screenshots, videos, logs, and documents.
+model BugAttachment {
+  id           String    @id @default(uuid()) @db.Char(36)
+  bugReportId  String    @map("bug_report_id") @db.Char(36)
+  uploadedById String    @map("uploaded_by_id") @db.Char(36)
+  fileName     String    @map("file_name") @db.VarChar(255)
+  filePath     String    @map("file_path") @db.VarChar(500)
+  fileType     String    @map("file_type") @db.VarChar(100)
+  fileSize     Int       @map("file_size")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  bugReport  BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
+
+  @@index([bugReportId])
+  @@index([uploadedById])
+  @@index([fileType])
+  @@index([deletedAt])
+  @@map("bug_attachments")
+}
+
+/// BugHistory records every important change to a bug report.
+/// Tracks status changes, assignments, severity, priority, etc.
+model BugHistory {
+  id          String   @id @default(uuid()) @db.Char(36)
+  bugReportId String   @map("bug_report_id") @db.Char(36)
+  changedById String   @map("changed_by_id") @db.Char(36)
+  field       String   @db.VarChar(50)
+  oldValue    String?  @map("old_value") @db.VarChar(255)
+  newValue    String?  @map("new_value") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  bugReport BugReport @relation(fields: [bugReportId], references: [id], onDelete: Cascade)
+  changedBy User      @relation(fields: [changedById], references: [id])
+
+  @@index([bugReportId])
+  @@index([changedById])
+  @@index([createdAt])
+  @@map("bug_history")
+}
+
+/// ActivityLog records important actions performed by users.
+/// Tracks login, entity changes, and other system activities.
+model ActivityLog {
+  id          String   @id @default(uuid()) @db.Char(36)
+  userId      String   @map("user_id") @db.Char(36)
+  action      String   @db.VarChar(50)
+  entity      String   @db.VarChar(50)
+  entityId    String   @map("entity_id") @db.Char(36)
+  description String?  @db.Text
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+/// Notification notifies users about important events.
+model Notification {
+  id        String           @id @default(uuid()) @db.Char(36)
+  userId    String           @map("user_id") @db.Char(36)
+  title     String           @db.VarChar(255)
+  message   String           @db.Text
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// UploadedFile stores files for centralized management.
+/// Reused by: User Avatar, Bug Attachment, Future documents.
+model UploadedFile {
+  id           String    @id @default(uuid()) @db.Char(36)
+  uploadedById String    @map("uploaded_by_id") @db.Char(36)
+  fileName     String    @map("file_name") @db.VarChar(255)
+  originalName String    @map("original_name") @db.VarChar(255)
+  mimeType     String    @map("mime_type") @db.VarChar(100)
+  extension    String    @db.VarChar(20)
+  size         Int
+  path         String    @db.VarChar(500)
+  disk         String    @db.VarChar(50)
+  checksum     String    @db.VarChar(64)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user User @relation(fields: [uploadedById], references: [id])
+
+  @@index([uploadedById])
+  @@index([mimeType])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("uploaded_files")
+}
+
+/// Permission defines granular access control capabilities.
+/// Data-driven permissions for flexible authorization.
+model Permission {
+  id          String           @id @default(uuid()) @db.Char(36)
+  code        String           @unique @db.VarChar(100)
+  title       String           @db.VarChar(255)
+  description String?          @db.Text
+  module      String           @db.VarChar(50)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+  roles       RolePermission[]
+
+  @@index([module])
+  @@index([deletedAt])
+  @@map("permissions")
+}
+
+/// RolePermission links roles to permissions.
+/// Many-to-many relationship between Role and Permission.
+model RolePermission {
+  id           String     @id @default(uuid()) @db.Char(36)
+  roleId       String     @map("role_id") @db.Char(36)
+  permissionId String     @map("permission_id") @db.Char(36)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+/// RolePermissionSeeder creates default role-permission assignments.
+/// Manager: ALL permissions
+/// Tester: Project view, Test Case CRUD, Test Run CRUD, Execution CRUD, Bug CRUD (view/create/close), Profile CRUD, Notification CRUD
+/// Developer: Project view, Test Case view, Bug view/resolve, Profile CRUD, Notification CRUD
