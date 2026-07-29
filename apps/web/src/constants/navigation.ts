@@ -1,17 +1,13 @@
 import {
   IconLayoutDashboard, IconFolder, IconTestPipe, IconRocket, IconBug,
-  IconBell, IconUsers, IconSettings, IconUserCircle,
+  IconBell, IconSettings, IconUserCircle, IconUsers,
 } from '@tabler/icons-react';
-import { Permission } from './permissions';
 import { ROUTES } from './routes';
 
 export interface NavItem {
   label: string;
   icon?: React.ComponentType<{ size?: number; stroke?: number }>;
   route?: string;
-  permissions?: string[];
-  children?: NavItem[];
-  badge?: 'beta' | 'new' | number;
 }
 
 export interface NavSection {
@@ -19,53 +15,47 @@ export interface NavSection {
   items: NavItem[];
 }
 
+const MENUS = {
+  dashboard: { label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD },
+  projects:  { label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS },
+  myProjects: { label: 'My Projects', icon: IconFolder, route: ROUTES.PROJECTS },
+  testCases: { label: 'Test Cases', icon: IconTestPipe, route: ROUTES.TEST_CASES },
+  testRuns:  { label: 'Test Runs', icon: IconRocket, route: ROUTES.TEST_RUNS },
+  executions: { label: 'Executions', icon: IconRocket, route: ROUTES.EXECUTIONS },
+  bugs:      { label: 'Bug Reports', icon: IconBug, route: ROUTES.BUGS },
+  notifications: { label: 'Notifications', icon: IconBell, route: ROUTES.NOTIFICATIONS },
+  users:     { label: 'Users', icon: IconUsers, route: ROUTES.USERS },
+  settings:  { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
+  profile:   { label: 'Profile', icon: IconUserCircle, route: ROUTES.PROFILE },
+} as const;
+
+const ROLE_MENUS: Record<string, NavSection[]> = {
+  Manager: [
+    { title: 'General', items: [MENUS.dashboard] },
+    { title: 'Workspace', items: [MENUS.projects, MENUS.testCases, MENUS.testRuns, MENUS.executions] },
+    { title: 'Quality', items: [MENUS.bugs, MENUS.notifications] },
+    { title: 'Administration', items: [MENUS.users, MENUS.settings] },
+    { title: 'Account', items: [MENUS.profile] },
+  ],
+  Developer: [
+    { title: 'General', items: [MENUS.dashboard] },
+    { title: 'My Workspace', items: [MENUS.myProjects] },
+    { title: 'Quality', items: [MENUS.bugs] },
+    { title: 'Account', items: [MENUS.profile] },
+  ],
+  Tester: [
+    { title: 'General', items: [MENUS.dashboard] },
+    { title: 'Workspace', items: [MENUS.myProjects, MENUS.testCases, MENUS.testRuns, MENUS.executions] },
+    { title: 'Quality', items: [MENUS.bugs, MENUS.notifications] },
+    { title: 'Account', items: [MENUS.profile] },
+  ],
+};
+
 export function getNavigation(role?: string): NavSection[] {
-  const sections: NavSection[] = [
-    {
-      title: 'General',
-      items: [
-        { label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD, permissions: [] },
-      ],
-    },
-    {
-      title: 'Workspace',
-      items: [
-        { label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS, permissions: [Permission.PROJECTS_READ] },
-        { label: 'Test Cases', icon: IconTestPipe, route: ROUTES.TEST_CASES, permissions: [Permission.TEST_CASES_READ] },
-        { label: 'Test Runs', icon: IconRocket, route: ROUTES.TEST_RUNS, permissions: [Permission.TEST_RUNS_READ] },
-        { label: 'Executions', icon: IconRocket, route: ROUTES.EXECUTIONS, permissions: [Permission.EXECUTIONS_READ] },
-      ],
-    },
-    {
-      title: 'Quality',
-      items: [
-        { label: 'Bug Reports', icon: IconBug, route: ROUTES.BUGS, permissions: [Permission.BUGS_READ] },
-        { label: 'Notifications', icon: IconBell, route: ROUTES.NOTIFICATIONS, permissions: [Permission.NOTIFICATIONS_READ] },
-      ],
-    },
-  ];
-
-  if (role === 'Manager') {
-    sections.push({
-      title: 'Administration',
-      items: [
-        { label: 'Users', icon: IconUsers, route: ROUTES.USERS, permissions: [Permission.USERS_READ] },
-        { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
-      ],
-    });
-  }
-
-  sections.push({
-    title: 'Account',
-    items: [
-      { label: 'Profile', icon: IconUserCircle, route: ROUTES.PROFILE },
-    ],
-  });
-
-  return sections;
+  return ROLE_MENUS[role || ''] || ROLE_MENUS.Tester;
 }
 
-const routeLabels: Record<string, string> = {
+export const routeLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/projects': 'Projects',
   '/test-cases': 'Test Cases',
@@ -86,23 +76,20 @@ export function getRouteLabel(path: string): string {
     const parent = routeLabels['/' + segments[0]];
     if (parent) return `${parent} / ${segments[segments.length - 1]}`;
   }
-  return segments[segments.length - 1] || 'Home';
+  return segments.at(-1) || 'Home';
 }
 
 export function getBreadcrumbs(path: string): Array<{ label: string; href?: string }> {
+  if (path === '/dashboard') return [{ label: 'Dashboard' }];
   const cleanPath = path.split('?')[0].replace(/\/$/, '');
   const segments = cleanPath.split('/').filter(Boolean);
-  const crumbs: Array<{ label: string; href?: string }> = [{ label: 'Home', href: ROUTES.DASHBOARD }];
-
+  const crumbs: Array<{ label: string; href?: string }> = [{ label: 'Home', href: '/dashboard' }];
   let current = '';
   for (const segment of segments) {
     current += '/' + segment;
-    if (current === cleanPath) {
-      crumbs.push({ label: getRouteLabel(current) });
-    } else {
-      crumbs.push({ label: getRouteLabel(current) || segment, href: current });
-    }
+    crumbs.push(current === cleanPath
+      ? { label: getRouteLabel(current) }
+      : { label: getRouteLabel(current) || segment, href: current });
   }
-
   return crumbs;
 }
