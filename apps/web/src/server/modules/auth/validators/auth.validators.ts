@@ -11,8 +11,20 @@ export const refreshTokenBodySchema = z.object({
 
 export const changePasswordBodySchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password cannot exceed 128 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Must contain at least one number'),
+});
+
+export const idParamSchema = z.object({
+  id: z.string().uuid('Invalid ID format'),
+});
+
+export const paginationQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  search: z.string().optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });

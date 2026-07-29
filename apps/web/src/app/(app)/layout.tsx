@@ -1,9 +1,5 @@
-import AppLayout from "@/components/layout/app-shell";
+import { DashboardLayout } from '../../layouts/dashboard-layout';
 
-interface AppLayoutWrapperProps {
-  children: React.ReactNode;
-}
-
-export default function AppLayoutWrapper({ children }: AppLayoutWrapperProps) {
-  return <AppLayout>{children}</AppLayout>;
+export default function AppGroupLayout({ children }: { children: React.ReactNode }) {
+  return <DashboardLayout>{children}</DashboardLayout>;
 }

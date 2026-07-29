@@ -28,7 +28,7 @@ export const projectRouter = Router();
 projectRouter.get(
   '/',
   requireAuth,
-  validate(listProjectsQuerySchema),
+  validate({ query: listProjectsQuerySchema }),
   projectController.list
 );
 
@@ -36,14 +36,14 @@ projectRouter.post(
   '/',
   requireAuth,
   requireRole('Manager'),
-  validate(createProjectBodySchema),
+  validate({ body: createProjectBodySchema }),
   projectController.create
 );
 
 projectRouter.get(
   '/:id',
   requireAuth,
-  validate(projectParamSchema),
+  validate({ params: projectParamSchema }),
   projectController.getById
 );
 
@@ -51,8 +51,7 @@ projectRouter.patch(
   '/:id',
   requireAuth,
   requireRole('Manager'),
-  validate(projectParamSchema),
-  validate(updateProjectBodySchema),
+  validate({ params: projectParamSchema, body: updateProjectBodySchema }),
   projectController.update
 );
 
@@ -60,28 +59,27 @@ projectRouter.delete(
   '/:id',
   requireAuth,
   requireRole('Manager'),
-  validate(projectParamSchema),
+  validate({ params: projectParamSchema }),
   projectController.delete
 );
 
 projectRouter.post(
   '/:id/members',
   requireAuth,
-  validate(projectParamSchema),
-  validate(addMemberParamSchema),
+  validate({ params: projectParamSchema, body: addMemberParamSchema }),
   projectController.addMember
 );
 
 projectRouter.delete(
   '/:id/members/:userId',
   requireAuth,
-  validate(removeMemberParamSchema),
+  validate({ params: removeMemberParamSchema }),
   projectController.removeMember
 );
 
 projectRouter.get(
   '/:id/members',
   requireAuth,
-  validate(listMembersParamSchema),
+  validate({ params: listMembersParamSchema }),
   projectController.listMembers
 );

@@ -1,5 +1,3 @@
-import { Title } from "@mantine/core";
-
 export default function ExecutionsPage() {
-  return <Title>Executions</Title>;
+  return <div>Executions Page</div>;
 }

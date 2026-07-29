@@ -7,21 +7,21 @@ import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
 import { errorHandler } from './middlewares/error-handler';
 import { authMiddleware } from './middlewares/auth';
-import { requestIdMiddleware, generalLimiter, authLimiter, bodySizeLimiter, securityHeaders } from './middlewares/security';
-import { logger, httpLogger } from './lib/logger';
+import { requestId, generalLimiter, authLimiter, securityHeaders } from './middlewares/security';
+import { logger } from './lib/logger';
+import { ensureConnection } from './lib/prisma';
 import { setupRoutes } from './routes';
 import { swaggerSpec } from './docs/swagger';
 
 const app = express();
 
-app.use(requestIdMiddleware);
+app.use(requestId);
 app.use(helmet());
 app.use(cors(config.cors));
 app.use(compression());
-app.use(pinoHttp({ logger: httpLogger }));
+app.use(pinoHttp({ logger }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-app.use(bodySizeLimiter('1mb'));
 app.use(securityHeaders);
 app.use(generalLimiter);
 
@@ -51,8 +51,21 @@ app.get('/api/version', (_req, res) => {
 app.use(errorHandler);
 
 const PORT = config.port;
-app.listen(PORT, () => {
-  logger.info({ port: PORT }, `🚀 Server running on port ${PORT}`);
+
+async function start() {
+  const dbConnected = await ensureConnection();
+  if (!dbConnected) {
+    logger.warn('Starting without database connection. Some features will be unavailable.');
+  }
+
+  app.listen(PORT, () => {
+    logger.info({ port: PORT }, `🚀 Server running on port ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  logger.error({ err }, 'Failed to start server');
+  process.exit(1);
 });
 
 export default app;

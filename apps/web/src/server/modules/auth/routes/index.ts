@@ -5,20 +5,16 @@ import { AuthService } from '../services/auth.service';
 import { AuthController } from '../controllers/auth.controller';
 import { requireAuth } from '../../../middlewares/auth';
 import { validate } from '../../../middlewares/validate';
-import {
-  loginBodySchema,
-  refreshTokenBodySchema,
-  changePasswordBodySchema,
-} from '../validators/auth.validators';
+import { loginBodySchema, refreshTokenBodySchema, changePasswordBodySchema } from '../validators/auth.validators';
 
-const authRepository = new AuthRepository(prisma);
-const authService = new AuthService(authRepository);
-const authController = new AuthController(authService);
+const repository = new AuthRepository(prisma);
+const service = new AuthService(repository);
+const controller = new AuthController(service);
 
 export const authRouter = Router();
 
-authRouter.post('/login', validate(loginBodySchema), authController.login);
-authRouter.post('/logout', requireAuth, authController.logout);
-authRouter.post('/refresh', validate(refreshTokenBodySchema), authController.refreshToken);
-authRouter.get('/me', requireAuth, authController.getCurrentUser);
-authRouter.patch('/change-password', requireAuth, validate(changePasswordBodySchema), authController.changePassword);
+authRouter.post('/login', validate({ body: loginBodySchema }), controller.login);
+authRouter.post('/logout', requireAuth, controller.logout);
+authRouter.post('/refresh', validate({ body: refreshTokenBodySchema }), controller.refreshToken);
+authRouter.get('/me', requireAuth, controller.getCurrentUser);
+authRouter.patch('/change-password', requireAuth, validate({ body: changePasswordBodySchema }), controller.changePassword);

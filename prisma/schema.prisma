@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 /// Role represents the global role assigned to users in the SIMANTIK system.
@@ -493,10 +494,10 @@ model Permission {
 /// RolePermission links roles to permissions.
 /// Many-to-many relationship between Role and Permission.
 model RolePermission {
-  id           String     @id @default(uuid()) @db.Char(36)
-  roleId       String     @map("role_id") @db.Char(36)
-  permissionId String     @map("permission_id") @db.Char(36)
-  createdAt    DateTime   @default(now()) @map("created_at")
+  id           String   @id @default(uuid()) @db.Char(36)
+  roleId       String   @map("role_id") @db.Char(36)
+  permissionId String   @map("permission_id") @db.Char(36)
+  createdAt    DateTime @default(now()) @map("created_at")
 
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)

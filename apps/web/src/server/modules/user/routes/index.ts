@@ -28,7 +28,7 @@ userRouter.post(
   '/',
   requireAuth,
   requireRole('Manager'),
-  validate(createUserBodySchema),
+  validate({ body: createUserBodySchema }),
   userController.create
 );
 
@@ -36,7 +36,7 @@ userRouter.post(
 userRouter.get(
   '/',
   requireAuth,
-  validate(listUsersQuerySchema),
+  validate({ query: listUsersQuerySchema }),
   userController.list
 );
 
@@ -44,7 +44,7 @@ userRouter.get(
 userRouter.get(
   '/:id',
   requireAuth,
-  validate(userIdParamSchema),
+  validate({ params: userIdParamSchema }),
   userController.getById
 );
 
@@ -53,8 +53,7 @@ userRouter.put(
   '/:id',
   requireAuth,
   requireRole('Manager'),
-  validate(userIdParamSchema),
-  validate(updateUserBodySchema),
+  validate({ params: userIdParamSchema, body: updateUserBodySchema }),
   userController.update
 );
 
@@ -63,7 +62,7 @@ userRouter.delete(
   '/:id',
   requireAuth,
   requireRole('Manager'),
-  validate(userIdParamSchema),
+  validate({ params: userIdParamSchema }),
   userController.delete
 );
 
@@ -72,8 +71,7 @@ userRouter.patch(
   '/:id/reset-password',
   requireAuth,
   requireRole('Manager'),
-  validate(userIdParamSchema),
-  validate(resetPasswordBodySchema),
+  validate({ params: userIdParamSchema, body: resetPasswordBodySchema }),
   userController.resetPassword
 );
 
@@ -82,7 +80,7 @@ userRouter.patch(
   '/:id/activate',
   requireAuth,
   requireRole('Manager'),
-  validate(userIdParamSchema),
+  validate({ params: userIdParamSchema }),
   userController.activate
 );
 
@@ -91,7 +89,7 @@ userRouter.patch(
   '/:id/deactivate',
   requireAuth,
   requireRole('Manager'),
-  validate(userIdParamSchema),
+  validate({ params: userIdParamSchema }),
   userController.deactivate
 );
 
@@ -100,7 +98,6 @@ userRouter.patch(
   '/:id/change-role',
   requireAuth,
   requireRole('Manager'),
-  validate(userIdParamSchema),
-  validate(changeRoleBodySchema),
+  validate({ params: userIdParamSchema, body: changeRoleBodySchema }),
   userController.changeRole
 );

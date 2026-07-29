@@ -1,17 +1,27 @@
-import { z } from 'zod';
-import {
-  loginBodySchema,
-  refreshTokenBodySchema,
-  changePasswordBodySchema,
-} from '../validators/auth.validators';
+export interface LoginDTO {
+  email: string;
+  password: string;
+}
 
-export type LoginDTO = z.infer<typeof loginBodySchema>;
-export type RefreshTokenDTO = z.infer<typeof refreshTokenBodySchema>;
-export type ChangePasswordDTO = z.infer<typeof changePasswordBodySchema>;
+export interface RefreshTokenDTO {
+  refreshToken: string;
+}
+
+export interface ChangePasswordDTO {
+  currentPassword: string;
+  newPassword: string;
+}
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface AuthResponseDTO {
+  user?: UserResponseDTO;
+  accessToken: string;
+  refreshToken: string;
+  mustChangePassword: boolean;
 }
 
 export interface UserResponseDTO {
@@ -23,24 +33,27 @@ export interface UserResponseDTO {
   jobTitle: string | null;
   bio: string | null;
   isActive: boolean;
-  mustChangePassword: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
-  role: {
-    id: string;
-    name: string;
-  };
+  role: { id: string; name: string };
 }
 
-export interface AuthResponseDTO {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
-  mustChangePassword: boolean;
-  user?: UserResponseDTO;
 }
 
 export interface JWTPayload {
   id: string;
   email: string;
   roleId: string;
+}
+
+export interface RefreshTokenDTO {
+  refreshToken: string;
+}
+
+export interface ChangePasswordDTO {
+  currentPassword: string;
+  newPassword: string;
 }

@@ -1,46 +1,32 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../../middlewares/auth';
 import { AuthService } from '../services/auth.service';
-import { AppError } from '../../../middlewares/error-handler';
-import { ApiResponse } from '../../../utils/api-response';
-import {
-  loginBodySchema,
-  refreshTokenBodySchema,
-  changePasswordBodySchema,
-} from '../validators/auth.validators';
+import { ApiResponse } from '../../../lib/api-response';
 
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  login = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const body = loginBodySchema.parse(req.body);
-      const result = await this.authService.login(body);
+      const result = await this.authService.login(req.body);
       ApiResponse.success(res, result);
     } catch (error) { next(error); }
   };
 
-  logout = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      res.status(200).json({
-        success: true,
-        message: 'Logged out successfully',
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) { next(error); }
+  logout = async (_req: AuthRequest, res: Response): Promise<void> => {
+    ApiResponse.success(res, { message: 'Logged out successfully' });
   };
 
-  refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  refreshToken = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const body = refreshTokenBodySchema.parse(req.body);
-      const tokens = await this.authService.refreshToken(body);
+      const tokens = await this.authService.refresh(req.body);
       ApiResponse.success(res, tokens);
     } catch (error) { next(error); }
   };
 
   getCurrentUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.user) throw new AppError(401, 'Authentication required');
+      if (!req.user) { res.status(401).json({ success: false, message: 'Authentication required', errors: [] }); return; }
       const user = await this.authService.getCurrentUser(req.user.id);
       ApiResponse.success(res, user);
     } catch (error) { next(error); }
@@ -48,9 +34,8 @@ export class AuthController {
 
   changePassword = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.user) throw new AppError(401, 'Authentication required');
-      const body = changePasswordBodySchema.parse(req.body);
-      await this.authService.changePassword(req.user.id, body);
+      if (!req.user) { res.status(401).json({ success: false, message: 'Authentication required', errors: [] }); return; }
+      await this.authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword);
       ApiResponse.success(res, { message: 'Password changed successfully' });
     } catch (error) { next(error); }
   };

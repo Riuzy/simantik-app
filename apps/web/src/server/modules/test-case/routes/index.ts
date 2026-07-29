@@ -26,7 +26,7 @@ export const testCaseRouter = Router();
 testCaseRouter.get(
   '/',
   requireAuth,
-  validate(listTestCasesQuerySchema),
+  validate({ query: listTestCasesQuerySchema }),
   testCaseController.list
 );
 
@@ -34,14 +34,14 @@ testCaseRouter.post(
   '/',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(createTestCaseBodySchema),
+  validate({ body: createTestCaseBodySchema }),
   testCaseController.create
 );
 
 testCaseRouter.get(
   '/:id',
   requireAuth,
-  validate(idParamSchema),
+  validate({ params: idParamSchema }),
   testCaseController.getById
 );
 
@@ -49,8 +49,7 @@ testCaseRouter.patch(
   '/:id',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(idParamSchema),
-  validate(updateTestCaseBodySchema),
+  validate({ params: idParamSchema, body: updateTestCaseBodySchema }),
   testCaseController.update
 );
 
@@ -58,7 +57,7 @@ testCaseRouter.delete(
   '/:id',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(idParamSchema),
+  validate({ params: idParamSchema }),
   testCaseController.delete
 );
 
@@ -66,8 +65,7 @@ testCaseRouter.post(
   '/:id/duplicate',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(idParamSchema),
-  validate(duplicateBodySchema),
+  validate({ params: idParamSchema, body: duplicateBodySchema }),
   testCaseController.duplicate
 );
 
@@ -75,8 +73,7 @@ testCaseRouter.post(
   '/:id/clone',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(idParamSchema),
-  validate(cloneBodySchema),
+  validate({ params: idParamSchema, body: cloneBodySchema }),
   testCaseController.clone
 );
 
@@ -90,14 +87,14 @@ testCaseRouter.post(
   '/:testCaseId/steps',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(createStepBodySchema),
+  validate({ body: createStepBodySchema }),
   testCaseController.addStep
 );
 
 testCaseRouter.get(
   '/:testCaseId/steps/:stepNumber',
   requireAuth,
-  validate(testCaseAndStepParamSchema),
+  validate({ params: testCaseAndStepParamSchema }),
   testCaseController.getStep
 );
 
@@ -105,8 +102,7 @@ testCaseRouter.patch(
   '/:testCaseId/steps/:stepNumber',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(testCaseAndStepParamSchema),
-  validate(updateStepBodySchema),
+  validate({ params: testCaseAndStepParamSchema, body: updateStepBodySchema }),
   testCaseController.updateStep
 );
 
@@ -114,6 +110,6 @@ testCaseRouter.delete(
   '/:testCaseId/steps/:stepNumber',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(testCaseAndStepParamSchema),
+  validate({ params: testCaseAndStepParamSchema }),
   testCaseController.deleteStep
 );

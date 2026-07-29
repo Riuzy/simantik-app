@@ -17,9 +17,9 @@ const notificationController = new NotificationController(notificationService);
 
 export const notificationRouter = Router();
 
-notificationRouter.get('/', requireAuth, validate(listNotificationsQuerySchema), notificationController.list);
+notificationRouter.get('/', requireAuth, validate({ query: listNotificationsQuerySchema }), notificationController.list);
 notificationRouter.get('/unread-count', requireAuth, notificationController.getUnreadCount);
-notificationRouter.get('/:id', requireAuth, validate(idParamSchema), notificationController.getById);
-notificationRouter.patch('/mark-read', requireAuth, validate(markReadBodySchema), notificationController.markAsRead);
+notificationRouter.get('/:id', requireAuth, validate({ params: idParamSchema }), notificationController.getById);
+notificationRouter.patch('/mark-read', requireAuth, validate({ body: markReadBodySchema }), notificationController.markAsRead);
 notificationRouter.patch('/mark-all-read', requireAuth, notificationController.markAllAsRead);
-notificationRouter.delete('/:id', requireAuth, validate(idParamSchema), notificationController.delete);
+notificationRouter.delete('/:id', requireAuth, validate({ params: idParamSchema }), notificationController.delete);

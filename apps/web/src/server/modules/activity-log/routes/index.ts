@@ -16,5 +16,5 @@ const activityLogController = new ActivityLogController(activityLogService);
 
 export const activityLogRouter = Router();
 
-activityLogRouter.get('/', requireAuth, validate(listActivityLogsQuerySchema), activityLogController.list);
-activityLogRouter.get('/:entity/:id', requireAuth, validate(idParamSchema), activityLogController.listByEntity);
+activityLogRouter.get('/', requireAuth, validate({ query: listActivityLogsQuerySchema }), activityLogController.list);
+activityLogRouter.get('/:entity/:id', requireAuth, validate({ params: idParamSchema }), activityLogController.listByEntity);

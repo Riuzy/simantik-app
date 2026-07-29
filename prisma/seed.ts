@@ -2,210 +2,169 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const PERMISSIONS = [
-  // Project module (4)
-  { code: 'project.view', title: 'View Project', description: 'View project details and list projects', module: 'project' },
-  { code: 'project.create', title: 'Create Project', description: 'Create new projects', module: 'project' },
-  { code: 'project.update', title: 'Update Project', description: 'Edit project information', module: 'project' },
-  { code: 'project.delete', title: 'Delete Project', description: 'Remove projects', module: 'project' },
-
-  // Project Member module (2)
-  { code: 'project.member.add', title: 'Add Project Member', description: 'Add users to project', module: 'project_member' },
-  { code: 'project.member.remove', title: 'Remove Project Member', description: 'Remove users from project', module: 'project_member' },
-
-  // Test Case module (4)
-  { code: 'testcase.view', title: 'View Test Case', description: 'View test case details and list test cases', module: 'testcase' },
-  { code: 'testcase.create', title: 'Create Test Case', description: 'Create new test cases', module: 'testcase' },
-  { code: 'testcase.update', title: 'Update Test Case', description: 'Edit test case information', module: 'testcase' },
-  { code: 'testcase.delete', title: 'Delete Test Case', description: 'Remove test cases', module: 'testcase' },
-
-  // Test Run module (3)
-  { code: 'testrun.view', title: 'View Test Run', description: 'View test run details and list test runs', module: 'testrun' },
-  { code: 'testrun.create', title: 'Create Test Run', description: 'Create new test runs', module: 'testrun' },
-  { code: 'testrun.execute', title: 'Execute Test Run', description: 'Start and run test executions', module: 'testrun' },
-
-  // Execution module (2)
-  { code: 'execution.view', title: 'View Execution', description: 'View execution details', module: 'execution' },
-  { code: 'execution.update', title: 'Update Execution', description: 'Update execution status and results', module: 'execution' },
-
-  // Bug module (5)
-  { code: 'bug.view', title: 'View Bug', description: 'View bug report details and list bugs', module: 'bug' },
-  { code: 'bug.create', title: 'Create Bug', description: 'Create new bug reports', module: 'bug' },
-  { code: 'bug.assign', title: 'Assign Bug', description: 'Assign bugs to developers', module: 'bug' },
-  { code: 'bug.resolve', title: 'Resolve Bug', description: 'Mark bugs as resolved', module: 'bug' },
-  { code: 'bug.close', title: 'Close Bug', description: 'Close bug reports', module: 'bug' },
-
-  // Users module (4)
-  { code: 'user.view', title: 'View User', description: 'View user profiles and list users', module: 'user' },
-  { code: 'user.create', title: 'Create User', description: 'Create new user accounts', module: 'user' },
-  { code: 'user.update', title: 'Update User', description: 'Edit user account information', module: 'user' },
-  { code: 'user.delete', title: 'Delete User', description: 'Remove user accounts', module: 'user' },
-
-  // Roles module (2)
-  { code: 'role.view', title: 'View Role', description: 'View role details and list roles', module: 'role' },
-  { code: 'role.update', title: 'Update Role', description: 'Modify role permissions', module: 'role' },
-
-  // Profile module (2)
-  { code: 'profile.view', title: 'View Profile', description: 'View own user profile', module: 'profile' },
-  { code: 'profile.update', title: 'Update Profile', description: 'Edit own user profile', module: 'profile' },
-
-  // Notifications module (2)
-  { code: 'notification.view', title: 'View Notifications', description: 'View notification list', module: 'notification' },
-  { code: 'notification.read', title: 'Read Notification', description: 'Mark notifications as read', module: 'notification' },
-
-  // Activity module (1)
-  { code: 'activity.view', title: 'View Activity', description: 'View activity logs', module: 'activity' },
-] as const;
-
-function permissionCodes(...codes: string[]): string[] {
-  return codes;
+async function hashPassword(password: string): Promise<string> {
+  const bcrypt = await import('bcrypt');
+  return bcrypt.hash(password, 10);
 }
 
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  Manager: permissionCodes(
-    // All permissions
-    ...PERMISSIONS.map(p => p.code)
-  ),
-  Tester: permissionCodes(
-    // Project - view only
-    'project.view',
-    // Test Case - view, create, update (not delete)
-    'testcase.view',
-    'testcase.create',
-    'testcase.update',
-    // Test Run - view, create, execute
-    'testrun.view',
-    'testrun.create',
-    'testrun.execute',
-    // Execution - view, update
-    'execution.view',
-    'execution.update',
-    // Bug - view, create, close (not assign, not resolve)
-    'bug.view',
-    'bug.create',
-    'bug.close',
-    // Profile - own
-    'profile.view',
-    'profile.update',
-    // Notifications
-    'notification.view',
-    'notification.read',
-    // Activity
-    'activity.view'
-  ),
-  Developer: permissionCodes(
-    // Project - view only
-    'project.view',
-    // Test Case - view only
-    'testcase.view',
-    // Test Run - view only
-    'testrun.view',
-    // Execution - view only
-    'execution.view',
-    // Bug - view, resolve (not create, assign, close)
-    'bug.view',
-    'bug.resolve',
-    // Profile - own
-    'profile.view',
-    'profile.update',
-    // Notifications
-    'notification.view',
-    'notification.read'
-  ),
+const PERMISSIONS = [
+  { code: 'dashboard.view', title: 'View Dashboard', description: 'View the main dashboard', module: 'Dashboard' },
+  { code: 'project.view', title: 'View Project', description: 'View project details and list projects', module: 'Project' },
+  { code: 'project.create', title: 'Create Project', description: 'Create new projects', module: 'Project' },
+  { code: 'project.update', title: 'Update Project', description: 'Edit existing projects', module: 'Project' },
+  { code: 'project.delete', title: 'Delete Project', description: 'Delete projects', module: 'Project' },
+  { code: 'project-member.view', title: 'View Project Members', description: 'View project member list', module: 'Project Member' },
+  { code: 'project-member.add', title: 'Add Project Member', description: 'Add members to project', module: 'Project Member' },
+  { code: 'project-member.remove', title: 'Remove Project Member', description: 'Remove members from project', module: 'Project Member' },
+  { code: 'test-case.view', title: 'View Test Case', description: 'View test case details and list', module: 'Test Case' },
+  { code: 'test-case.create', title: 'Create Test Case', description: 'Create new test cases', module: 'Test Case' },
+  { code: 'test-case.update', title: 'Update Test Case', description: 'Edit test cases', module: 'Test Case' },
+  { code: 'test-case.delete', title: 'Delete Test Case', description: 'Delete test cases', module: 'Test Case' },
+  { code: 'test-step.view', title: 'View Test Steps', description: 'View test case steps', module: 'Test Step' },
+  { code: 'test-step.create', title: 'Create Test Step', description: 'Add steps to test cases', module: 'Test Step' },
+  { code: 'test-step.update', title: 'Update Test Step', description: 'Edit test steps', module: 'Test Step' },
+  { code: 'test-step.delete', title: 'Delete Test Step', description: 'Remove test steps', module: 'Test Step' },
+  { code: 'test-run.view', title: 'View Test Run', description: 'View test run details and list', module: 'Test Run' },
+  { code: 'test-run.create', title: 'Create Test Run', description: 'Create new test runs', module: 'Test Run' },
+  { code: 'test-run.update', title: 'Update Test Run', description: 'Edit test runs', module: 'Test Run' },
+  { code: 'test-run.delete', title: 'Delete Test Run', description: 'Delete test runs', module: 'Test Run' },
+  { code: 'test-run.start', title: 'Start Test Run', description: 'Start a test run execution', module: 'Test Run' },
+  { code: 'test-run.finish', title: 'Finish Test Run', description: 'Finish a test run', module: 'Test Run' },
+  { code: 'execution.view', title: 'View Execution', description: 'View execution details and list', module: 'Execution' },
+  { code: 'execution.create', title: 'Create Execution', description: 'Create new execution', module: 'Execution' },
+  { code: 'execution.update', title: 'Update Execution', description: 'Update execution status and results', module: 'Execution' },
+  { code: 'execution-result.view', title: 'View Execution Result', description: 'View test execution results', module: 'Execution Result' },
+  { code: 'execution-result.update', title: 'Update Execution Result', description: 'Update test execution results', module: 'Execution Result' },
+  { code: 'bug-report.view', title: 'View Bug Report', description: 'View bug report details and list', module: 'Bug Report' },
+  { code: 'bug-report.create', title: 'Create Bug Report', description: 'Create new bug reports', module: 'Bug Report' },
+  { code: 'bug-report.update', title: 'Update Bug Report', description: 'Edit bug reports', module: 'Bug Report' },
+  { code: 'bug-report.delete', title: 'Delete Bug Report', description: 'Delete bug reports', module: 'Bug Report' },
+  { code: 'bug-report.assign', title: 'Assign Bug Report', description: 'Assign bugs to users', module: 'Bug Report' },
+  { code: 'bug-report.resolve', title: 'Resolve Bug Report', description: 'Mark bugs as resolved', module: 'Bug Report' },
+  { code: 'bug-report.close', title: 'Close Bug Report', description: 'Close bug reports', module: 'Bug Report' },
+  { code: 'bug-report.reopen', title: 'Reopen Bug Report', description: 'Reopen closed bug reports', module: 'Bug Report' },
+  { code: 'bug-comment.view', title: 'View Bug Comments', description: 'View comments on bug reports', module: 'Bug Comment' },
+  { code: 'bug-comment.create', title: 'Create Bug Comment', description: 'Add comments to bug reports', module: 'Bug Comment' },
+  { code: 'bug-comment.delete', title: 'Delete Bug Comment', description: 'Delete bug comments', module: 'Bug Comment' },
+  { code: 'bug-attachment.view', title: 'View Attachments', description: 'View bug report attachments', module: 'Bug Attachment' },
+  { code: 'bug-attachment.create', title: 'Create Attachment', description: 'Upload attachments to bugs', module: 'Bug Attachment' },
+  { code: 'bug-attachment.delete', title: 'Delete Attachment', description: 'Delete bug attachments', module: 'Bug Attachment' },
+  { code: 'bug-history.view', title: 'View Bug History', description: 'View bug report change history', module: 'Bug History' },
+  { code: 'notification.view', title: 'View Notifications', description: 'View notification list', module: 'Notification' },
+  { code: 'notification.read', title: 'Read Notification', description: 'Mark notifications as read', module: 'Notification' },
+  { code: 'activity-log.view', title: 'View Activity Log', description: 'View system activity logs', module: 'Activity Log' },
+  { code: 'uploaded-file.view', title: 'View Uploaded Files', description: 'View uploaded file list', module: 'Uploaded File' },
+  { code: 'uploaded-file.create', title: 'Upload File', description: 'Upload new files', module: 'Uploaded File' },
+  { code: 'uploaded-file.delete', title: 'Delete Uploaded File', description: 'Delete uploaded files', module: 'Uploaded File' },
+  { code: 'profile.view', title: 'View Profile', description: 'View own user profile', module: 'Profile' },
+  { code: 'profile.update', title: 'Update Profile', description: 'Edit own user profile', module: 'Profile' },
+  { code: 'role.view', title: 'View Roles', description: 'View role list and details', module: 'Role' },
+  { code: 'role.update', title: 'Update Role', description: 'Modify role permissions', module: 'Role' },
+  { code: 'permission.view', title: 'View Permissions', description: 'View permission list', module: 'Permission' },
+  { code: 'user.view', title: 'View Users', description: 'View user list and details', module: 'User' },
+  { code: 'user.create', title: 'Create User', description: 'Create new user accounts', module: 'User' },
+  { code: 'user.update', title: 'Update User', description: 'Edit user accounts', module: 'User' },
+  { code: 'user.delete', title: 'Delete User', description: 'Delete user accounts', module: 'User' },
+];
+
+const ROLE_PERMISSION_MAP: Record<string, string[]> = {
+  Manager: PERMISSIONS.map(p => p.code),
+  Developer: [
+    'dashboard.view', 'project.view',
+    'test-case.view', 'test-step.view',
+    'bug-report.view', 'bug-report.create', 'bug-report.update', 'bug-report.assign', 'bug-report.resolve', 'bug-report.close', 'bug-report.reopen',
+    'bug-comment.view', 'bug-comment.create',
+    'bug-attachment.view', 'bug-attachment.create',
+    'bug-history.view',
+    'notification.view', 'notification.read',
+    'activity-log.view', 'profile.view', 'profile.update',
+  ],
+  Tester: [
+    'dashboard.view', 'project.view',
+    'test-case.view', 'test-case.create', 'test-case.update',
+    'test-step.view', 'test-step.create', 'test-step.update',
+    'test-run.view', 'test-run.create', 'test-run.update', 'test-run.start', 'test-run.finish',
+    'execution.view', 'execution.create', 'execution.update',
+    'execution-result.view', 'execution-result.update',
+    'bug-report.view', 'bug-report.create', 'bug-report.update',
+    'bug-comment.view', 'bug-comment.create',
+    'bug-attachment.view', 'bug-attachment.create',
+    'bug-history.view',
+    'notification.view', 'notification.read',
+    'activity-log.view', 'profile.view', 'profile.update',
+  ],
 };
 
-async function main() {
-  console.log('🚀 Starting permission seeder...\n');
+async function seedRole() {
+  for (const name of ['Manager', 'Developer', 'Tester']) {
+    await prisma.role.upsert({ where: { name }, update: {}, create: { name } });
+  }
+  console.log('Roles: Manager, Developer, Tester');
+}
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Seed permissions
-    console.log('📦 Seeding permissions...');
-    let createdCount = 0;
-    let skippedCount = 0;
+async function seedPermission() {
+  let created = 0, skipped = 0;
+  for (const perm of PERMISSIONS) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: { title: perm.title, description: perm.description, module: perm.module },
+      create: { code: perm.code, title: perm.title, description: perm.description, module: perm.module },
+    });
+    const existing = await prisma.permission.findUnique({ where: { code: perm.code } });
+    if (existing && existing.title === perm.title) skipped++; else created++;
+  }
+  console.log(`Permissions: ${PERMISSIONS.length} total`);
+}
 
-    for (const perm of PERMISSIONS) {
-      const existing = await tx.permission.findUnique({
-        where: { code: perm.code },
-      });
-      if (!existing) {
-        await tx.permission.create({ data: perm });
-        createdCount++;
-      } else {
-        skippedCount++;
-      }
-    }
-
-    console.log(`   ✅ Created: ${createdCount}, Skipped: ${skippedCount}`);
-
-    const allPermissions = await tx.permission.findMany();
-    const permissionMap = new Map(allPermissions.map(p => [p.code, p.id]));
-
-    // Seed role-permission assignments
-    console.log('\n📦 Assigning permissions to roles...');
-
-    for (const [roleName, codes] of Object.entries(ROLE_PERMISSIONS)) {
-      const role = await tx.role.findUnique({ where: { name: roleName } });
-      if (!role) {
-        console.log(`   ⚠️  Role "${roleName}" not found. Skipping.`);
-        continue;
-      }
-
-      let assignedCount = 0;
-      let alreadyAssignedCount = 0;
-
-      for (const code of codes) {
-        const permissionId = permissionMap.get(code);
-        if (!permissionId) {
-          console.log(`   Permission "${code}" not found. Skipping.`);
-          continue;
-        }
-
-        const existing = await tx.rolePermission.findUnique({
-          where: {
-            roleId_permissionId: {
-              roleId: role.id,
-              permissionId,
-            },
-          },
-        });
-
-        if (!existing) {
-          await tx.rolePermission.create({
-            data: {
-              roleId: role.id,
-              permissionId,
-            },
-          });
-          assignedCount++;
-        } else {
-          alreadyAssignedCount++;
-        }
-      }
-
-      console.log(`   👤 ${roleName}: Assigned ${assignedCount}, Already existed ${alreadyAssignedCount}`);
-    }
-
-    return { allPermissions };
-  });
-
-  // Summary
-  console.log('\n📋 Summary:');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-  for (const [roleName, codes] of Object.entries(ROLE_PERMISSIONS)) {
-    console.log(`\n${roleName}:`);
+async function seedRolePermission() {
+  const allPerms = await prisma.permission.findMany();
+  const permMap = new Map(allPerms.map(p => [p.code, p.id]));
+  for (const [roleName, codes] of Object.entries(ROLE_PERMISSION_MAP)) {
+    const role = await prisma.role.findUnique({ where: { name: roleName } });
+    if (!role) { console.warn(`Role ${roleName} not found`); continue; }
+    let a = 0, s = 0;
     for (const code of codes) {
-      const perm = PERMISSIONS.find(p => p.code === code);
-      console.log(`  ✅ ${code} — ${perm?.title}`);
+      const pid = permMap.get(code);
+      if (!pid) { console.warn(`Permission ${code} not found`); continue; }
+      const e = await prisma.rolePermission.findUnique({ where: { roleId_permissionId: { roleId: role.id, permissionId: pid } } });
+      if (e) { s++; continue; }
+      await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: pid } });
+      a++;
     }
+    console.log(`  ${roleName}: ${a} assigned, ${s} exist`);
   }
 }
 
-main()
-  .catch((e) => {
-    console.error('\n❌ Seeding failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+async function seedUser() {
+  const pw = await hashPassword('Password123!');
+  const m = await prisma.role.findUnique({ where: { name: 'Manager' } });
+  const d = await prisma.role.findUnique({ where: { name: 'Developer' } });
+  const t = await prisma.role.findUnique({ where: { name: 'Tester' } });
+  if (!m || !d || !t) throw new Error('Roles not found');
+
+  const users = [
+    { name: 'System Manager', email: 'manager@simantik.local', pw, rid: m.id, job: 'QA Manager' },
+    { name: 'System Developer', email: 'developer@simantik.local', pw, rid: d.id, job: 'Software Developer' },
+    { name: 'System Tester', email: 'tester@simantik.local', pw, rid: t.id, job: 'QA Engineer' },
+  ];
+
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: { name: u.name, roleId: u.rid, jobTitle: u.job, isActive: true, mustChangePassword: false },
+      create: { name: u.name, email: u.email, password: u.pw, roleId: u.rid, jobTitle: u.job, isActive: true, tokenVersion: 0, mustChangePassword: false },
+    });
+  }
+  console.log('Users: 3 (Manager, Developer, Tester)');
+}
+
+async function main() {
+  console.log('Seeding...');
+  await seedRole();
+  await seedPermission();
+  await seedRolePermission();
+  await seedUser();
+  console.log('Done');
+}
+
+main().catch(e => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());

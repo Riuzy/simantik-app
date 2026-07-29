@@ -29,7 +29,7 @@ export const bugRouter = Router();
 bugRouter.get(
   '/',
   requireAuth,
-  validate(listBugsQuerySchema),
+  validate({ query: listBugsQuerySchema }),
   bugController.listBugs
 );
 
@@ -37,14 +37,14 @@ bugRouter.post(
   '/',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(createBugBodySchema),
+  validate({ body: createBugBodySchema }),
   bugController.createBug
 );
 
 bugRouter.get(
   '/:id',
   requireAuth,
-  validate(bugIdParamSchema),
+  validate({ params: bugIdParamSchema }),
   bugController.getBugById
 );
 
@@ -52,8 +52,7 @@ bugRouter.patch(
   '/:id',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(bugIdParamSchema),
-  validate(updateBugBodySchema),
+  validate({ params: bugIdParamSchema, body: updateBugBodySchema }),
   bugController.updateBug
 );
 
@@ -61,7 +60,7 @@ bugRouter.delete(
   '/:id',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(bugIdParamSchema),
+  validate({ params: bugIdParamSchema }),
   bugController.deleteBug
 );
 
@@ -69,8 +68,7 @@ bugRouter.patch(
   '/:id/assign',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(bugIdParamSchema),
-  validate(assignBugBodySchema),
+  validate({ params: bugIdParamSchema, body: assignBugBodySchema }),
   bugController.assignBug
 );
 
@@ -78,7 +76,7 @@ bugRouter.patch(
   '/:id/in-progress',
   requireAuth,
   requireRole('Manager', 'Tester', 'Developer'),
-  validate(bugIdParamSchema),
+  validate({ params: bugIdParamSchema }),
   bugController.inProgressBug
 );
 
@@ -86,7 +84,7 @@ bugRouter.patch(
   '/:id/resolve',
   requireAuth,
   requireRole('Manager', 'Developer'),
-  validate(bugIdParamSchema),
+  validate({ params: bugIdParamSchema }),
   bugController.resolveBug
 );
 
@@ -94,7 +92,7 @@ bugRouter.patch(
   '/:id/close',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(bugIdParamSchema),
+  validate({ params: bugIdParamSchema }),
   bugController.closeBug
 );
 
@@ -102,61 +100,56 @@ bugRouter.patch(
   '/:id/reopen',
   requireAuth,
   requireRole('Manager', 'Tester'),
-  validate(bugIdParamSchema),
+  validate({ params: bugIdParamSchema }),
   bugController.reopenBug
 );
 
 bugRouter.post(
   '/:bugId/comments',
   requireAuth,
-  validate(bugIdParamSchema),
-  validate(createCommentBodySchema),
+  validate({ params: bugIdParamSchema, body: createCommentBodySchema }),
   bugController.addComment
 );
 
 bugRouter.get(
   '/:bugId/comments',
   requireAuth,
-  validate(bugIdParamSchema),
-  validate(listCommentsQuerySchema),
+  validate({ params: bugIdParamSchema, query: listCommentsQuerySchema }),
   bugController.listComments
 );
 
 bugRouter.delete(
   '/:bugId/comments/:commentId',
   requireAuth,
-  validate(bugCommentParamSchema),
+  validate({ params: bugCommentParamSchema }),
   bugController.deleteComment
 );
 
 bugRouter.post(
   '/:bugId/attachments',
   requireAuth,
-  validate(bugIdParamSchema),
-  validate(createAttachmentBodySchema),
+  validate({ params: bugIdParamSchema, body: createAttachmentBodySchema }),
   bugController.addAttachment
 );
 
 bugRouter.get(
   '/:bugId/attachments',
   requireAuth,
-  validate(bugIdParamSchema),
-  validate(listAttachmentsQuerySchema),
+  validate({ params: bugIdParamSchema, query: listAttachmentsQuerySchema }),
   bugController.listAttachments
 );
 
 bugRouter.delete(
   '/:bugId/attachments/:attachmentId',
   requireAuth,
-  validate(bugAttachmentParamSchema),
+  validate({ params: bugAttachmentParamSchema }),
   bugController.deleteAttachment
 );
 
 bugRouter.get(
   '/:bugId/history',
   requireAuth,
-  validate(bugIdParamSchema),
-  validate(listHistoryQuerySchema),
+  validate({ params: bugIdParamSchema, query: listHistoryQuerySchema }),
   bugController.listHistory
 );
 

@@ -1,15 +1,5 @@
-import { Container, Center, Box } from "@mantine/core";
+import { AuthLayout } from '../../layouts/auth-layout';
 
-interface AuthLayoutProps {
-  children: React.ReactNode;
-}
-
-export default function AuthLayout({ children }: AuthLayoutProps) {
-  return (
-    <Container size="xs" h="100vh">
-      <Center h="100%">
-        <Box w="100%">{children}</Box>
-      </Center>
-    </Container>
-  );
+export default function AuthGroupLayout({ children }: { children: React.ReactNode }) {
+  return <AuthLayout>{children}</AuthLayout>;
 }
