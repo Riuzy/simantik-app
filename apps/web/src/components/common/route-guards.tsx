@@ -8,12 +8,24 @@ import { useCurrentUser } from '../../features/auth/hooks/use-auth';
 import { useRole, usePermission } from '../../features/auth/hooks/use-permissions';
 import { ROUTES } from '../../constants/routes';
 
+function LoadingScreen({ message = 'Memuat...' }: { message?: string }) {
+  return (
+    <Center h="100vh">
+      <Stack align="center" gap="md">
+        <Loader size="lg" />
+        <Text c="dimmed">{message}</Text>
+      </Stack>
+    </Center>
+  );
+}
+
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { token, user } = useAuthStore();
+  const { token, user, hydrated } = useAuthStore();
   const router = useRouter();
   const { isFetched } = useCurrentUser();
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!token) {
       router.push(ROUTES.LOGIN);
       return;
@@ -21,65 +33,43 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (isFetched && user?.mustChangePassword) {
       router.push('/change-password?firstLogin=true');
     }
-  }, [token, isFetched, user, router]);
+  }, [hydrated, token, isFetched, user, router]);
 
-  if (!token) return <Center h="100vh"><Loader /></Center>;
+  if (!hydrated) return <LoadingScreen message="Memuat sesi..." />;
 
-  if (user && user.mustChangePassword) return null;
+  if (!token) return null;
 
-  if (!isFetched) {
-    return (
-      <Center h="100vh">
-        <Stack align="center" gap="md">
-          <Loader size="lg" />
-          <Text c="dimmed">Restoring session...</Text>
-        </Stack>
-      </Center>
-    );
-  }
+  if (user?.mustChangePassword) return null;
+
+  if (!isFetched && token) return <LoadingScreen message="Memulihkan sesi..." />;
 
   return <>{children}</>;
 }
 
 export function GuestRoute({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((s) => s.token);
+  const { token, hydrated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (token) {
-      router.push(ROUTES.DASHBOARD);
-    }
-  }, [token, router]);
+    if (!hydrated) return;
+    if (token) router.push(ROUTES.DASHBOARD);
+  }, [hydrated, token, router]);
 
-  if (token) return <Center h="100vh"><Loader /></Center>;
+  if (!hydrated) return <LoadingScreen />;
+
+  if (token) return null;
 
   return <>{children}</>;
 }
 
-export function RoleGuard({
-  children,
-  roles,
-}: {
-  children: React.ReactNode;
-  roles: string[];
-}) {
+export function RoleGuard({ children, roles }: { children: React.ReactNode; roles: string[] }) {
   const { hasRole } = useRole();
-
   if (!hasRole(...roles)) return null;
-
   return <>{children}</>;
 }
 
-export function PermissionGuard({
-  children,
-  permissions,
-}: {
-  children: React.ReactNode;
-  permissions: string[];
-}) {
+export function PermissionGuard({ children, permissions }: { children: React.ReactNode; permissions: string[] }) {
   const { hasPermission } = usePermission();
-
   if (!hasPermission(...permissions)) return null;
-
   return <>{children}</>;
 }

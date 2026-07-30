@@ -20,6 +20,7 @@ export const API = {
     DETAIL: (id: string) => `/projects/${id}`,
     MEMBERS: (id: string) => `/projects/${id}/members`,
     MEMBER_DETAIL: (projectId: string, userId: string) => `/projects/${projectId}/members/${userId}`,
+    AVAILABLE_MEMBERS: (id: string) => `/projects/${id}/available-members`,
   },
   TEST_CASES: {
     BASE: '/test-cases',

@@ -3,6 +3,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   PROJECTS: '/projects',
   PROJECT_DETAIL: (id: string) => `/projects/${id}`,
+  PROJECT_EDIT: (id: string) => `/projects/${id}/edit`,
   TEST_CASES: '/test-cases',
   TEST_CASE_DETAIL: (id: string) => `/test-cases/${id}`,
   TEST_RUNS: '/test-runs',

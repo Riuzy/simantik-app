@@ -5,6 +5,8 @@ import { ProjectService } from '../services/project.service';
 import { ProjectController } from '../controllers/project.controller';
 import { UserRepository } from '../../user/repositories/user.repository';
 import { UserService } from '../../user/services/user.service';
+import { NotificationRepository } from '../../notification/repositories/notification.repository';
+import { NotificationService } from '../../notification/services/notification.service';
 import { requireAuth, requireRole } from '../../../middlewares/auth';
 import { validate } from '../../../middlewares/validate';
 import {
@@ -21,7 +23,9 @@ const projectRepository = new ProjectRepository(prisma);
 const userRepository = new UserRepository(prisma);
 const userService = new UserService(userRepository);
 const projectService = new ProjectService(projectRepository);
-const projectController = new ProjectController(projectService, userService);
+const notificationRepository = new NotificationRepository(prisma);
+const notificationService = new NotificationService(notificationRepository);
+const projectController = new ProjectController(projectService, userService, notificationService);
 
 export const projectRouter = Router();
 
@@ -82,4 +86,11 @@ projectRouter.get(
   requireAuth,
   validate({ params: listMembersParamSchema }),
   projectController.listMembers
+);
+
+projectRouter.get(
+  '/:id/available-members',
+  requireAuth,
+  validate({ params: listMembersParamSchema }),
+  projectController.listAvailableMembers
 );

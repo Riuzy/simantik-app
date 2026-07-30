@@ -162,7 +162,7 @@ const swaggerDefinition = {
           name: { type: 'string' },
           slug: { type: 'string' },
           description: { type: 'string', nullable: true },
-          status: { type: 'string', enum: ['PLANNING', 'ACTIVE', 'TESTING', 'COMPLETED', 'ARCHIVED'] },
+          status: { type: 'string', enum: ['ACTIVE', 'COMPLETED'] },
           startDate: { type: 'string', format: 'date-time', nullable: true },
           endDate: { type: 'string', format: 'date-time', nullable: true },
           createdById: { type: 'string', format: 'uuid' },

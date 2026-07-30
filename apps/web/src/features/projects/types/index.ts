@@ -40,7 +40,7 @@ export interface ProjectMember {
   };
 }
 
-export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'TESTING' | 'COMPLETED' | 'ARCHIVED';
+export type ProjectStatus = 'ACTIVE' | 'COMPLETED';
 
 export interface Pagination {
   page: number;

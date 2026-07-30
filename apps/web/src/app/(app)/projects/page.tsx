@@ -1,17 +1,78 @@
-'use client';
+        'use client';
 
 import { useState } from 'react';
-import { Container, Group, Title, Text, Button, Card, Badge, TextInput, SimpleGrid, Paper } from '@mantine/core';
-import { IconPlus, IconSearch, IconFolder } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
+import { Container, Group, Title, Text, Button, Card, Badge, TextInput, SimpleGrid, Paper, Menu, ActionIcon, rem } from '@mantine/core';
+import { IconPlus, IconSearch, IconFolder, IconDots, IconEye, IconPencil, IconTrash } from '@tabler/icons-react';
+import { modals } from '@mantine/modals';
 import Link from 'next/link';
 import { useAuthStore } from '../../../stores/auth-store';
-import { useProjects } from '../../../features/projects/hooks';
+import { useProjects, useDeleteProject } from '../../../features/projects/hooks';
 import { PageHeader } from '../../../components/common/page';
 import { ROUTES } from '../../../constants/routes';
+import type { ProjectList } from '../../../features/projects/types';
 
 const statusColor: Record<string, string> = {
-  PLANNING: 'gray', ACTIVE: 'green', TESTING: 'blue', COMPLETED: 'cyan', ARCHIVED: 'red',
+  ACTIVE: 'green', COMPLETED: 'gray',
 };
+
+function ProjectCard({ project, isManager }: { project: ProjectList; isManager: boolean }) {
+  const router = useRouter();
+  const deleteProject = useDeleteProject(project.id);
+
+  const openDeleteConfirm = () =>
+    modals.openConfirmModal({
+      title: 'Delete Project',
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete this project? This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => deleteProject.mutate(),
+    });
+
+  return (
+    <Card key={project.id} padding="lg" radius="md" withBorder>
+      <Group justify="space-between" mb="xs">
+        <Text fw={500} size="lg" style={{ flex: 1 }}>{project.name}</Text>
+        <Group gap="xs">
+          <Badge color={statusColor[project.status] || 'gray'} variant="light" size="sm">{project.status}</Badge>
+          <Menu shadow="md" width={160}>
+            <Menu.Target>
+              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Project menu">
+                <IconDots size={16} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} onClick={() => router.push(ROUTES.PROJECT_DETAIL(project.id))}>
+                View Project
+              </Menu.Item>
+              {isManager && (
+                <Menu.Item leftSection={<IconPencil style={{ width: rem(14), height: rem(14) }} />} onClick={() => router.push(`/projects/${project.id}/edit`)}>
+                  Edit Project
+                </Menu.Item>
+              )}
+              {isManager && (
+                <Menu.Item leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} color="red" onClick={openDeleteConfirm}>
+                  Delete Project
+                </Menu.Item>
+              )}
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
+      </Group>
+      <Text size="sm" c="dimmed" mb="md" lineClamp={2}>{project.description || 'No description'}</Text>
+      <Group gap="xs">
+        <Text size="xs" c="dimmed">{project.code}</Text>
+        <Text size="xs" c="dimmed">·</Text>
+        <Text size="xs" c="dimmed">{project.createdBy?.name}</Text>
+      </Group>
+    </Card>
+  );
+}
 
 export default function ProjectsPage() {
   const [search, setSearch] = useState('');
@@ -47,18 +108,7 @@ export default function ProjectsPage() {
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
           {data.data.map((project) => (
-            <Card key={project.id} component={Link} href={`/projects/${project.id}`} padding="lg" radius="md" withBorder style={{ textDecoration: 'none' }}>
-              <Group justify="space-between" mb="xs">
-                <Text fw={500} size="lg">{project.name}</Text>
-                <Badge color={statusColor[project.status] || 'gray'} variant="light" size="sm">{project.status}</Badge>
-              </Group>
-              <Text size="sm" c="dimmed" mb="md" lineClamp={2}>{project.description || 'No description'}</Text>
-              <Group gap="xs">
-                <Text size="xs" c="dimmed">{project.code}</Text>
-                <Text size="xs" c="dimmed">·</Text>
-                <Text size="xs" c="dimmed">{project.createdBy?.name}</Text>
-              </Group>
-            </Card>
+            <ProjectCard key={project.id} project={project} isManager={isManager} />
           ))}
         </SimpleGrid>
       )}

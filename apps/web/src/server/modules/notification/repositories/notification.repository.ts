@@ -1,4 +1,6 @@
-import { PrismaClient, NotificationType } from '@prisma/client';
+import { PrismaClient, NotificationType, Prisma } from '@prisma/client';
+
+type MetadataInput = Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue;
 
 export class NotificationRepository {
   constructor(private prisma: PrismaClient) {}
@@ -11,6 +13,7 @@ export class NotificationRepository {
     type: true,
     isRead: true,
     readAt: true,
+    metadata: true,
     createdAt: true,
   };
 
@@ -20,6 +23,7 @@ export class NotificationRepository {
     message: true,
     type: true,
     isRead: true,
+    metadata: true,
     createdAt: true,
   };
 
@@ -28,6 +32,7 @@ export class NotificationRepository {
     title: string;
     message: string;
     type: NotificationType;
+    metadata?: MetadataInput;
   }) {
     return this.prisma.notification.create({
       data,
@@ -117,6 +122,7 @@ export class NotificationRepository {
     title: string;
     message: string;
     type: NotificationType;
+    metadata?: MetadataInput;
   }>) {
     return this.prisma.notification.createMany({ data });
   }

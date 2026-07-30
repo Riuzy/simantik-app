@@ -87,9 +87,10 @@ export interface ProjectDetailDTO extends ProjectResponseDTO {
 }
 
 export interface ProjectFilters {
-  status?: ProjectStatus;
+  status?: string;
   search?: string;
   createdById?: string;
+  memberId?: string;
   sortBy?: 'createdAt' | 'name' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }

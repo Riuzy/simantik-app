@@ -4,14 +4,17 @@ import type { User } from '../features/auth/types';
 interface AuthState {
   user: User | null;
   token: string | null;
+  hydrated: boolean;
   setUser: (user: User) => void;
   setToken: (token: string | null) => void;
+  setHydrated: () => void;
   clearSession: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null,
+  token: null,
+  hydrated: false,
   setUser: (user) => set({ user }),
   setToken: (token) => {
     if (token) {
@@ -21,9 +24,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ token });
   },
+  setHydrated: () => set({ hydrated: true }),
   clearSession: () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
-    set({ user: null, token: null });
+    set({ user: null, token: null, hydrated: true });
   },
 }));

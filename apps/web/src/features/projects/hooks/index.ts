@@ -81,6 +81,7 @@ export function useAddMember(projectId: string) {
   return useMutation({
     mutationFn: (userId: string) => projectService.addMember(projectId, userId),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects'] });
       qc.invalidateQueries({ queryKey: ['project-members', projectId] });
       qc.invalidateQueries({ queryKey: ['project', projectId] });
       notifications.show({ title: 'Success', message: 'Member added', color: 'green' });
@@ -95,9 +96,26 @@ export function useRemoveMember(projectId: string) {
   return useMutation({
     mutationFn: (userId: string) => projectService.removeMember(projectId, userId),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects'] });
       qc.invalidateQueries({ queryKey: ['project-members', projectId] });
       qc.invalidateQueries({ queryKey: ['project', projectId] });
       notifications.show({ title: 'Success', message: 'Member removed', color: 'green' });
     },
+  });
+}
+
+export function useRoles() {
+  return useQuery({
+    queryKey: ['roles'],
+    queryFn: () => projectService.listRoles(),
+    staleTime: 300000,
+  });
+}
+
+export function useAvailableUsers(projectId: string) {
+  return useQuery({
+    queryKey: ['available-users', projectId],
+    queryFn: () => projectService.listAvailableMembers(projectId),
+    enabled: !!projectId,
   });
 }

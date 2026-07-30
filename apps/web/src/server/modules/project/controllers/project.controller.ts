@@ -2,8 +2,10 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../../middlewares/auth';
 import { ProjectService } from '../services/project.service';
 import { UserService } from '../../user/services/user.service';
+import { NotificationService } from '../../notification/services/notification.service';
 import { AppError } from '../../../middlewares/error-handler';
 import { ApiResponse } from '../../../utils/api-response';
+import { emitToUser } from '../../../lib/socket';
 import {
   projectParamSchema,
   createProjectBodySchema,
@@ -14,7 +16,11 @@ import {
 } from '../validators/project.validators';
 
 export class ProjectController {
-  constructor(private projectService: ProjectService, private userService: UserService) {}
+  constructor(
+    private projectService: ProjectService,
+    private userService: UserService,
+    private notificationService: NotificationService,
+  ) {}
 
   create = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -52,14 +58,20 @@ export class ProjectController {
 
   list = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (!req.user) throw new AppError(401, 'Authentication required');
       const query = listProjectsQuerySchema.parse(req.query);
-      const result = await this.projectService.list(query.page, query.limit, {
+      const userRole = await this.userService.getById(req.user.id);
+      const filters: Record<string, unknown> = {
         status: query.status,
         search: query.search,
         createdById: query.createdById,
-        sortBy: query.sortBy as 'createdAt' | 'name' | 'updatedAt' | undefined,
+        sortBy: query.sortBy,
         sortOrder: query.sortOrder,
-      });
+      };
+      if (userRole.role.name !== 'Manager') {
+        filters.memberId = req.user.id;
+      }
+      const result = await this.projectService.list(query.page, query.limit, filters as any);
       ApiResponse.paginated(res, result.data, result.pagination.page, result.pagination.limit, result.pagination.total, result.pagination.totalPages);
     } catch (error) { next(error); }
   };
@@ -77,6 +89,18 @@ export class ProjectController {
         if (userRole.role.name !== 'Manager') throw new AppError(403, 'Only project creator or Manager can add members');
       }
       const member = await this.projectService.addMember(projectId, userId);
+
+      const managerName = req.user?.email ?? 'System Manager';
+      const notification = await this.notificationService.create(
+        userId,
+        'Added to Project',
+        `You have been added to project "${project.name}" by ${managerName}.`,
+        'INFO',
+        { projectId, projectName: project.name, managerName },
+      );
+
+      emitToUser(userId, 'notification:new', notification);
+
       ApiResponse.created(res, member);
     } catch (error) { next(error); }
   };
@@ -112,6 +136,15 @@ export class ProjectController {
       }
       const members = await this.projectService.listMembers(projectId);
       ApiResponse.success(res, members);
+    } catch (error) { next(error); }
+  };
+
+  listAvailableMembers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) throw new AppError(401, 'Authentication required');
+      const params = projectParamSchema.parse(req.params);
+      const users = await this.projectService.findAvailableMembers(params.id);
+      ApiResponse.success(res, users);
     } catch (error) { next(error); }
   };
 }

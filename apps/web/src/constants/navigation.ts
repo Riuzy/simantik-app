@@ -1,5 +1,5 @@
 import {
-  IconLayoutDashboard, IconFolder, IconTestPipe, IconRocket, IconBug,
+  IconLayoutDashboard, IconFolder,
   IconBell, IconSettings, IconUserCircle, IconUsers,
 } from '@tabler/icons-react';
 import { ROUTES } from './routes';
@@ -19,10 +19,6 @@ const MENUS = {
   dashboard: { label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD },
   projects:  { label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS },
   myProjects: { label: 'My Projects', icon: IconFolder, route: ROUTES.PROJECTS },
-  testCases: { label: 'Test Cases', icon: IconTestPipe, route: ROUTES.TEST_CASES },
-  testRuns:  { label: 'Test Runs', icon: IconRocket, route: ROUTES.TEST_RUNS },
-  executions: { label: 'Executions', icon: IconRocket, route: ROUTES.EXECUTIONS },
-  bugs:      { label: 'Bug Reports', icon: IconBug, route: ROUTES.BUGS },
   notifications: { label: 'Notifications', icon: IconBell, route: ROUTES.NOTIFICATIONS },
   users:     { label: 'Users', icon: IconUsers, route: ROUTES.USERS },
   settings:  { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
@@ -32,21 +28,20 @@ const MENUS = {
 const ROLE_MENUS: Record<string, NavSection[]> = {
   Manager: [
     { title: 'General', items: [MENUS.dashboard] },
-    { title: 'Workspace', items: [MENUS.projects, MENUS.testCases, MENUS.testRuns, MENUS.executions] },
-    { title: 'Quality', items: [MENUS.bugs, MENUS.notifications] },
+    { title: 'Workspace', items: [MENUS.projects] },
+    { title: 'Quality', items: [MENUS.notifications] },
     { title: 'Administration', items: [MENUS.users, MENUS.settings] },
     { title: 'Account', items: [MENUS.profile] },
   ],
   Developer: [
     { title: 'General', items: [MENUS.dashboard] },
     { title: 'My Workspace', items: [MENUS.myProjects] },
-    { title: 'Quality', items: [MENUS.bugs] },
     { title: 'Account', items: [MENUS.profile] },
   ],
   Tester: [
     { title: 'General', items: [MENUS.dashboard] },
-    { title: 'Workspace', items: [MENUS.myProjects, MENUS.testCases, MENUS.testRuns, MENUS.executions] },
-    { title: 'Quality', items: [MENUS.bugs, MENUS.notifications] },
+    { title: 'Workspace', items: [MENUS.myProjects] },
+    { title: 'Quality', items: [MENUS.notifications] },
     { title: 'Account', items: [MENUS.profile] },
   ],
 };
@@ -58,10 +53,6 @@ export function getNavigation(role?: string): NavSection[] {
 export const routeLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/projects': 'Projects',
-  '/test-cases': 'Test Cases',
-  '/test-runs': 'Test Runs',
-  '/executions': 'Executions',
-  '/bugs': 'Bug Reports',
   '/notifications': 'Notifications',
   '/users': 'Users',
   '/profile': 'Profile',

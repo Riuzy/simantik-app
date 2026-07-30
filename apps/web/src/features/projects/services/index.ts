@@ -4,7 +4,7 @@ import type { Project, ProjectListResponse, ProjectMember } from '../types';
 
 export async function listProjects(params?: Record<string, unknown>): Promise<ProjectListResponse> {
   const res = await apiClient.get(API.PROJECTS.BASE, { params });
-  return res.data.data;
+  return { data: res.data.data, pagination: res.data.meta };
 }
 
 export async function getProject(id: string): Promise<Project> {
@@ -37,5 +37,15 @@ export async function removeMember(projectId: string, userId: string): Promise<v
 
 export async function listMembers(projectId: string): Promise<ProjectMember[]> {
   const res = await apiClient.get(API.PROJECTS.MEMBERS(projectId));
+  return res.data.data;
+}
+
+export async function listRoles(): Promise<Array<{ id: string; name: string }>> {
+  const res = await apiClient.get(API.USERS.ROLES);
+  return res.data.data;
+}
+
+export async function listAvailableMembers(projectId: string): Promise<Array<{ id: string; name: string; email: string; avatar: string | null; jobTitle: string | null; role: { id: string; name: string } }>> {
+  const res = await apiClient.get(API.PROJECTS.AVAILABLE_MEMBERS(projectId));
   return res.data.data;
 }

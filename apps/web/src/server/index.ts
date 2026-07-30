@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -12,6 +13,7 @@ import { logger } from './lib/logger';
 import { ensureConnection } from './lib/prisma';
 import { setupRoutes } from './routes';
 import { swaggerSpec } from './docs/swagger';
+import { setupSocketIO } from './lib/socket';
 
 const app = express();
 
@@ -51,6 +53,9 @@ app.get('/api/version', (_req, res) => {
 app.use(errorHandler);
 
 const PORT = config.port;
+const httpServer = createServer(app);
+
+setupSocketIO(httpServer);
 
 async function start() {
   const dbConnected = await ensureConnection();
@@ -58,8 +63,8 @@ async function start() {
     logger.warn('Starting without database connection. Some features will be unavailable.');
   }
 
-  app.listen(PORT, () => {
-    logger.info({ port: PORT }, `🚀 Server running on port ${PORT}`);
+  httpServer.listen(PORT, () => {
+    logger.info({ port: PORT }, `Server running on port ${PORT}`);
   });
 }
 

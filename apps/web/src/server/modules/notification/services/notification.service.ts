@@ -1,4 +1,6 @@
-import { NotificationType } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
+
+type MetadataInput = Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue;
 import { NotificationRepository } from '../repositories/notification.repository';
 import { AppError } from '../../../middlewares/error-handler';
 import {
@@ -60,7 +62,7 @@ export class NotificationService {
     }
   }
 
-  async create(userId: string, title: string, message: string, type: NotificationType = 'INFO') {
-    return this.repository.create({ userId, title, message, type });
+  async create(userId: string, title: string, message: string, type: NotificationType = 'INFO', metadata?: MetadataInput) {
+    return this.repository.create({ userId, title, message, type, metadata });
   }
 }

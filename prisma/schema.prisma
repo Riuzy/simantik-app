@@ -72,7 +72,7 @@ model Project {
   name        String          @db.VarChar(255)
   slug        String          @unique @db.VarChar(255)
   description String?         @db.Text
-  status      ProjectStatus   @default(PLANNING)
+  status      ProjectStatus   @default(ACTIVE)
   startDate   DateTime?       @map("start_date")
   endDate     DateTime?       @map("end_date")
   createdById String          @map("created_by_id") @db.Char(36)
@@ -94,11 +94,8 @@ model Project {
 }
 
 enum ProjectStatus {
-  PLANNING
   ACTIVE
-  TESTING
   COMPLETED
-  ARCHIVED
 }
 
 /// ProjectMember represents a user's membership in a project.
@@ -437,6 +434,7 @@ model Notification {
   type      NotificationType @default(INFO)
   isRead    Boolean          @default(false) @map("is_read")
   readAt    DateTime?        @map("read_at")
+  metadata  Json?            @map("metadata")
   createdAt DateTime         @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

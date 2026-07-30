@@ -1,4 +1,3 @@
-import { ProjectStatus } from '@prisma/client';
 import { ProjectRepository } from '../repositories/project.repository';
 import { AppError } from '../../../middlewares/error-handler';
 import { CreateProjectDTO, UpdateProjectDTO, ProjectFilters } from '../types/project.dto';
@@ -7,24 +6,19 @@ export class ProjectService {
   constructor(private repository: ProjectRepository) {}
 
   async create(dto: CreateProjectDTO, createdById: string) {
-    const existingByCode = await this.repository.findByCode(dto.code);
-    if (existingByCode) {
-      throw new AppError(409, 'Project with this code already exists');
-    }
-
     const existingBySlug = await this.repository.findBySlug(dto.slug);
     if (existingBySlug) {
       throw new AppError(409, 'Project with this slug already exists');
     }
 
+    const code = await this.generateNextCode();
+
     const project = await this.repository.create({
-      code: dto.code,
+      code,
       name: dto.name,
       slug: dto.slug,
       description: dto.description,
-      status: dto.status || 'ACTIVE',
-      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      status: 'ACTIVE',
       createdById,
     });
 
@@ -47,21 +41,11 @@ export class ProjectService {
       }
     }
 
-    const updateData: Partial<{
-      name: string;
-      slug: string;
-      description: string;
-      status: ProjectStatus;
-      startDate: Date;
-      endDate: Date;
-    }> = {};
-
+    const updateData: Record<string, unknown> = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.slug !== undefined) updateData.slug = dto.slug;
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.startDate !== undefined) updateData.startDate = new Date(dto.startDate);
-    if (dto.endDate !== undefined) updateData.endDate = new Date(dto.endDate);
 
     const project = await this.repository.update(id, updateData);
     return project;
@@ -104,5 +88,15 @@ export class ProjectService {
 
   async isMember(projectId: string, userId: string): Promise<boolean> {
     return this.repository.isMember(projectId, userId);
+  }
+
+  async findAvailableMembers(projectId: string) {
+    return this.repository.findAvailableMembers(projectId);
+  }
+
+  private async generateNextCode(): Promise<string> {
+    const latest = await this.repository.findLatestCode();
+    const nextNumber = latest ? parseInt(latest.code.replace('PROJ-', ''), 10) + 1 : 1;
+    return `PROJ-${String(nextNumber).padStart(4, '0')}`;
   }
 }
