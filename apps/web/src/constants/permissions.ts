@@ -72,7 +72,27 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   [UserRole.DEVELOPER]: [
     // Projects
     Permission.PROJECTS_READ,
-    // Test Cases
+    // Test Cases - Read only
+    Permission.TEST_CASES_READ,
+    // Test Runs - Read only
+    Permission.TEST_RUNS_READ,
+    // Executions - Read only
+    Permission.EXECUTIONS_READ,
+    // Bugs
+    Permission.BUGS_CREATE,
+    Permission.BUGS_READ,
+    Permission.BUGS_UPDATE,
+    Permission.BUGS_ASSIGN,
+    Permission.BUGS_RESOLVE,
+    Permission.BUGS_CLOSE,
+    Permission.BUGS_REOPEN,
+    Permission.BUGS_COMMENT,
+    Permission.BUGS_ATTACHMENTS,
+    // Notifications
+    Permission.NOTIFICATIONS_READ,
+  ],
+  [UserRole.TESTER]: [
+    // Test Cases - Full CRUD
     Permission.TEST_CASES_CREATE,
     Permission.TEST_CASES_READ,
     Permission.TEST_CASES_UPDATE,
@@ -80,35 +100,18 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     Permission.TEST_CASES_DUPLICATE,
     Permission.TEST_CASES_CLONE,
     Permission.TEST_CASES_MANAGE_STEPS,
-    // Test Runs
+    // Test Runs - Full CRUD
     Permission.TEST_RUNS_CREATE,
     Permission.TEST_RUNS_READ,
     Permission.TEST_RUNS_UPDATE,
+    Permission.TEST_RUNS_DELETE,
     Permission.TEST_RUNS_START,
+    Permission.TEST_RUNS_FINISH,
     Permission.TEST_RUNS_EXECUTE,
-    // Executions
+    // Executions - Full access
     Permission.EXECUTIONS_READ,
     Permission.EXECUTIONS_EXECUTE,
     Permission.EXECUTIONS_UPDATE,
-    // Bugs
-    Permission.BUGS_CREATE,
-    Permission.BUGS_READ,
-    Permission.BUGS_UPDATE,
-    Permission.BUGS_ASSIGN,
-    Permission.BUGS_COMMENT,
-    Permission.BUGS_ATTACHMENTS,
-    // Notifications
-    Permission.NOTIFICATIONS_READ,
-  ],
-  [UserRole.TESTER]: [
-    // Test Cases
-    Permission.TEST_CASES_READ,
-    // Test Runs
-    Permission.TEST_RUNS_READ,
-    Permission.TEST_RUNS_EXECUTE,
-    // Executions
-    Permission.EXECUTIONS_READ,
-    Permission.EXECUTIONS_EXECUTE,
     // Bugs
     Permission.BUGS_CREATE,
     Permission.BUGS_READ,

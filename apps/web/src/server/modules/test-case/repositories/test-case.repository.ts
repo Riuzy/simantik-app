@@ -15,6 +15,7 @@ export class TestCaseRepository {
             id: true,
             name: true,
             email: true,
+            avatar: true,
           },
         },
         project: {
@@ -41,6 +42,7 @@ export class TestCaseRepository {
             id: true,
             name: true,
             email: true,
+            avatar: true,
           },
         },
         project: {
@@ -80,6 +82,7 @@ export class TestCaseRepository {
             id: true,
             name: true,
             email: true,
+            avatar: true,
           },
         },
         project: {
@@ -119,7 +122,6 @@ export class TestCaseRepository {
       OR?: Array<{
         title?: { contains: string; mode: 'insensitive' };
         code?: { contains: string; mode: 'insensitive' };
-        precondition?: { contains: string; mode: 'insensitive' };
       }>;
     };
 
@@ -147,7 +149,6 @@ export class TestCaseRepository {
       where.OR = [
         { title: { contains: filters.search, mode: 'insensitive' } },
         { code: { contains: filters.search, mode: 'insensitive' } },
-        { precondition: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -184,6 +185,7 @@ export class TestCaseRepository {
             select: {
               id: true,
               name: true,
+              avatar: true,
             },
           },
           project: {
@@ -217,6 +219,36 @@ export class TestCaseRepository {
         code,
         deletedAt: null,
       },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        project: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+        steps: {
+          orderBy: {
+            stepNumber: 'asc',
+          },
+        },
+      },
+    });
+  }
+
+  async findLatestCode() {
+    return this.prisma.testCase.findFirst({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { code: true },
     });
   }
 
@@ -234,7 +266,9 @@ export class TestCaseRepository {
           testCaseId: testCase.id,
           stepNumber: step.stepNumber as number,
           action: step.action as string,
-          expectedResult: step.expectedResult as string,
+          target: (step.target as string) ?? null,
+          value: (step.value as string) ?? null,
+          expectedResult: (step.expectedResult as string) ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
         }));
@@ -287,18 +321,20 @@ export class TestCaseRepository {
 
         // Create new steps
         if ((data.steps as Array<Record<string, unknown>>).length > 0) {
-          const stepsData = (data.steps as Array<Record<string, unknown>>).map((step) => ({
-          testCaseId: id,
-            stepNumber: step.stepNumber as number,
-            action: step.action as string,
-            expectedResult: step.expectedResult as string,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }));
+           const stepsData = (data.steps as Array<Record<string, unknown>>).map((step) => ({
+           testCaseId: id,
+             stepNumber: step.stepNumber as number,
+             action: step.action as string,
+             target: (step.target as string) ?? null,
+             value: (step.value as string) ?? null,
+             expectedResult: (step.expectedResult as string) ?? null,
+             createdAt: new Date(),
+             updatedAt: new Date(),
+           }));
 
-          await tx.testStep.createMany({
-            data: stepsData,
-          });
+           await tx.testStep.createMany({
+             data: stepsData,
+           });
         }
       }
 
@@ -347,9 +383,9 @@ export class TestCaseRepository {
           code: newCode,
           title: newTitle || original.title,
           description: original.description,
-          precondition: original.precondition,
+          module: original.module,
           priority: original.priority,
-          status: 'DRAFT',
+          testType: original.testType,
           projectId: original.projectId,
           createdById: original.createdById,
           createdAt: new Date(),
@@ -425,18 +461,18 @@ export class TestCaseRepository {
       }
 
       // Create cloned test case in new project
-      const cloned = await tx.testCase.create({
-        data: {
-          code: newCode,
-          title: newTitle || original.title,
-          description: original.description,
-          precondition: original.precondition,
-          priority: original.priority,
-          status: 'DRAFT',
-          projectId,
-          createdById: original.createdById,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+           const cloned = await tx.testCase.create({
+         data: {
+           code: newCode,
+           title: newTitle || original.title,
+           description: original.description,
+           module: original.module,
+           priority: original.priority,
+           testType: original.testType,
+           projectId,
+           createdById: original.createdById,
+           createdAt: new Date(),
+           updatedAt: new Date(),
         },
         include: {
           steps: true,
@@ -485,7 +521,9 @@ export class TestCaseRepository {
   // Test Step methods
   async createTestStep(testCaseId: string, data: {
     action: string;
-    expectedResult: string;
+    target?: string;
+    value?: string;
+    expectedResult?: string;
     stepNumber?: number;
   }) {
     return this.prisma.$transaction(async (tx) => {
@@ -503,7 +541,9 @@ export class TestCaseRepository {
           testCaseId,
           stepNumber,
           action: data.action,
-          expectedResult: data.expectedResult,
+          target: data.target ?? null,
+          value: data.value ?? null,
+          expectedResult: data.expectedResult ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -513,6 +553,8 @@ export class TestCaseRepository {
 
   async updateTestStep(testCaseId: string, stepNumber: number, data: {
     action?: string;
+    target?: string;
+    value?: string;
     expectedResult?: string;
   }) {
     const existing = await this.prisma.testStep.findUnique({
@@ -528,6 +570,12 @@ export class TestCaseRepository {
       throw new AppError(404, 'Test step not found');
     }
 
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.action !== undefined) updateData.action = data.action;
+    if (data.target !== undefined) updateData.target = data.target;
+    if (data.value !== undefined) updateData.value = data.value;
+    if (data.expectedResult !== undefined) updateData.expectedResult = data.expectedResult;
+
     return this.prisma.testStep.update({
       where: {
         testCaseId_stepNumber: {
@@ -535,10 +583,7 @@ export class TestCaseRepository {
           stepNumber,
         },
       },
-      data: {
-        ...data,
-        updatedAt: new Date(),
-      },
+      data: updateData,
     });
   }
 
@@ -589,6 +634,22 @@ export class TestCaseRepository {
           stepNumber,
         },
       },
+    });
+  }
+
+  async reorderSteps(testCaseId: string, stepIds: string[]) {
+    return this.prisma.$transaction(async (tx) => {
+      for (let i = 0; i < stepIds.length; i++) {
+        await tx.testStep.updateMany({
+          where: { id: stepIds[i], testCaseId },
+          data: { stepNumber: i + 1, updatedAt: new Date() },
+        });
+      }
+
+      return tx.testStep.findMany({
+        where: { testCaseId },
+        orderBy: { stepNumber: 'asc' },
+      });
     });
   }
 }

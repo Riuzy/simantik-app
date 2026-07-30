@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TestPriority, TestCaseStatus } from '@prisma/client';
+import { TestPriority, TestCaseStatus, TestType } from '@prisma/client';
 import {
   createTestCaseBodySchema,
   updateTestCaseBodySchema,
@@ -8,6 +8,7 @@ import {
   duplicateBodySchema,
   cloneBodySchema,
   listTestCasesQuerySchema,
+  reorderStepsBodySchema,
 } from '../validators/test-case.validators';
 
 export type CreateTestCaseDTO = z.infer<typeof createTestCaseBodySchema>;
@@ -17,13 +18,16 @@ export type UpdateTestStepDTO = z.infer<typeof updateStepBodySchema>;
 export type DuplicateTestCaseDTO = z.infer<typeof duplicateBodySchema>;
 export type CloneTestCaseDTO = z.infer<typeof cloneBodySchema>;
 export type ListTestCasesQuery = z.infer<typeof listTestCasesQuerySchema>;
+export type ReorderStepsDTO = z.infer<typeof reorderStepsBodySchema>;
 
 export interface TestStepResponseDTO {
   id: string;
   testCaseId: string;
   stepNumber: number;
   action: string;
-  expectedResult: string;
+  target: string | null;
+  value: string | null;
+  expectedResult: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,9 +37,9 @@ export interface TestCaseResponseDTO {
   code: string;
   title: string;
   description: string | null;
-  precondition: string | null;
+  module: string | null;
   priority: TestPriority;
-  status: TestCaseStatus;
+  testType: TestType;
   projectId: string;
   createdById: string;
   createdAt: Date;
@@ -44,6 +48,7 @@ export interface TestCaseResponseDTO {
     id: string;
     name: string;
     email: string;
+    avatar: string | null;
   };
   project: {
     id: string;
@@ -57,8 +62,9 @@ export interface TestCaseListDTO {
   id: string;
   code: string;
   title: string;
+  module: string | null;
   priority: TestPriority;
-  status: TestCaseStatus;
+  testType: TestType;
   createdAt: Date;
   createdBy: {
     id: string;
@@ -90,6 +96,7 @@ export interface TestCaseFilters {
   projectId?: string;
   status?: TestCaseStatus;
   priority?: TestPriority;
+  testType?: TestType;
   createdById?: string;
   search?: string;
   sortBy?: 'createdAt' | 'title' | 'updatedAt' | 'priority';

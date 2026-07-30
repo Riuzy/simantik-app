@@ -25,9 +25,11 @@ export const API = {
   TEST_CASES: {
     BASE: '/test-cases',
     DETAIL: (id: string) => `/test-cases/${id}`,
+    BY_CODE: (code: string) => `/test-cases/code/${code}`,
     DUPLICATE: (id: string) => `/test-cases/${id}/duplicate`,
     CLONE: (id: string) => `/test-cases/${id}/clone`,
     STEPS: (id: string) => `/test-cases/${id}/steps`,
+    STEPS_REORDER: (id: string) => `/test-cases/${id}/steps/reorder`,
     STEP_DETAIL: (testCaseId: string, stepNumber: number) => `/test-cases/${testCaseId}/steps/${stepNumber}`,
   },
   TEST_RUNS: {

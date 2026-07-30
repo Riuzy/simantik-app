@@ -34,7 +34,7 @@ testExecutionRouter.get(
 testExecutionRouter.post(
   '/test-runs',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ body: createTestRunBodySchema }),
   testExecutionController.createTestRun
 );
@@ -49,7 +49,7 @@ testExecutionRouter.get(
 testExecutionRouter.patch(
   '/test-runs/:id',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ params: idParamSchema, body: updateTestRunBodySchema }),
   testExecutionController.updateTestRun
 );
@@ -57,7 +57,7 @@ testExecutionRouter.patch(
 testExecutionRouter.delete(
   '/test-runs/:id',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ params: idParamSchema }),
   testExecutionController.deleteTestRun
 );
@@ -65,7 +65,7 @@ testExecutionRouter.delete(
 testExecutionRouter.post(
   '/test-runs/:id/start',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ params: idParamSchema, body: testCaseIdsBodySchema }),
   testExecutionController.startTestRun
 );
@@ -73,7 +73,7 @@ testExecutionRouter.post(
 testExecutionRouter.post(
   '/test-runs/:id/finish',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ params: idParamSchema, body: finishTestRunBodySchema }),
   testExecutionController.finishTestRun
 );
@@ -102,7 +102,7 @@ testExecutionRouter.get(
 testExecutionRouter.patch(
   '/test-runs/:testRunId/executions/:testCaseId',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ params: executionParamSchema, body: updateExecutionBodySchema }),
   testExecutionController.updateExecution
 );
@@ -117,7 +117,7 @@ testExecutionRouter.get(
 testExecutionRouter.patch(
   '/executions/:executionId/result',
   requireAuth,
-  requireRole('Manager', 'Tester'),
+  requireRole('Tester'),
   validate({ params: idParamSchema, body: updateExecutionResultBodySchema }),
   testExecutionController.updateExecutionResult
 );

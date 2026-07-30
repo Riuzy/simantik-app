@@ -8,26 +8,22 @@ import {
   TestCaseFilters,
   DuplicateTestCaseDTO,
   CloneTestCaseDTO,
+  ReorderStepsDTO,
 } from '../types/test-case.dto';
 
 export class TestCaseService {
   constructor(private repository: TestCaseRepository) {}
 
   async create(dto: CreateTestCaseDTO, createdById: string) {
-    // Check code uniqueness
-    const existingByCode = await this.repository.findByCode(dto.code);
-    if (existingByCode) {
-      throw new AppError(409, 'Test case with this code already exists');
-    }
+    const code = await this.generateNextCode();
 
-    // Create test case
     const testCase = await this.repository.create({
-      code: dto.code,
+      code,
       title: dto.title,
       description: dto.description,
-      precondition: dto.precondition,
+      module: dto.module,
       priority: dto.priority || 'MEDIUM',
-      status: dto.status || 'DRAFT',
+      testType: dto.testType || 'MANUAL',
       projectId: dto.projectId,
       createdById,
     });
@@ -41,6 +37,10 @@ export class TestCaseService {
       throw new AppError(404, 'Test case not found');
     }
     return testCase;
+  }
+
+  async getByCode(code: string) {
+    return this.repository.findByCode(code);
   }
 
   async update(id: string, dto: UpdateTestCaseDTO) {
@@ -142,5 +142,20 @@ export class TestCaseService {
     }
 
     return testCase.steps;
+  }
+
+  async reorderSteps(testCaseId: string, dto: ReorderStepsDTO) {
+    const testCase = await this.repository.findById(testCaseId);
+    if (!testCase) {
+      throw new AppError(404, 'Test case not found');
+    }
+
+    return this.repository.reorderSteps(testCaseId, dto.stepIds);
+  }
+
+  private async generateNextCode(): Promise<string> {
+    const latest = await this.repository.findLatestCode();
+    const nextNumber = latest ? parseInt(latest.code.replace('TC-', ''), 10) + 1 : 1;
+    return `TC-${String(nextNumber).padStart(4, '0')}`;
   }
 }

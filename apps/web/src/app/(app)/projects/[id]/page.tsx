@@ -7,6 +7,7 @@ import { IconUserPlus, IconTrash, IconFolder, IconRocket, IconBug, IconTestPipe,
 import { modals } from '@mantine/modals';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { useProject, useProjectMembers, useAddMember, useRemoveMember, useAvailableUsers } from '../../../../features/projects/hooks';
+import { TestCasesTab } from '../../../../features/test-cases/components/test-cases-tab';
 import { PageHeader } from '../../../../components/common/page';
 
 const statusColor: Record<string, string> = {
@@ -196,6 +197,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const isManager = user?.role?.name === 'Manager';
+  const isTester = user?.role?.name === 'Tester';
   const { data: project, isLoading } = useProject(id);
 
   if (isLoading) return <Center h={400}><Loader /></Center>;
@@ -224,7 +226,7 @@ export default function ProjectDetailPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="test-cases">
-          <EmptyTab icon={IconTestPipe} message="No Test Cases found" />
+          <TestCasesTab projectId={id} projectSlug={project.slug} canManage={isTester} />
         </Tabs.Panel>
 
         <Tabs.Panel value="test-runs">

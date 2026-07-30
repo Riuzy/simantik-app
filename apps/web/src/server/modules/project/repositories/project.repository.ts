@@ -34,6 +34,27 @@ export class ProjectRepository {
     });
   }
 
+  async findBySlug(slug: string) {
+    return this.prisma.project.findFirst({
+      where: { slug, deletedAt: null },
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        members: {
+          include: {
+            user: { select: { id: true, name: true, email: true, avatar: true, jobTitle: true, role: { select: { id: true, name: true } } } },
+          },
+        },
+        _count: { select: { members: true, testCases: true, testRuns: true, bugReports: true } },
+      },
+    });
+  }
+
+  async findBySlugOrThrow(slug: string) {
+    const project = await this.findBySlug(slug);
+    if (!project) throw new AppError(404, 'Project not found');
+    return project;
+  }
+
   async update(id: string, data: Record<string, unknown>) {
     const existing = await this.findById(id);
     if (!existing) throw new AppError(404, 'Project not found');
@@ -114,6 +135,61 @@ export class ProjectRepository {
       orderBy: { createdAt: 'desc' },
       select: { code: true },
     });
+  }
+
+  async findByIdOrThrow(id: string) {
+    const project = await this.findById(id);
+    if (!project) throw new AppError(404, 'Project not found');
+    return project;
+  }
+
+  async findBySlugOrThrow(slug: string) {
+    const project = await this.findBySlug(slug);
+    if (!project) throw new AppError(404, 'Project not found');
+    return project;
+  }
+
+  async findBySlugOrThrowWithDetails(slug: string) {
+    const project = await this.findBySlug(slug);
+    if (!project) throw new AppError(404, 'Project not found');
+    return project;
+  }
+
+  async listBySlug(page: number, limit: number, filters: ProjectFilters = {}) {
+    const skip = (page - 1) * limit;
+    const where: Record<string, unknown> = { deletedAt: null };
+
+    if (filters.memberId) {
+      where.members = { some: { userId: filters.memberId } };
+    }
+    if (filters.status) where.status = filters.status;
+    if (filters.search) {
+      where.OR = [
+        { name: { contains: filters.search } },
+        { code: { contains: filters.search } },
+        { slug: { contains: filters.search } },
+      ];
+    }
+
+    const orderBy: Record<string, string> = {};
+    orderBy[filters.sortBy || 'createdAt'] = filters.sortOrder || 'desc';
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.project.findMany({
+        where: where as any,
+        skip,
+        take: limit,
+        orderBy: orderBy as any,
+        select: {
+          id: true, code: true, name: true, slug: true,
+          description: true, status: true, createdAt: true,
+          createdBy: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.project.count({ where: where as any }),
+    ]);
+
+    return { items, total, totalPages: Math.ceil(total / limit) };
   }
 
   async addMember(projectId: string, userId: string) {

@@ -123,8 +123,9 @@ model TestCase {
   code         String         @unique @db.VarChar(50)
   title        String         @db.VarChar(255)
   description  String?        @db.Text
-  precondition String?        @db.Text
+  module       String?        @db.VarChar(255)
   priority     TestPriority   @default(MEDIUM)
+  testType     TestType       @default(MANUAL)
   status       TestCaseStatus @default(DRAFT)
   projectId    String         @map("project_id") @db.Char(36)
   createdById  String         @map("created_by_id") @db.Char(36)
@@ -147,12 +148,15 @@ model TestCase {
 
 /// TestStep represents an individual step within a test case.
 /// Each step contains an action to perform and expected result.
+/// Target and value support the action (e.g., element selector, input value).
 model TestStep {
   id             String    @id @default(uuid()) @db.Char(36)
   testCaseId     String    @map("test_case_id") @db.Char(36)
   stepNumber     Int       @map("step_number")
-  action         String    @db.Text
-  expectedResult String    @map("expected_result") @db.Text
+  action         String    @db.VarChar(100)
+  target         String?   @db.Text
+  value          String?   @db.Text
+  expectedResult String?   @map("expected_result") @db.Text
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
@@ -163,6 +167,11 @@ model TestStep {
   @@index([testCaseId])
   @@index([deletedAt])
   @@map("test_steps")
+}
+
+enum TestType {
+  MANUAL
+  AUTOMATION
 }
 
 enum TestPriority {

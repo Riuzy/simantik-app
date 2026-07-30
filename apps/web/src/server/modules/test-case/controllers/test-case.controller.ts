@@ -11,6 +11,8 @@ import {
   cloneBodySchema,
   createStepBodySchema,
   updateStepBodySchema,
+  testCaseAndCodeParamSchema,
+  reorderStepsBodySchema,
 } from '../validators/test-case.validators';
 
 export class TestCaseController {
@@ -33,6 +35,19 @@ export class TestCaseController {
     try {
       const params = idParamSchema.parse(req.params);
       const testCase = await this.testCaseService.getById(params.id);
+      ApiResponse.success(res, testCase);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getByCode = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const params = testCaseAndCodeParamSchema.parse(req.params);
+      const testCase = await this.testCaseService.getByCode(params.code);
+      if (!testCase) {
+        throw new AppError(404, 'Test case not found');
+      }
       ApiResponse.success(res, testCase);
     } catch (error) {
       next(error);
@@ -163,6 +178,17 @@ export class TestCaseController {
     try {
       const testCaseId = req.params.testCaseId as string;
       const steps = await this.testCaseService.getStepsByTestCase(testCaseId);
+      ApiResponse.success(res, steps);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  reorderSteps = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const testCaseId = req.params.testCaseId as string;
+      const body = reorderStepsBodySchema.parse(req.body);
+      const steps = await this.testCaseService.reorderSteps(testCaseId, body);
       ApiResponse.success(res, steps);
     } catch (error) {
       next(error);
