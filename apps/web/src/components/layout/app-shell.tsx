@@ -5,7 +5,6 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconSearch, IconMoon, IconSun } from '@tabler/icons-react';
 import { Sidebar } from './sidebar';
 import { UserMenu } from './user-menu';
-import { NotificationBell } from './notification-bell';
 import { Breadcrumb } from './breadcrumb';
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -29,7 +28,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <ActionIcon variant="subtle" onClick={toggleColorScheme} aria-label="Toggle theme">
               {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
             </ActionIcon>
-            <NotificationBell />
             <UserMenu />
           </Group>
         </Group>

@@ -1,72 +1,53 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { AppError } from '../../../middlewares/error-handler';
 import { TestCaseFilters } from '../types/test-case.dto';
+
+interface CreateStepData {
+  action: string;
+  description?: string;
+  locatorStrategy?: string;
+  locatorValue?: string;
+  inputValue?: string;
+  expectedResult?: string;
+  stepNumber?: number;
+}
+
+interface UpdateStepData {
+  action?: string;
+  description?: string;
+  locatorStrategy?: string;
+  locatorValue?: string;
+  inputValue?: string;
+  expectedResult?: string;
+}
+
+const testCaseInclude = {
+  createdBy: { select: { id: true, name: true, email: true, avatar: true } },
+  project: { select: { id: true, code: true, name: true } },
+  steps: { orderBy: { stepNumber: 'asc' as const } },
+} as const;
 
 export class TestCaseRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async create(data: Record<string, string | undefined>) {
+  async create(data: Record<string, unknown>) {
     return this.prisma.testCase.create({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data: data as any,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        project: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-        steps: true,
-      },
+      data: data as Prisma.TestCaseCreateInput,
+      include: testCaseInclude,
     });
   }
 
   async findById(id: string) {
     return this.prisma.testCase.findFirst({
-      where: {
-        id,
-        deletedAt: null,
-      },
+      where: { id, deletedAt: null },
       include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        project: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-        steps: {
-          orderBy: {
-            stepNumber: 'asc',
-          },
-        },
-        _count: {
-          select: {
-            steps: true,
-          },
-        },
+        ...testCaseInclude,
+        _count: { select: { steps: true } },
       },
     });
   }
 
-  async update(id: string, data: Record<string, string | undefined>) {
+  async update(id: string, data: Record<string, unknown>) {
     const existing = await this.findById(id);
     if (!existing) {
       throw new AppError(404, 'Test case not found');
@@ -74,24 +55,10 @@ export class TestCaseRepository {
 
     return this.prisma.testCase.update({
       where: { id },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data: data as any,
+      data: data as Prisma.TestCaseUpdateInput,
       include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        project: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
+        createdBy: { select: { id: true, name: true, email: true, avatar: true } },
+        project: { select: { id: true, code: true, name: true } },
       },
     });
   }
@@ -104,47 +71,22 @@ export class TestCaseRepository {
 
     return this.prisma.testCase.update({
       where: { id },
-      data: {
-        deletedAt: new Date(),
-      },
+      data: { deletedAt: new Date() },
     });
   }
 
   async list(page: number, limit: number, filters: TestCaseFilters = {}) {
     const skip = (page - 1) * limit;
 
-    type WhereClause = {
-      deletedAt: null;
-      projectId?: string;
-      status?: string;
-      priority?: string;
-      createdById?: string;
-      OR?: Array<{
-        title?: { contains: string; mode: 'insensitive' };
-        code?: { contains: string; mode: 'insensitive' };
-      }>;
-    };
+    const where: Record<string, unknown> = { deletedAt: null };
 
-    const where: WhereClause = {
-      deletedAt: null,
-    };
-
-    if (filters.projectId) {
-      where.projectId = filters.projectId;
+    if (filters.projectId) where.projectId = filters.projectId;
+    if (filters.priority) where.priority = filters.priority;
+    if (filters.status) where.status = filters.status;
+    if (filters.createdById) where.createdById = filters.createdById;
+    if (filters.tag) {
+      where.tags = { has: filters.tag };
     }
-
-    if (filters.status) {
-      where.status = filters.status;
-    }
-
-    if (filters.priority) {
-      where.priority = filters.priority;
-    }
-
-    if (filters.createdById) {
-      where.createdById = filters.createdById;
-    }
-
     if (filters.search) {
       where.OR = [
         { title: { contains: filters.search, mode: 'insensitive' } },
@@ -152,25 +94,12 @@ export class TestCaseRepository {
       ];
     }
 
-    type OrderByClause = {
-      createdAt?: 'asc' | 'desc';
-      title?: 'asc' | 'desc';
-      updatedAt?: 'asc' | 'desc';
-      priority?: 'asc' | 'desc';
-    };
-
-    const orderBy: OrderByClause = {};
-    
-    if (filters.sortBy === 'priority') {
-      orderBy.priority = filters.sortOrder || 'desc';
-    } else {
-      orderBy[filters.sortBy || 'createdAt'] = filters.sortOrder || 'desc';
-    }
+    const orderBy: Record<string, 'asc' | 'desc'> = {};
+    orderBy[filters.sortBy || 'createdAt'] = filters.sortOrder || 'desc';
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.testCase.findMany({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        where: where as any,
+        where: where as Prisma.TestCaseWhereInput,
         skip,
         take: limit,
         orderBy,
@@ -178,32 +107,17 @@ export class TestCaseRepository {
           id: true,
           code: true,
           title: true,
+          module: true,
           priority: true,
           status: true,
+          tags: true,
           createdAt: true,
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          _count: {
-            select: {
-              steps: true,
-            },
-          },
+          createdBy: { select: { id: true, name: true, avatar: true } },
+          project: { select: { id: true, code: true, name: true, slug: true } },
+          _count: { select: { steps: true } },
         },
       }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.prisma.testCase.count({ where: where as any }),
+      this.prisma.testCase.count({ where: where as Prisma.TestCaseWhereInput }),
     ]);
 
     return {
@@ -215,32 +129,8 @@ export class TestCaseRepository {
 
   async findByCode(code: string) {
     return this.prisma.testCase.findFirst({
-      where: {
-        code,
-        deletedAt: null,
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        project: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-        steps: {
-          orderBy: {
-            stepNumber: 'asc',
-          },
-        },
-      },
+      where: { code, deletedAt: null },
+      include: testCaseInclude,
     });
   }
 
@@ -252,132 +142,17 @@ export class TestCaseRepository {
     });
   }
 
-  async createWithSteps(data: Record<string, unknown>) {
-    return this.prisma.$transaction(async (tx) => {
-      // Create test case
-      const testCase = await tx.testCase.create({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: data as any,
-      });
-
-      // Create steps
-      if (data.steps && (data.steps as Array<Record<string, unknown>>).length > 0) {
-        const stepsData = (data.steps as Array<Record<string, unknown>>).map((step) => ({
-          testCaseId: testCase.id,
-          stepNumber: step.stepNumber as number,
-          action: step.action as string,
-          target: (step.target as string) ?? null,
-          value: (step.value as string) ?? null,
-          expectedResult: (step.expectedResult as string) ?? null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }));
-
-        await tx.testStep.createMany({
-          data: stepsData,
-        });
-      }
-
-      return this.prisma.testCase.findUnique({
-        where: { id: testCase.id },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          steps: true,
-        },
-      });
-    });
-  }
-
-  async updateWithSteps(id: string, data: Record<string, unknown>) {
-    return this.prisma.$transaction(async (tx) => {
-      // Update test case
-      await tx.testCase.update({
-        where: { id },
-        data: {
-          ...data,
-          updatedAt: new Date(),
-        },
-      });
-
-      // Handle steps
-      if (data.steps && (data.steps as Array<Record<string, unknown>>).length > 0) {
-        // Delete existing steps
-        await tx.testStep.deleteMany({
-          where: { testCaseId: id },
-        });
-
-        // Create new steps
-        if ((data.steps as Array<Record<string, unknown>>).length > 0) {
-           const stepsData = (data.steps as Array<Record<string, unknown>>).map((step) => ({
-           testCaseId: id,
-             stepNumber: step.stepNumber as number,
-             action: step.action as string,
-             target: (step.target as string) ?? null,
-             value: (step.value as string) ?? null,
-             expectedResult: (step.expectedResult as string) ?? null,
-             createdAt: new Date(),
-             updatedAt: new Date(),
-           }));
-
-           await tx.testStep.createMany({
-             data: stepsData,
-           });
-        }
-      }
-
-      return this.prisma.testCase.findUnique({
-        where: { id },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          steps: true,
-        },
-      });
-    });
-  }
-
   async duplicate(id: string, newCode: string, newTitle?: string) {
     return this.prisma.$transaction(async (tx) => {
-      // Find original test case
       const original = await tx.testCase.findUnique({
         where: { id },
-        include: {
-          steps: {
-            orderBy: { stepNumber: 'asc' },
-          },
-        },
+        include: { steps: { orderBy: { stepNumber: 'asc' } } },
       });
 
       if (!original) {
         throw new AppError(404, 'Test case not found');
       }
 
-      // Create duplicate
       const duplicated = await tx.testCase.create({
         data: {
           code: newCode,
@@ -385,149 +160,99 @@ export class TestCaseRepository {
           description: original.description,
           module: original.module,
           priority: original.priority,
-          testType: original.testType,
+          status: original.status,
+          tags: (original.tags as string[] | null) ?? [],
           projectId: original.projectId,
           createdById: original.createdById,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
-        include: {
-          steps: true,
-        },
+        include: { steps: true },
       });
 
-      // Duplicate steps
-      if (original.steps && original.steps.length > 0) {
-        const stepsData = original.steps.map((step) => ({
-          testCaseId: duplicated.id,
-          stepNumber: step.stepNumber,
-          action: step.action,
-          expectedResult: step.expectedResult,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }));
-
+      if (original.steps.length > 0) {
         await tx.testStep.createMany({
-          data: stepsData,
+          data: original.steps.map((step) => ({
+            testCaseId: duplicated.id,
+            stepNumber: step.stepNumber,
+            action: step.action,
+            description: step.description,
+            locatorStrategy: step.locatorStrategy,
+            locatorValue: step.locatorValue,
+            inputValue: step.inputValue,
+            expectedResult: step.expectedResult,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
         });
       }
 
       return this.prisma.testCase.findUnique({
         where: { id: duplicated.id },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          steps: true,
-        },
+        include: testCaseInclude,
       });
     });
   }
 
   async clone(id: string, projectId: string, newCode: string, newTitle?: string) {
     return this.prisma.$transaction(async (tx) => {
-      // Find original test case
       const original = await tx.testCase.findUnique({
         where: { id },
-        include: {
-          steps: {
-            orderBy: { stepNumber: 'asc' },
-          },
-        },
+        include: { steps: { orderBy: { stepNumber: 'asc' } } },
       });
 
       if (!original) {
         throw new AppError(404, 'Test case not found');
       }
 
-      // Verify project exists
-      const project = await tx.project.findUnique({
-        where: { id: projectId },
-      });
-
+      const project = await tx.project.findUnique({ where: { id: projectId } });
       if (!project) {
         throw new AppError(404, 'Target project not found');
       }
 
-      // Create cloned test case in new project
-           const cloned = await tx.testCase.create({
-         data: {
-           code: newCode,
-           title: newTitle || original.title,
-           description: original.description,
-           module: original.module,
-           priority: original.priority,
-           testType: original.testType,
-           projectId,
-           createdById: original.createdById,
-           createdAt: new Date(),
-           updatedAt: new Date(),
-        },
-        include: {
-          steps: true,
-        },
-      });
-
-      // Clone steps
-      if (original.steps && original.steps.length > 0) {
-        const stepsData = original.steps.map((step) => ({
-          testCaseId: cloned.id,
-          stepNumber: step.stepNumber,
-          action: step.action,
-          expectedResult: step.expectedResult,
+      const cloned = await tx.testCase.create({
+        data: {
+          code: newCode,
+          title: newTitle || original.title,
+          description: original.description,
+          module: original.module,
+          priority: original.priority,
+          status: original.status,
+          tags: (original.tags as string[] | null) ?? [],
+          projectId,
+          createdById: original.createdById,
           createdAt: new Date(),
           updatedAt: new Date(),
-        }));
+        },
+        include: { steps: true },
+      });
 
+      if (original.steps.length > 0) {
         await tx.testStep.createMany({
-          data: stepsData,
+          data: original.steps.map((step) => ({
+            testCaseId: cloned.id,
+            stepNumber: step.stepNumber,
+            action: step.action,
+            description: step.description,
+            locatorStrategy: step.locatorStrategy,
+            locatorValue: step.locatorValue,
+            inputValue: step.inputValue,
+            expectedResult: step.expectedResult,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
         });
       }
 
       return this.prisma.testCase.findUnique({
         where: { id: cloned.id },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
-          steps: true,
-        },
+        include: testCaseInclude,
       });
     });
   }
 
-  // Test Step methods
-  async createTestStep(testCaseId: string, data: {
-    action: string;
-    target?: string;
-    value?: string;
-    expectedResult?: string;
-    stepNumber?: number;
-  }) {
+  async createTestStep(testCaseId: string, data: CreateStepData) {
     return this.prisma.$transaction(async (tx) => {
-      // Get max step number
       const maxStep = await tx.testStep.findFirst({
         where: { testCaseId },
         orderBy: { stepNumber: 'desc' },
@@ -541,8 +266,10 @@ export class TestCaseRepository {
           testCaseId,
           stepNumber,
           action: data.action,
-          target: data.target ?? null,
-          value: data.value ?? null,
+          description: data.description ?? null,
+          locatorStrategy: data.locatorStrategy ?? null,
+          locatorValue: data.locatorValue ?? null,
+          inputValue: data.inputValue ?? null,
           expectedResult: data.expectedResult ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -551,19 +278,9 @@ export class TestCaseRepository {
     });
   }
 
-  async updateTestStep(testCaseId: string, stepNumber: number, data: {
-    action?: string;
-    target?: string;
-    value?: string;
-    expectedResult?: string;
-  }) {
+  async updateTestStep(testCaseId: string, stepNumber: number, data: UpdateStepData) {
     const existing = await this.prisma.testStep.findUnique({
-      where: {
-        testCaseId_stepNumber: {
-          testCaseId,
-          stepNumber,
-        },
-      },
+      where: { testCaseId_stepNumber: { testCaseId, stepNumber } },
     });
 
     if (!existing) {
@@ -572,68 +289,42 @@ export class TestCaseRepository {
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.action !== undefined) updateData.action = data.action;
-    if (data.target !== undefined) updateData.target = data.target;
-    if (data.value !== undefined) updateData.value = data.value;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.locatorStrategy !== undefined) updateData.locatorStrategy = data.locatorStrategy;
+    if (data.locatorValue !== undefined) updateData.locatorValue = data.locatorValue;
+    if (data.inputValue !== undefined) updateData.inputValue = data.inputValue;
     if (data.expectedResult !== undefined) updateData.expectedResult = data.expectedResult;
 
     return this.prisma.testStep.update({
-      where: {
-        testCaseId_stepNumber: {
-          testCaseId,
-          stepNumber,
-        },
-      },
+      where: { testCaseId_stepNumber: { testCaseId, stepNumber } },
       data: updateData,
     });
   }
 
   async deleteTestStep(testCaseId: string, stepNumber: number) {
     const existing = await this.prisma.testStep.findUnique({
-      where: {
-        testCaseId_stepNumber: {
-          testCaseId,
-          stepNumber,
-        },
-      },
+      where: { testCaseId_stepNumber: { testCaseId, stepNumber } },
     });
 
     if (!existing) {
       throw new AppError(404, 'Test step not found');
     }
 
-    // Delete step and renumber remaining steps
     return this.prisma.$transaction(async (tx) => {
       await tx.testStep.delete({
-        where: {
-          testCaseId_stepNumber: {
-            testCaseId,
-            stepNumber,
-          },
-        },
+        where: { testCaseId_stepNumber: { testCaseId, stepNumber } },
       });
 
-      // Renumber remaining steps
       await tx.testStep.updateMany({
-        where: {
-          testCaseId,
-          stepNumber: { gt: stepNumber },
-        },
-        data: {
-          stepNumber: { decrement: 1 },
-          updatedAt: new Date(),
-        },
+        where: { testCaseId, stepNumber: { gt: stepNumber } },
+        data: { stepNumber: { decrement: 1 }, updatedAt: new Date() },
       });
     });
   }
 
   async getTestStep(testCaseId: string, stepNumber: number) {
     return this.prisma.testStep.findUnique({
-      where: {
-        testCaseId_stepNumber: {
-          testCaseId,
-          stepNumber,
-        },
-      },
+      where: { testCaseId_stepNumber: { testCaseId, stepNumber } },
     });
   }
 

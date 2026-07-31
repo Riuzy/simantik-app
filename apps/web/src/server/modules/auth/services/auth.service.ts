@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { config } from '../../../config';
-import { prisma } from '../../../lib/prisma';
 import { HttpError } from '../../../lib/errors';
 import { AuthRepository } from '../repositories/auth.repository';
 import type { LoginDTO, AuthResponseDTO, UserResponseDTO, AuthTokens, JWTPayload } from '../types/auth.dto';
@@ -28,10 +27,10 @@ export class AuthService {
 
     await this.repository.updateLastLogin(user.id);
 
-    const accessToken = this.generateAccessToken({ id: user.id, email: user.email, roleId: user.roleId });
-    const refreshToken = this.generateRefreshToken(user.id, (user as any).tokenVersion || 0);
+    const accessToken = this.generateAccessToken({ id: user.id, email: user.email });
+    const refreshToken = this.generateRefreshToken(user.id, user.tokenVersion || 0);
 
-    if ((user as any).mustChangePassword) {
+    if (user.mustChangePassword) {
       return { accessToken, refreshToken, mustChangePassword: true };
     }
 
@@ -43,11 +42,11 @@ export class AuthService {
       const decoded = jwt.verify(dto.refreshToken, config.jwtSecret) as { id: string; tokenVersion: number };
       const user = await this.repository.findById(decoded.id);
       if (!user || !user.isActive) throw new Error();
-      if ((user as any).tokenVersion !== decoded.tokenVersion) throw new Error();
+      if (user.tokenVersion !== decoded.tokenVersion) throw new Error();
 
       return {
-        accessToken: this.generateAccessToken({ id: user.id, email: user.email, roleId: user.roleId }),
-        refreshToken: this.generateRefreshToken(user.id, (user as any).tokenVersion || 0),
+        accessToken: this.generateAccessToken({ id: user.id, email: user.email }),
+        refreshToken: this.generateRefreshToken(user.id, user.tokenVersion || 0),
       };
     } catch {
       throw new HttpError(401, 'Invalid refresh token');
@@ -71,19 +70,23 @@ export class AuthService {
     await this.repository.updatePassword(userId, hashed, false);
   }
 
-  private mapUser(user: any): UserResponseDTO {
+  private mapUser(user: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+    isActive: boolean;
+    lastLoginAt: Date | null;
+    createdAt: Date;
+  }): UserResponseDTO {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       avatar: user.avatar,
-      phoneNumber: user.phoneNumber,
-      jobTitle: user.jobTitle,
-      bio: user.bio,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
-      role: user.role,
     };
   }
 }

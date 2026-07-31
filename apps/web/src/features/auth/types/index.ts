@@ -1,21 +1,12 @@
-import { UserRole } from '../../../constants/permissions';
-
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar: string | null;
-  phoneNumber: string | null;
-  jobTitle: string | null;
-  bio: string | null;
   isActive: boolean;
   mustChangePassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
-  role: {
-    id: string;
-    name: UserRole;
-  };
 }
 
 export interface LoginRequest {

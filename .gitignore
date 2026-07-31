@@ -15,6 +15,7 @@ blob-report/
 test-results/
 
 # Automation Artifacts
+.artifacts/
 artifacts/
 reports/
 screenshots/

@@ -1,12 +1,11 @@
-        'use client';
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Container, Group, Title, Text, Button, Card, Badge, TextInput, SimpleGrid, Paper, Menu, ActionIcon, rem } from '@mantine/core';
+import { Container, Group, Text, Button, Card, Badge, TextInput, SimpleGrid, Paper, Menu, ActionIcon, rem } from '@mantine/core';
 import { IconPlus, IconSearch, IconFolder, IconDots, IconEye, IconPencil, IconTrash } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
 import Link from 'next/link';
-import { useAuthStore } from '../../../stores/auth-store';
 import { useProjects, useDeleteProject } from '../../../features/projects/hooks';
 import { PageHeader } from '../../../components/common/page';
 import { ROUTES } from '../../../constants/routes';
@@ -16,7 +15,7 @@ const statusColor: Record<string, string> = {
   ACTIVE: 'green', COMPLETED: 'gray',
 };
 
-function ProjectCard({ project, isManager }: { project: ProjectList; isManager: boolean }) {
+function ProjectCard({ project }: { project: ProjectList }) {
   const router = useRouter();
   const deleteProject = useDeleteProject(project.id);
 
@@ -47,19 +46,15 @@ function ProjectCard({ project, isManager }: { project: ProjectList; isManager: 
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} onClick={() => router.push(ROUTES.PROJECT_DETAIL(project.id))}>
+              <Menu.Item leftSection={<IconEye style={{ width: rem(14), height: rem(14) }} />} onClick={() => router.push(ROUTES.PROJECT_DETAIL(project.slug))}>
                 View Project
               </Menu.Item>
-              {isManager && (
-                <Menu.Item leftSection={<IconPencil style={{ width: rem(14), height: rem(14) }} />} onClick={() => router.push(`/projects/${project.id}/edit`)}>
-                  Edit Project
-                </Menu.Item>
-              )}
-              {isManager && (
-                <Menu.Item leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} color="red" onClick={openDeleteConfirm}>
-                  Delete Project
-                </Menu.Item>
-              )}
+              <Menu.Item leftSection={<IconPencil style={{ width: rem(14), height: rem(14) }} />} onClick={() => router.push(ROUTES.PROJECT_EDIT(project.slug))}>
+                Edit Project
+              </Menu.Item>
+              <Menu.Item leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />} color="red" onClick={openDeleteConfirm}>
+                Delete Project
+              </Menu.Item>
             </Menu.Dropdown>
           </Menu>
         </Group>
@@ -76,16 +71,14 @@ function ProjectCard({ project, isManager }: { project: ProjectList; isManager: 
 
 export default function ProjectsPage() {
   const [search, setSearch] = useState('');
-  const user = useAuthStore((s) => s.user);
-  const isManager = user?.role?.name === 'Manager';
   const { data, isLoading } = useProjects({ search: search || undefined });
 
   return (
     <Container size="xl" py="md">
       <PageHeader
-        title={isManager ? 'Projects' : 'My Projects'}
-        description={isManager ? 'Manage all projects' : 'View your assigned projects'}
-        actions={isManager ? <Button leftSection={<IconPlus size={16} />} component={Link} href="/projects/create">New Project</Button> : undefined}
+        title="Projects"
+        description="Manage your automation testing projects"
+        actions={<Button leftSection={<IconPlus size={16} />} component={Link} href="/projects/create">New Project</Button>}
       />
 
       <TextInput
@@ -103,12 +96,12 @@ export default function ProjectsPage() {
         <Paper p="xl" ta="center" withBorder>
           <IconFolder size={40} stroke={1} style={{ opacity: 0.3 }} />
           <Text c="dimmed" mt="sm">No projects found</Text>
-          {isManager && <Button component={Link} href="/projects/create" mt="md" variant="light">Create your first project</Button>}
+          <Button component={Link} href="/projects/create" mt="md" variant="light">Create your first project</Button>
         </Paper>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
           {data.data.map((project) => (
-            <ProjectCard key={project.id} project={project} isManager={isManager} />
+            <ProjectCard key={project.id} project={project} />
           ))}
         </SimpleGrid>
       )}

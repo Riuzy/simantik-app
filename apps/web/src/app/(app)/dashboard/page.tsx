@@ -1,19 +1,18 @@
 'use client';
 
-import { Container, SimpleGrid, Paper, Group, Title, Text } from '@mantine/core';
-import { IconUsers, IconBug, IconTestPipe, IconFolder } from '@tabler/icons-react';
+import { Container, SimpleGrid, Paper, Group, Title, Text, Badge, Loader, Center, Stack } from '@mantine/core';
+import { IconFolder, IconTestPipe, IconPlayerPlay } from '@tabler/icons-react';
+import Link from 'next/link';
+import { useOverviewReport } from '../../../features/reports/hooks';
+import { ExecutionStatusSummary } from '../../../features/reports/components/execution-status-summary';
 
-function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
-  return (
-    <Group justify="space-between" mb="lg">
-      <div>
-        <Title order={2}>{title}</Title>
-        {description && <Text c="dimmed" size="sm">{description}</Text>}
-      </div>
-      {actions && <Group gap="sm">{actions}</Group>}
-    </Group>
-  );
-}
+const statusColor: Record<string, string> = {
+  RUNNING: 'blue',
+  PASSED: 'green',
+  FAILED: 'red',
+  SKIPPED: 'gray',
+  ERROR: 'orange',
+};
 
 function StatCard({ title, value, icon, color }: { title: string; value: string | number; icon?: React.ReactNode; color?: string }) {
   return (
@@ -29,35 +28,47 @@ function StatCard({ title, value, icon, color }: { title: string; value: string 
   );
 }
 
-function Section({ title, children }: { title?: string; children: React.ReactNode }) {
-  return (
-    <Paper p="lg" radius="md" shadow="sm" withBorder mb="md">
-      {title && <Title order={4} mb="md">{title}</Title>}
-      {children}
-    </Paper>
-  );
-}
-
 export default function DashboardPage() {
+  const { data: report, isLoading } = useOverviewReport();
+
+  if (isLoading) return <Center h={400}><Loader /></Center>;
+
   return (
     <Container size="xl" py="md">
-      <PageHeader title="Dashboard" description="Overview of your workspace" />
+      <Title order={2} mb="lg">Dashboard</Title>
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} mb="lg">
-        <StatCard title="Total Projects" value="0" icon={<IconFolder size={24} />} color="blue" />
-        <StatCard title="Total Users" value="0" icon={<IconUsers size={24} />} color="green" />
-        <StatCard title="Test Cases" value="0" icon={<IconTestPipe size={24} />} color="violet" />
-        <StatCard title="Active Bugs" value="0" icon={<IconBug size={24} />} color="red" />
+        <StatCard title="Total Projects" value={report?.totalProjects ?? 0} icon={<IconFolder size={24} />} color="blue" />
+        <StatCard title="Test Cases" value={report?.totalTestCases ?? 0} icon={<IconTestPipe size={24} />} color="violet" />
+        <StatCard title="Total Executions" value={report?.totalExecutions ?? 0} icon={<IconPlayerPlay size={24} />} color="cyan" />
       </SimpleGrid>
 
-      <SimpleGrid cols={{ base: 1, md: 2 }}>
-        <Section title="Recent Projects">
-          <Text c="dimmed" size="sm">No projects yet. Create your first project to get started.</Text>
-        </Section>
-        <Section title="Recent Bugs">
-          <Text c="dimmed" size="sm">No bug reports yet.</Text>
-        </Section>
-      </SimpleGrid>
+      <Paper p="lg" radius="md" withBorder mb="md">
+        <Title order={4} mb="md">Execution Status</Title>
+        <ExecutionStatusSummary status={report?.executionStatus ?? { PASSED: 0, FAILED: 0, ERROR: 0, SKIPPED: 0, RUNNING: 0 }} total={report?.totalExecutions ?? 0} />
+      </Paper>
+
+      <Paper p="lg" radius="md" withBorder>
+        <Title order={4} mb="md">Recent Executions</Title>
+        {!report || report.recentExecutions.length === 0 ? (
+          <Text c="dimmed" size="sm">No executions yet. Run a test to see results here.</Text>
+        ) : (
+          <Stack gap="xs">
+            {report.recentExecutions.map((execution) => (
+              <Group key={execution.id} justify="space-between" wrap="nowrap">
+                <Link href={`/executions/${execution.id}`} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
+                  <Group gap="sm" wrap="nowrap">
+                    <Badge color={statusColor[execution.status]} variant="light">{execution.status}</Badge>
+                    <Text size="sm" fw={500} ff="monospace">{execution.number}</Text>
+                    <Text size="sm" truncate>{execution.testCase.title}</Text>
+                  </Group>
+                </Link>
+                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>{new Date(execution.createdAt).toLocaleString()}</Text>
+              </Group>
+            ))}
+          </Stack>
+        )}
+      </Paper>
     </Container>
   );
 }

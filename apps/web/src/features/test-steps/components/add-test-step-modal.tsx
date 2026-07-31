@@ -3,28 +3,8 @@
 import { Modal, Select, TextInput, Textarea, Group, Button, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useCreateTestStep } from '../hooks';
-
-const actionOptions = [
-  { value: 'OPEN_BROWSER', label: 'Open Browser' },
-  { value: 'NAVIGATE', label: 'Navigate' },
-  { value: 'CLICK', label: 'Click' },
-  { value: 'DOUBLE_CLICK', label: 'Double Click' },
-  { value: 'INPUT_TEXT', label: 'Input Text' },
-  { value: 'CLEAR', label: 'Clear' },
-  { value: 'SELECT', label: 'Select' },
-  { value: 'CHECK', label: 'Check' },
-  { value: 'UNCHECK', label: 'Uncheck' },
-  { value: 'UPLOAD_FILE', label: 'Upload File' },
-  { value: 'PRESS_KEY', label: 'Press Key' },
-  { value: 'WAIT', label: 'Wait' },
-  { value: 'SCROLL', label: 'Scroll' },
-  { value: 'HOVER', label: 'Hover' },
-  { value: 'VERIFY_TEXT', label: 'Verify Text' },
-  { value: 'VERIFY_URL', label: 'Verify URL' },
-  { value: 'VERIFY_ELEMENT', label: 'Verify Element' },
-  { value: 'VERIFY_ATTRIBUTE', label: 'Verify Attribute' },
-  { value: 'TAKE_SCREENSHOT', label: 'Take Screenshot' },
-];
+import { ACTION_OPTIONS, LOCATOR_OPTIONS } from '../../../constants/test-step-actions';
+import type { TestStepAction } from '../../../constants/test-step-actions';
 
 interface Props {
   testCaseId: string;
@@ -38,18 +18,34 @@ export function AddTestStepModal({ testCaseId, opened, onClose }: Props) {
   const form = useForm({
     initialValues: {
       action: '',
-      target: '',
-      value: '',
+      description: '',
+      locatorStrategy: '',
+      locatorValue: '',
+      inputValue: '',
       expectedResult: '',
     },
     validate: {
       action: (v: string) => (v.trim().length < 1 ? 'Action is required' : null),
-      expectedResult: (v: string) => (v.trim().length < 1 ? 'Expected result is required' : null),
     },
   });
 
-  const handleSubmit = (values: { action: string; target: string; value: string; expectedResult: string }) => {
-    createStep.mutate(values, {
+  const handleSubmit = (values: {
+    action: string;
+    description: string;
+    locatorStrategy: string;
+    locatorValue: string;
+    inputValue: string;
+    expectedResult: string;
+  }) => {
+    const payload = {
+      action: values.action as TestStepAction,
+      description: values.description || undefined,
+      locatorStrategy: values.locatorStrategy || undefined,
+      locatorValue: values.locatorValue || undefined,
+      inputValue: values.inputValue || undefined,
+      expectedResult: values.expectedResult || undefined,
+    };
+    createStep.mutate(payload, {
       onSuccess: () => {
         form.reset();
         onClose();
@@ -64,28 +60,43 @@ export function AddTestStepModal({ testCaseId, opened, onClose }: Props) {
           <Select
             label="Action"
             placeholder="Select an action type"
-            data={actionOptions}
+            data={ACTION_OPTIONS}
+            searchable
             required
             {...form.getInputProps('action')}
           />
 
+          <Group grow>
+            <Select
+              label="Locator Strategy"
+              placeholder="e.g. CSS, TEXT, ROLE"
+              data={LOCATOR_OPTIONS}
+              clearable
+              {...form.getInputProps('locatorStrategy')}
+            />
+            <TextInput
+              label="Locator Value"
+              placeholder="e.g. #submit-button"
+              {...form.getInputProps('locatorValue')}
+            />
+          </Group>
+
           <TextInput
-            label="Target"
-            placeholder="e.g. #submit-button, /api/users"
-            {...form.getInputProps('target')}
+            label="Input Value"
+            placeholder="Text to type, option to select, key to press, wait time"
+            {...form.getInputProps('inputValue')}
           />
 
           <TextInput
-            label="Value"
-            placeholder="e.g. admin@example.com, 5000"
-            {...form.getInputProps('value')}
+            label="Description"
+            placeholder="Short description of this step"
+            {...form.getInputProps('description')}
           />
 
           <Textarea
             label="Expected Result"
             placeholder="What should happen"
             minRows={3}
-            required
             autosize
             {...form.getInputProps('expectedResult')}
           />

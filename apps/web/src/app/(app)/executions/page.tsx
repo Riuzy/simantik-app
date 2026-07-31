@@ -1,3 +1,5 @@
-export default function ExecutionsPage() {
-  return <div>Executions Page</div>;
+import ExecutionPage from './ExecutionPage';
+
+export default function Page() {
+    return <ExecutionPage />;
 }

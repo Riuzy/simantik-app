@@ -25,7 +25,7 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
       description: '',
       module: '',
       priority: 'MEDIUM',
-      testType: 'MANUAL',
+      status: 'DRAFT',
       projectId,
     },
   });
@@ -79,12 +79,13 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
             />
 
             <Select
-              label="Type"
+              label="Status"
               data={[
-                { value: 'MANUAL', label: 'Manual' },
-                { value: 'AUTOMATION', label: 'Automation' },
+                { value: 'DRAFT', label: 'Draft' },
+                { value: 'READY', label: 'Ready' },
+                { value: 'ARCHIVED', label: 'Archived' },
               ]}
-              {...form.getInputProps('testType')}
+              {...form.getInputProps('status')}
             />
           </Group>
 

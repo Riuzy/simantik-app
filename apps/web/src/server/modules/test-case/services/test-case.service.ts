@@ -17,18 +17,17 @@ export class TestCaseService {
   async create(dto: CreateTestCaseDTO, createdById: string) {
     const code = await this.generateNextCode();
 
-    const testCase = await this.repository.create({
+    return this.repository.create({
       code,
       title: dto.title,
       description: dto.description,
       module: dto.module,
       priority: dto.priority || 'MEDIUM',
-      testType: dto.testType || 'MANUAL',
+      status: dto.status || 'DRAFT',
+      tags: dto.tags ?? [],
       projectId: dto.projectId,
       createdById,
     });
-
-    return testCase;
   }
 
   async getById(id: string) {
@@ -44,8 +43,15 @@ export class TestCaseService {
   }
 
   async update(id: string, dto: UpdateTestCaseDTO) {
-    const testCase = await this.repository.update(id, dto);
-    return testCase;
+    const updateData: Record<string, unknown> = {};
+    if (dto.title !== undefined) updateData.title = dto.title;
+    if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.module !== undefined) updateData.module = dto.module;
+    if (dto.priority !== undefined) updateData.priority = dto.priority;
+    if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.tags !== undefined) updateData.tags = dto.tags;
+
+    return this.repository.update(id, updateData);
   }
 
   async delete(id: string) {
@@ -70,36 +76,30 @@ export class TestCaseService {
   }
 
   async duplicate(id: string, dto: DuplicateTestCaseDTO) {
-    // Check code uniqueness
     const existingByCode = await this.repository.findByCode(dto.code);
     if (existingByCode) {
       throw new AppError(409, 'Test case with this code already exists');
     }
 
-    const testCase = await this.repository.duplicate(id, dto.code, dto.title);
-    return testCase;
+    return this.repository.duplicate(id, dto.code, dto.title);
   }
 
   async clone(id: string, projectId: string, dto: CloneTestCaseDTO) {
-    // Check code uniqueness
     const existingByCode = await this.repository.findByCode(dto.code);
     if (existingByCode) {
       throw new AppError(409, 'Test case with this code already exists');
     }
 
-    const testCase = await this.repository.clone(id, dto.projectId, dto.code, dto.title);
-    return testCase;
+    return this.repository.clone(id, dto.projectId, dto.code, dto.title);
   }
 
-  // Test Step methods
   async addStep(testCaseId: string, dto: CreateTestStepDTO) {
     const testCase = await this.repository.findById(testCaseId);
     if (!testCase) {
       throw new AppError(404, 'Test case not found');
     }
 
-    const step = await this.repository.createTestStep(testCaseId, dto);
-    return step;
+    return this.repository.createTestStep(testCaseId, dto);
   }
 
   async updateStep(testCaseId: string, stepNumber: number, dto: UpdateTestStepDTO) {
@@ -108,8 +108,7 @@ export class TestCaseService {
       throw new AppError(404, 'Test case not found');
     }
 
-    const step = await this.repository.updateTestStep(testCaseId, stepNumber, dto);
-    return step;
+    return this.repository.updateTestStep(testCaseId, stepNumber, dto);
   }
 
   async deleteStep(testCaseId: string, stepNumber: number) {

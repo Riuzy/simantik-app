@@ -2,89 +2,94 @@
 
 ## Overview
 
-SIMANTIK adalah sistem manajemen pengujian yang komprehensif yang dirancang untuk membantu organisasi merencanakan, mengeksekusi, dan melacak aktivitas pengujian perangkat lunak. Sistem ini memungkinkan tim untuk mengorganisir test case, mengelola test run, melacak hasil eksekusi, dan melaporkan bug dalam project yang terstruktur.
+SIMANTIK adalah Software Testing Management System dengan Automation Testing Platform terintegrasi. Pengguna menyusun test case secara visual (step builder), sistem meng-generate script Playwright, mengeksekusi secara lokal, dan melacak hasilnya dalam executions serta reports.
 
-Platform ini mendukung alur kerja pengujian kolaboratif di mana manajer mengawasi project, dan anggota tim (tester dan developer) bekerja sama untuk memastikan kualitas perangkat lunak melalui manajemen test case dan pelacakan eksekusi yang sistematis.
+Platform berfokus pada alur kerja test case -> script -> execution -> report. Tidak ada konsep role/RBAC, team membership, test run, atau bug report.
 
----
+## Entitas
 
-## 1. Global Role
+### User
 
-### Manager
-- Membuat dan mengelola project
-- Mengundang pengguna ke project
-- Mengawasi semua project
+Pengguna platform. Setiap user memiliki akses setara ke seluruh resource (tanpa RBAC).
 
-### Tester
-- Membuat Test Case
-- Mengeksekusi Test Run
-- Membuat Bug Report
-- Bergabung dengan project ketika diundang
+### Project
 
-### Developer
-- Melihat project yang ditugaskan
-- Memperbarui status bug
-- Bergabung dengan project ketika diundang
+Container logis yang mengelompokkan aktivitas pengujian terkait.
 
----
+- Memiliki kode (mis. `PROJ-0001`) dan slug unik
+- Berisi Test Case
+- Memiliki satu AutomationConfig
 
-## 2. User
+### TestCase
 
-Setiap user memiliki satu global role. User diundang ke project oleh Manager melalui ProjectMember.
+Unit pengujian yang bisa dieksekusi.
 
----
+- Kode unik per project (mis. `TC-0001`)
+- Status: `DRAFT`, `READY`, `ARCHIVED`
+- Memiliki sejumlah TestStep
+- Memiliki banyak Execution
 
-## 3. Project
+### TestStep
 
-Project adalah container logis yang mengelompokkan aktivitas pengujian terkait.
+Langkah individual dalam test case, disusun secara visual.
 
-**Karakteristik:**
-- Dibuat oleh Manager
-- Memiliki sekelompok anggota (ProjectMember)
-- Berisi Test Case, Test Run, dan Bug Report
+- `action`: 31 action types
+- `locatorStrategy` + `locatorValue`: 9 locator strategies
+- `inputValue`, `expectedResult`, `description`, `stepNumber`
 
----
+### AutomationConfig
 
-## 4. ProjectMember
+Konfigurasi eksekusi otomatisasi per project.
 
-ProjectMember menghubungkan User ke Project. User tidak memiliki role terpisah di dalam project; semua tanggung jawab ditentukan oleh global role mereka.
+- `framework`, `browser`, `baseUrl`, `headless`, `viewportWidth`, `viewportHeight`
+- `timeout`, `retry`, `parallel`, `slowMotion`
 
----
+### Execution
+
+Hasil eksekusi test case oleh Playwright.
+
+- Status: `RUNNING`, `PASSED`, `FAILED`, `ERROR`, `SKIPPED`
+- `durationMs`, `errorMessage`, `consoleLog`
+- Path artifact: `screenshotPath`, `videoPath`, `tracePath`
+- `generatedScript`: script yang dieksekusi
+
+### ExecutionLog
+
+Log baris-per-baris dari output eksekusi (LEVEL `INFO`/`STEP`/`ERROR`).
+
+### Setting
+
+Pasangan key/value untuk pengaturan global platform.
 
 ## Alur Kerja
 
-1. **Manager** membuat project
-2. **Manager** mengundang user ke project (menambahkan ProjectMember)
-3. **Tester** membuat test case dan mengeksekusi test run
-4. **Tester** melaporkan bug
-5. **Developer** melihat bug yang ditugaskan dan memperbarui statusnya
-
----
+1. Pengguna membuat **Project**
+2. Pengguna membuat **TestCase** dan menyusun **TestSteps** secara visual
+3. Sistem **meng-generate script Playwright** dari steps
+4. Sistem **mengeksekusi** test case (headless/headed) via Playwright
+5. Hasil disimpan sebagai **Execution** beserta logs dan screenshot
+6. Pengguna melihat hasilnya di **Executions** dan **Reports**
 
 ## Hierarki Entitas
 
 ```
-Role
+User
 │
-└── User
-        │
-        └── ProjectMember
-                    │
-                    └── Project
-                                │
-                                ├── TestCase
-                                ├── TestStep
-                                ├── TestRun
-                                ├── Execution
-                                └── BugReport
-```
+└── Project
+        ├── TestCase
+        │       ├── TestStep
+        │       └── Execution
+        │               └── ExecutionLog
+        └── AutomationConfig
 
----
+Setting (global, standalone)
+```
 
 ## Ringkasan
 
-- **Global Role:** Manager, Tester, Developer
-- **Tidak ada konsep Workspace**
+- Tanpa RBAC: semua user memiliki akses setara
 - **Project** adalah container utama
-- **ProjectMember** menghubungkan user ke project
-- **Akses ditentukan oleh global role**, bukan role per-project
+- **TestCase** + **TestStep** adalah inti manajemen pengujian
+- **AutomationConfig** mengatur eksekusi
+- **Execution** + **ExecutionLog** melacak hasil eksekusi
+- **Setting** menyimpan konfigurasi global

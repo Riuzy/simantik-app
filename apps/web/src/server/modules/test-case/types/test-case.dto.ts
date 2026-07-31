@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TestPriority, TestCaseStatus, TestType } from '@prisma/client';
+import { TestPriority, TestCaseStatus } from '@prisma/client';
 import {
   createTestCaseBodySchema,
   updateTestCaseBodySchema,
@@ -25,8 +25,10 @@ export interface TestStepResponseDTO {
   testCaseId: string;
   stepNumber: number;
   action: string;
-  target: string | null;
-  value: string | null;
+  description: string | null;
+  locatorStrategy: string | null;
+  locatorValue: string | null;
+  inputValue: string | null;
   expectedResult: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -39,7 +41,8 @@ export interface TestCaseResponseDTO {
   description: string | null;
   module: string | null;
   priority: TestPriority;
-  testType: TestType;
+  status: TestCaseStatus;
+  tags: string[];
   projectId: string;
   createdById: string;
   createdAt: Date;
@@ -64,7 +67,8 @@ export interface TestCaseListDTO {
   title: string;
   module: string | null;
   priority: TestPriority;
-  testType: TestType;
+  status: TestCaseStatus;
+  tags: string[];
   createdAt: Date;
   createdBy: {
     id: string;
@@ -74,6 +78,7 @@ export interface TestCaseListDTO {
     id: string;
     code: string;
     name: string;
+    slug: string;
   };
   _count: {
     steps: number;
@@ -94,9 +99,9 @@ export interface TestCaseListResponseDTO {
 
 export interface TestCaseFilters {
   projectId?: string;
-  status?: TestCaseStatus;
   priority?: TestPriority;
-  testType?: TestType;
+  status?: TestCaseStatus;
+  tag?: string;
   createdById?: string;
   search?: string;
   sortBy?: 'createdAt' | 'title' | 'updatedAt' | 'priority';

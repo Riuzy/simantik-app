@@ -1,62 +1,41 @@
 import {
-  IconLayoutDashboard, IconFolder,
-  IconBell, IconSettings, IconUserCircle, IconUsers,
+  IconLayoutDashboard,
+  IconFolder,
+  IconClipboardList,
+  IconPlayerPlay,
+  IconCheckbox,
+  IconChartBar,
+  IconUserCircle,
+  IconSettings,
 } from '@tabler/icons-react';
 import { ROUTES } from './routes';
 
 export interface NavItem {
   label: string;
-  icon?: React.ComponentType<{ size?: number; stroke?: number }>;
-  route?: string;
+  icon: React.ComponentType<{ size?: number; stroke?: number }>;
+  route: string;
 }
 
-export interface NavSection {
-  title: string;
-  items: NavItem[];
-}
-
-const MENUS = {
-  dashboard: { label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD },
-  projects:  { label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS },
-  myProjects: { label: 'My Projects', icon: IconFolder, route: ROUTES.PROJECTS },
-  notifications: { label: 'Notifications', icon: IconBell, route: ROUTES.NOTIFICATIONS },
-  users:     { label: 'Users', icon: IconUsers, route: ROUTES.USERS },
-  settings:  { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
-  profile:   { label: 'Profile', icon: IconUserCircle, route: ROUTES.PROFILE },
-} as const;
-
-const ROLE_MENUS: Record<string, NavSection[]> = {
-  Manager: [
-    { title: 'General', items: [MENUS.dashboard] },
-    { title: 'Workspace', items: [MENUS.projects] },
-    { title: 'Quality', items: [MENUS.notifications] },
-    { title: 'Administration', items: [MENUS.users, MENUS.settings] },
-    { title: 'Account', items: [MENUS.profile] },
-  ],
-  Developer: [
-    { title: 'General', items: [MENUS.dashboard] },
-    { title: 'My Workspace', items: [MENUS.myProjects] },
-    { title: 'Account', items: [MENUS.profile] },
-  ],
-  Tester: [
-    { title: 'General', items: [MENUS.dashboard] },
-    { title: 'Workspace', items: [MENUS.myProjects] },
-    { title: 'Quality', items: [MENUS.notifications] },
-    { title: 'Account', items: [MENUS.profile] },
-  ],
-};
-
-export function getNavigation(role?: string): NavSection[] {
-  return ROLE_MENUS[role || ''] || ROLE_MENUS.Tester;
-}
+export const NAVIGATION: NavItem[] = [
+  { label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD },
+  { label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS },
+  { label: 'Test Cases', icon: IconClipboardList, route: ROUTES.TEST_CASES },
+  { label: 'Automation', icon: IconPlayerPlay, route: ROUTES.AUTOMATION },
+  { label: 'Executions', icon: IconCheckbox, route: ROUTES.EXECUTIONS },
+  { label: 'Reports', icon: IconChartBar, route: ROUTES.REPORTS },
+  { label: 'Profile', icon: IconUserCircle, route: ROUTES.PROFILE },
+  { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
+];
 
 export const routeLabels: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/projects': 'Projects',
-  '/notifications': 'Notifications',
-  '/users': 'Users',
-  '/profile': 'Profile',
-  '/settings': 'Settings',
+  [ROUTES.DASHBOARD]: 'Dashboard',
+  [ROUTES.PROJECTS]: 'Projects',
+  [ROUTES.TEST_CASES]: 'Test Cases',
+  [ROUTES.AUTOMATION]: 'Automation',
+  [ROUTES.EXECUTIONS]: 'Executions',
+  [ROUTES.REPORTS]: 'Reports',
+  [ROUTES.PROFILE]: 'Profile',
+  [ROUTES.SETTINGS]: 'Settings',
 };
 
 export function getRouteLabel(path: string): string {

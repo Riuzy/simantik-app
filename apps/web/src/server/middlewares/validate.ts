@@ -4,16 +4,14 @@ import { ZodSchema } from 'zod';
 type RequestPart = 'body' | 'query' | 'params';
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
+      id?: string;
       validated: Partial<Record<'body' | 'query' | 'params', unknown>>;
     }
   }
 }
-
-type ValidationSchemas = {
-  [K in RequestPart]?: ZodSchema;
-};
 
 export function validate(schemas: { body?: ZodSchema; query?: ZodSchema; params?: ZodSchema }) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -29,9 +27,10 @@ export function validate(schemas: { body?: ZodSchema; query?: ZodSchema; params?
         req.validated.params = req.params;
       }
 
-      for (const [part, schema] of Object.entries({ body: schemas.body, query: schemas.query, params: schemas.params }) as [string, ZodSchema][]) {
+      for (const part of ['body', 'query', 'params'] as RequestPart[]) {
+        const schema = schemas[part];
         if (!schema) continue;
-        const parsed = await schema.parseAsync(req[part as 'body' | 'query' | 'params']);
+        const parsed = await schema.parseAsync(req[part]);
         req.validated[part] = parsed;
       }
       next();

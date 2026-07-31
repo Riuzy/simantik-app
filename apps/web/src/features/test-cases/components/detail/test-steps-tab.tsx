@@ -2,17 +2,18 @@
 
 import { useState, useCallback } from 'react';
 import {
-  Paper, Group, Text, Badge, Button, Stack, Box, Loader, Center,
-  ActionIcon, Tooltip, rem,
+  Paper, Group, Text, Badge, Button, Stack, Box,
+  ActionIcon, rem,
 } from '@mantine/core';
 import {
   IconPlus, IconGripVertical, IconPencil, IconTrash,
   IconArrowUp, IconArrowDown,
 } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
-import { useDeleteTestStep, useReorderTestSteps, useUpdateTestStep } from '../../../test-steps/hooks';
+import { useDeleteTestStep, useReorderTestSteps } from '../../../test-steps/hooks';
 import { AddTestStepModal } from '../../../test-steps/components/add-test-step-modal';
 import { EditTestStepModal } from '../../../test-steps/components/edit-test-step-modal';
+import { TEST_STEP_ACTION_LABELS } from '../../../../constants/test-step-actions';
 
 interface TestStepsTabProps {
   testCase: {
@@ -22,8 +23,10 @@ interface TestStepsTabProps {
       testCaseId: string;
       stepNumber: number;
       action: string;
-      target: string | null;
-      value: string | null;
+      description: string | null;
+      locatorStrategy: string | null;
+      locatorValue: string | null;
+      inputValue: string | null;
       expectedResult: string | null;
       createdAt: string;
       updatedAt: string;
@@ -32,53 +35,40 @@ interface TestStepsTabProps {
   canManage: boolean;
 }
 
-const actionLabels: Record<string, string> = {
-  OPEN_BROWSER: 'Open Browser',
-  NAVIGATE: 'Navigate',
-  CLICK: 'Click',
-  DOUBLE_CLICK: 'Double Click',
-  INPUT_TEXT: 'Input Text',
-  CLEAR: 'Clear',
-  SELECT: 'Select',
-  CHECK: 'Check',
-  UNCHECK: 'Uncheck',
-  UPLOAD_FILE: 'Upload File',
-  PRESS_KEY: 'Press Key',
-  WAIT: 'Wait',
-  SCROLL: 'Scroll',
-  HOVER: 'Hover',
-  VERIFY_TEXT: 'Verify Text',
-  VERIFY_URL: 'Verify URL',
-  VERIFY_ELEMENT: 'Verify Element',
-  VERIFY_ATTRIBUTE: 'Verify Attribute',
-  TAKE_SCREENSHOT: 'Take Screenshot',
-};
-
 const actionColorMap: Record<string, string> = {
   OPEN_BROWSER: 'blue',
   NAVIGATE: 'cyan',
   CLICK: 'green',
   DOUBLE_CLICK: 'green',
-  INPUT_TEXT: 'yellow',
+  RIGHT_CLICK: 'green',
+  HOVER: 'cyan',
+  TYPE: 'yellow',
   CLEAR: 'orange',
   SELECT: 'purple',
   CHECK: 'teal',
   UNCHECK: 'red',
-  UPLOAD_FILE: 'indigo',
   PRESS_KEY: 'gray',
-  WAIT: 'dimmed',
+  UPLOAD_FILE: 'indigo',
+  WAIT: 'gray',
   SCROLL: 'orange',
-  HOVER: 'cyan',
-  VERIFY_TEXT: 'green',
-  VERIFY_URL: 'green',
-  VERIFY_ELEMENT: 'green',
-  VERIFY_ATTRIBUTE: 'green',
+  DRAG_AND_DROP: 'grape',
   TAKE_SCREENSHOT: 'blue',
+  CLOSE_BROWSER: 'dark',
+  VERIFY_URL: 'green',
+  VERIFY_TITLE: 'green',
+  VERIFY_TEXT: 'green',
+  VERIFY_ELEMENT: 'green',
+  VERIFY_VISIBLE: 'green',
+  VERIFY_HIDDEN: 'green',
+  VERIFY_ENABLED: 'green',
+  VERIFY_DISABLED: 'green',
+  VERIFY_ATTRIBUTE: 'green',
+  VERIFY_COUNT: 'green',
 };
 
 export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
   const [addOpened, setAddOpened] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; stepNumber: number; action: string; target: string | null; value: string | null; expectedResult: string | null } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; inputValue: string | null; expectedResult: string | null } | null>(null);
   const [editOpened, setEditOpened] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -91,8 +81,10 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
     testCaseId: string;
     stepNumber: number;
     action: string;
-    target: string | null;
-    value: string | null;
+    description: string | null;
+    locatorStrategy: string | null;
+    locatorValue: string | null;
+    inputValue: string | null;
     expectedResult: string | null;
     createdAt: string;
     updatedAt: string;
@@ -109,7 +101,7 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
       onConfirm: () => deleteStep.mutate(stepNumber),
     });
 
-  const openEdit = (step: { id: string; stepNumber: number; action: string; target: string | null; value: string | null; expectedResult: string | null }) => {
+  const openEdit = (step: { id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; inputValue: string | null; expectedResult: string | null }) => {
     setEditTarget(step);
     setEditOpened(true);
   };
@@ -218,14 +210,18 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
               <Box style={{ flex: 1, minWidth: 0 }}>
                 <Group gap="xs" mb={4}>
                   <Badge size="xs" color={actionColorMap[step.action] ?? 'gray'}>
-                    {actionLabels[step.action] ?? step.action}
+                    {TEST_STEP_ACTION_LABELS[step.action as keyof typeof TEST_STEP_ACTION_LABELS] ?? step.action}
                   </Badge>
                 </Group>
 
-                {(step.target || step.value) && (
+                {step.locatorValue && (
                   <Text size="xs" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
-                    {step.target}{step.value ? ` → ${step.value}` : ''}
+                    {step.locatorStrategy}: {step.locatorValue}
                   </Text>
+                )}
+
+                {step.inputValue && (
+                  <Text size="xs" c="dimmed">value: {step.inputValue}</Text>
                 )}
 
                 {step.expectedResult && (

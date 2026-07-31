@@ -3,16 +3,12 @@ import {
   createProjectBodySchema,
   updateProjectBodySchema,
   listProjectsQuerySchema,
-  addMemberParamSchema,
-  removeMemberParamSchema,
 } from '../validators/project.validators';
-import { ProjectStatus } from '@prisma/client';
+import { Framework, ProjectStatus } from '@prisma/client';
 
 export type CreateProjectDTO = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectDTO = z.infer<typeof updateProjectBodySchema>;
 export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>;
-export type AddMemberDTO = z.infer<typeof addMemberParamSchema>;
-export type RemoveMemberDTO = z.infer<typeof removeMemberParamSchema>;
 
 export interface ProjectResponseDTO {
   id: string;
@@ -20,9 +16,10 @@ export interface ProjectResponseDTO {
   name: string;
   slug: string;
   description: string | null;
+  baseUrl: string | null;
+  framework: Framework;
+  environment: string | null;
   status: ProjectStatus;
-  startDate: Date | null;
-  endDate: Date | null;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +35,7 @@ export interface ProjectListDTO {
   code: string;
   name: string;
   slug: string;
+  framework: Framework;
   status: ProjectStatus;
   createdAt: Date;
   createdBy: {
@@ -58,31 +56,10 @@ export interface ProjectListResponseDTO {
   pagination: PaginationDTO;
 }
 
-export interface ProjectMemberDTO {
-  id: string;
-  userId: string;
-  projectId: string;
-  joinedAt: Date;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    avatar: string | null;
-    jobTitle: string | null;
-    role: {
-      id: string;
-      name: string;
-    };
-  };
-}
-
 export interface ProjectDetailDTO extends ProjectResponseDTO {
-  members: ProjectMemberDTO[];
   _count: {
-    members: number;
     testCases: number;
-    testRuns: number;
-    bugReports: number;
+    executions: number;
   };
 }
 
@@ -90,7 +67,7 @@ export interface ProjectFilters {
   status?: string;
   search?: string;
   createdById?: string;
-  memberId?: string;
+  framework?: string;
   sortBy?: 'createdAt' | 'name' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }

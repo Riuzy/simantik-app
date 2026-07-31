@@ -3,7 +3,7 @@ import { AuthRequest } from '../../../middlewares/auth';
 import { TestCaseService } from '../services/test-case.service';
 import { AppError } from '../../../middlewares/error-handler';
 import { ApiResponse } from '../../../utils/api-response';
-import { TestCaseStatus, TestPriority } from '@prisma/client';
+import { TestPriority, TestCaseStatus } from '@prisma/client';
 import {
   idParamSchema,
   testCaseAndStepParamSchema,
@@ -13,6 +13,9 @@ import {
   updateStepBodySchema,
   testCaseAndCodeParamSchema,
   reorderStepsBodySchema,
+  listTestCasesQuerySchema,
+  createTestCaseBodySchema,
+  updateTestCaseBodySchema,
 } from '../validators/test-case.validators';
 
 export class TestCaseController {
@@ -24,7 +27,8 @@ export class TestCaseController {
         throw new AppError(401, 'Authentication required');
       }
 
-      const testCase = await this.testCaseService.create(req.body, req.user.id);
+      const body = createTestCaseBodySchema.parse(req.body);
+      const testCase = await this.testCaseService.create(body, req.user.id);
       ApiResponse.created(res, testCase);
     } catch (error) {
       next(error);
@@ -57,7 +61,8 @@ export class TestCaseController {
   update = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const params = idParamSchema.parse(req.params);
-      const testCase = await this.testCaseService.update(params.id, req.body);
+      const body = updateTestCaseBodySchema.parse(req.body);
+      const testCase = await this.testCaseService.update(params.id, body);
       ApiResponse.success(res, testCase);
     } catch (error) {
       next(error);
@@ -76,24 +81,17 @@ export class TestCaseController {
 
   list = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
-      const projectId = req.query.projectId as string;
-      const status = req.query.status as string;
-      const priority = req.query.priority as string;
-      const createdById = req.query.createdById as string;
-      const search = req.query.search as string;
-      const sortBy = req.query.sortBy as 'createdAt' | 'title' | 'updatedAt' | 'priority' || 'createdAt';
-      const sortOrder = req.query.sortOrder as 'asc' | 'desc' || 'desc';
+      const query = listTestCasesQuerySchema.parse(req.query);
 
-      const result = await this.testCaseService.list(page, limit, {
-        projectId,
-        status: status as TestCaseStatus | undefined,
-        priority: priority as TestPriority | undefined,
-        createdById,
-        search,
-        sortBy,
-        sortOrder,
+      const result = await this.testCaseService.list(query.page, query.limit, {
+        projectId: query.projectId,
+        priority: query.priority as TestPriority | undefined,
+        status: query.status as TestCaseStatus | undefined,
+        tag: query.tag,
+        createdById: query.createdById,
+        search: query.search,
+        sortBy: query.sortBy as 'createdAt' | 'title' | 'updatedAt' | 'priority',
+        sortOrder: query.sortOrder,
       });
 
       ApiResponse.paginated(
@@ -131,12 +129,11 @@ export class TestCaseController {
     }
   };
 
-  // Test Step endpoints
   addStep = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const params = testCaseAndStepParamSchema.parse({ testCaseId: req.params.testCaseId, stepNumber: '1' });
+      const testCaseId = req.params.testCaseId as string;
       const body = createStepBodySchema.parse(req.body);
-      const step = await this.testCaseService.addStep(params.testCaseId, body);
+      const step = await this.testCaseService.addStep(testCaseId, body);
       ApiResponse.created(res, step);
     } catch (error) {
       next(error);

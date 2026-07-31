@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 import { HttpError } from '../lib/errors';
@@ -6,7 +6,7 @@ import { logger } from '../lib/logger';
 
 export { HttpError as AppError } from '../lib/errors';
 
-export function errorHandler(err: Error, req: Request, res: Response): void {
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof HttpError) {
     res.status(err.statusCode).json({
       success: false,
@@ -32,6 +32,6 @@ export function errorHandler(err: Error, req: Request, res: Response): void {
     return;
   }
 
-  logger.error({ err, reqId: (req as any).id }, 'Unhandled error');
+  logger.error({ err, reqId: req.id }, 'Unhandled error');
   res.status(500).json({ success: false, message: 'Internal server error', errors: [] });
 }

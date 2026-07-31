@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Center, Loader, Stack, Text } from '@mantine/core';
 import { useAuthStore } from '../../stores/auth-store';
 import { useCurrentUser } from '../../features/auth/hooks/use-auth';
-import { useRole, usePermission } from '../../features/auth/hooks/use-permissions';
 import { ROUTES } from '../../constants/routes';
 
 function LoadingScreen({ message = 'Memuat...' }: { message?: string }) {
@@ -59,17 +58,5 @@ export function GuestRoute({ children }: { children: React.ReactNode }) {
 
   if (token) return null;
 
-  return <>{children}</>;
-}
-
-export function RoleGuard({ children, roles }: { children: React.ReactNode; roles: string[] }) {
-  const { hasRole } = useRole();
-  if (!hasRole(...roles)) return null;
-  return <>{children}</>;
-}
-
-export function PermissionGuard({ children, permissions }: { children: React.ReactNode; permissions: string[] }) {
-  const { hasPermission } = usePermission();
-  if (!hasPermission(...permissions)) return null;
   return <>{children}</>;
 }

@@ -5,6 +5,7 @@ import { Modal, TextInput, Textarea, Select, Group, Button, Stack } from '@manti
 import { useForm, schemaResolver } from '@mantine/form';
 import { updateTestCaseSchema, type UpdateTestCaseForm } from '../schemas';
 import { useUpdateTestCase } from '../hooks';
+import type { TestPriority, TestCaseStatus } from '../types';
 
 interface Props {
   projectId: string;
@@ -13,8 +14,8 @@ interface Props {
     title: string;
     description: string | null;
     module: string | null;
-    priority: string;
-    testType: string;
+    priority: TestPriority;
+    status: TestCaseStatus;
   } | null;
   opened: boolean;
   onClose: () => void;
@@ -30,7 +31,7 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
       description: '',
       module: '',
       priority: 'MEDIUM',
-      testType: 'MANUAL',
+      status: 'DRAFT',
     },
   });
 
@@ -40,8 +41,8 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
         title: testCase.title,
         description: testCase.description ?? '',
         module: testCase.module ?? '',
-        priority: testCase.priority as any,
-        testType: testCase.testType as any,
+        priority: testCase.priority,
+        status: testCase.status,
       });
     }
   }, [testCase]);
@@ -93,12 +94,13 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
             />
 
             <Select
-              label="Type"
+              label="Status"
               data={[
-                { value: 'MANUAL', label: 'Manual' },
-                { value: 'AUTOMATION', label: 'Automation' },
+                { value: 'DRAFT', label: 'Draft' },
+                { value: 'READY', label: 'Ready' },
+                { value: 'ARCHIVED', label: 'Archived' },
               ]}
-              {...form.getInputProps('testType')}
+              {...form.getInputProps('status')}
             />
           </Group>
 

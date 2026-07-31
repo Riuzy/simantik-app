@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Group, Avatar, Text, Menu, UnstyledButton, Badge,
+  Group, Avatar, Text, Menu, UnstyledButton,
 } from '@mantine/core';
 import {
   IconUserCircle, IconSettings, IconLogout, IconChevronDown,
@@ -36,7 +36,7 @@ export function UserMenu() {
       <Menu.Dropdown>
         <Menu.Label>
           <Text size="sm" fw={500}>{user.name}</Text>
-          <Badge size="xs" variant="light" color="blue">{user.role?.name}</Badge>
+          <Text size="xs" c="dimmed">{user.email}</Text>
         </Menu.Label>
         <Menu.Divider />
         <Menu.Item leftSection={<IconUserCircle size={16} />} onClick={() => router.push(ROUTES.PROFILE)}>

@@ -4,17 +4,11 @@ export class AuthRepository {
   constructor(private prisma: PrismaClient) {}
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-      include: { role: { select: { id: true, name: true } } },
-    });
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
   async findById(id: string) {
-    return this.prisma.user.findUnique({
-      where: { id },
-      include: { role: { select: { id: true, name: true } } },
-    });
+    return this.prisma.user.findUnique({ where: { id } });
   }
 
   async updateLastLogin(id: string) {

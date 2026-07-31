@@ -21,12 +21,20 @@ export function useProject(id: string) {
   });
 }
 
+export function useProjectBySlug(slug: string) {
+  return useQuery({
+    queryKey: ['project-by-slug', slug],
+    queryFn: () => projectService.getProjectBySlug(slug),
+    enabled: !!slug,
+  });
+}
+
 export function useCreateProject() {
   const qc = useQueryClient();
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: CreateProjectForm) => projectService.createProject(data as any),
+    mutationFn: (data: CreateProjectForm) => projectService.createProject(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects'] });
       notifications.show({ title: 'Success', message: 'Project created', color: 'green' });
@@ -41,7 +49,7 @@ export function useUpdateProject(id: string) {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (data: UpdateProjectForm) => projectService.updateProject(id, data as any),
+    mutationFn: (data: UpdateProjectForm) => projectService.updateProject(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects'] });
       qc.invalidateQueries({ queryKey: ['project', id] });
@@ -64,58 +72,5 @@ export function useDeleteProject(id: string) {
       router.push('/projects');
     },
     onError: () => notifications.show({ title: 'Error', message: 'Failed to delete project', color: 'red' }),
-  });
-}
-
-export function useProjectMembers(projectId: string) {
-  return useQuery({
-    queryKey: ['project-members', projectId],
-    queryFn: () => projectService.listMembers(projectId),
-    enabled: !!projectId,
-  });
-}
-
-export function useAddMember(projectId: string) {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userId: string) => projectService.addMember(projectId, userId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['projects'] });
-      qc.invalidateQueries({ queryKey: ['project-members', projectId] });
-      qc.invalidateQueries({ queryKey: ['project', projectId] });
-      notifications.show({ title: 'Success', message: 'Member added', color: 'green' });
-    },
-    onError: () => notifications.show({ title: 'Error', message: 'Failed to add member', color: 'red' }),
-  });
-}
-
-export function useRemoveMember(projectId: string) {
-  const qc = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userId: string) => projectService.removeMember(projectId, userId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['projects'] });
-      qc.invalidateQueries({ queryKey: ['project-members', projectId] });
-      qc.invalidateQueries({ queryKey: ['project', projectId] });
-      notifications.show({ title: 'Success', message: 'Member removed', color: 'green' });
-    },
-  });
-}
-
-export function useRoles() {
-  return useQuery({
-    queryKey: ['roles'],
-    queryFn: () => projectService.listRoles(),
-    staleTime: 300000,
-  });
-}
-
-export function useAvailableUsers(projectId: string) {
-  return useQuery({
-    queryKey: ['available-users', projectId],
-    queryFn: () => projectService.listAvailableMembers(projectId),
-    enabled: !!projectId,
   });
 }

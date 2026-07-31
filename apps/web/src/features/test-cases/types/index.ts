@@ -1,31 +1,19 @@
-export type TestStepAction =
-  | 'OPEN_BROWSER'
-  | 'NAVIGATE'
-  | 'CLICK'
-  | 'DOUBLE_CLICK'
-  | 'INPUT_TEXT'
-  | 'CLEAR'
-  | 'SELECT'
-  | 'CHECK'
-  | 'UNCHECK'
-  | 'UPLOAD_FILE'
-  | 'PRESS_KEY'
-  | 'WAIT'
-  | 'SCROLL'
-  | 'HOVER'
-  | 'VERIFY_TEXT'
-  | 'VERIFY_URL'
-  | 'VERIFY_ELEMENT'
-  | 'VERIFY_ATTRIBUTE'
-  | 'TAKE_SCREENSHOT';
+import { TEST_STEP_ACTIONS } from '../../../constants/test-step-actions';
+
+export type TestStepAction = (typeof TEST_STEP_ACTIONS)[number];
+
+export type TestPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type TestCaseStatus = 'DRAFT' | 'READY' | 'ARCHIVED';
 
 export interface TestCaseStep {
   id: string;
   testCaseId: string;
   stepNumber: number;
   action: TestStepAction;
-  target: string | null;
-  value: string | null;
+  description: string | null;
+  locatorStrategy: string | null;
+  locatorValue: string | null;
+  inputValue: string | null;
   expectedResult: string | null;
   createdAt: string;
   updatedAt: string;
@@ -37,14 +25,15 @@ export interface TestCase {
   title: string;
   description: string | null;
   module: string | null;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  testType: 'MANUAL' | 'AUTOMATION';
-  status: 'DRAFT' | 'READY' | 'OBSOLETE';
+  priority: TestPriority;
+  status: TestCaseStatus;
+  tags: string[];
   projectId: string;
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  createdBy: { id: string; name: string };
+  createdBy: { id: string; name: string; email?: string; avatar?: string | null };
+  project?: { id: string; code: string; name: string; slug?: string };
   steps?: TestCaseStep[];
   _count?: { steps: number };
 }
@@ -63,8 +52,9 @@ export interface CreateTestCaseForm {
   title: string;
   description?: string;
   module?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  testType: 'MANUAL' | 'AUTOMATION';
+  priority: TestPriority;
+  status?: TestCaseStatus;
+  tags?: string[];
   projectId: string;
 }
 
@@ -72,21 +62,19 @@ export interface UpdateTestCaseForm {
   title?: string;
   description?: string;
   module?: string;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  testType?: 'MANUAL' | 'AUTOMATION';
-  status?: 'DRAFT' | 'READY' | 'OBSOLETE';
+  priority?: TestPriority;
+  status?: TestCaseStatus;
+  tags?: string[];
 }
 
-export interface CreateTestStepForm {
+export interface TestStepFields {
   action: TestStepAction;
-  target?: string;
-  value?: string;
+  description?: string;
+  locatorStrategy?: string;
+  locatorValue?: string;
+  inputValue?: string;
   expectedResult?: string;
 }
 
-export interface UpdateTestStepForm {
-  action?: TestStepAction;
-  target?: string;
-  value?: string;
-  expectedResult?: string;
-}
+export type CreateTestStepForm = TestStepFields;
+export type UpdateTestStepForm = Partial<TestStepFields>;

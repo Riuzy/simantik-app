@@ -4,14 +4,31 @@ export interface Project {
   name: string;
   slug: string;
   description: string | null;
+  baseUrl: string | null;
+  framework: 'PLAYWRIGHT' | 'SELENIUM' | 'CYPRESS';
+  environment: string | null;
   status: ProjectStatus;
-  startDate: string | null;
-  endDate: string | null;
   createdById: string;
   createdAt: string;
-  createdBy: { id: string; name: string; email: string };
-  _count?: { members: number; testCases: number; testRuns: number; bugReports: number };
-  members?: ProjectMember[];
+  updatedAt: string;
+  createdBy: { id: string; name: string; email: string; avatar: string | null };
+  automationConfig?: AutomationConfig | null;
+  _count?: { testCases: number; executions: number };
+}
+
+export interface AutomationConfig {
+  id: string;
+  projectId: string;
+  framework: 'PLAYWRIGHT' | 'SELENIUM' | 'CYPRESS';
+  browser: 'CHROMIUM' | 'FIREFOX' | 'WEBKIT';
+  baseUrl: string | null;
+  headless: boolean;
+  viewportWidth: number;
+  viewportHeight: number;
+  timeout: number;
+  retry: number;
+  parallel: number;
+  slowMotion: number;
 }
 
 export interface ProjectList {
@@ -19,25 +36,13 @@ export interface ProjectList {
   code: string;
   name: string;
   slug: string;
-  description?: string | null;
+  description: string | null;
+  baseUrl: string | null;
+  framework: string;
+  environment: string | null;
   status: ProjectStatus;
   createdAt: string;
   createdBy: { id: string; name: string };
-}
-
-export interface ProjectMember {
-  id: string;
-  userId: string;
-  projectId: string;
-  joinedAt: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    avatar: string | null;
-    jobTitle: string | null;
-    role: { id: string; name: string };
-  };
 }
 
 export type ProjectStatus = 'ACTIVE' | 'COMPLETED';

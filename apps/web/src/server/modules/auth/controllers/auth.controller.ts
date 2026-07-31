@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../../middlewares/auth';
 import { AuthService } from '../services/auth.service';
-import { ApiResponse } from '../../../lib/api-response';
+import { ApiResponse } from '../../../utils/api-response';
 
 export class AuthController {
   constructor(private authService: AuthService) {}

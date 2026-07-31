@@ -3,29 +3,19 @@ import { prisma } from '../../../lib/prisma';
 import { ProjectRepository } from '../repositories/project.repository';
 import { ProjectService } from '../services/project.service';
 import { ProjectController } from '../controllers/project.controller';
-import { UserRepository } from '../../user/repositories/user.repository';
-import { UserService } from '../../user/services/user.service';
-import { NotificationRepository } from '../../notification/repositories/notification.repository';
-import { NotificationService } from '../../notification/services/notification.service';
-import { requireAuth, requireRole } from '../../../middlewares/auth';
+import { requireAuth } from '../../../middlewares/auth';
 import { validate } from '../../../middlewares/validate';
 import {
   createProjectBodySchema,
   updateProjectBodySchema,
   listProjectsQuerySchema,
-  addMemberParamSchema,
-  removeMemberParamSchema,
   projectParamSchema,
-  listMembersParamSchema,
+  slugParamSchema,
 } from '../validators/project.validators';
 
 const projectRepository = new ProjectRepository(prisma);
-const userRepository = new UserRepository(prisma);
-const userService = new UserService(userRepository);
 const projectService = new ProjectService(projectRepository);
-const notificationRepository = new NotificationRepository(prisma);
-const notificationService = new NotificationService(notificationRepository);
-const projectController = new ProjectController(projectService, userService, notificationService);
+const projectController = new ProjectController(projectService);
 
 export const projectRouter = Router();
 
@@ -39,9 +29,15 @@ projectRouter.get(
 projectRouter.post(
   '/',
   requireAuth,
-  requireRole('Manager'),
   validate({ body: createProjectBodySchema }),
   projectController.create
+);
+
+projectRouter.get(
+  '/slug/:slug',
+  requireAuth,
+  validate({ params: slugParamSchema }),
+  projectController.getBySlug
 );
 
 projectRouter.get(
@@ -54,7 +50,6 @@ projectRouter.get(
 projectRouter.patch(
   '/:id',
   requireAuth,
-  requireRole('Manager'),
   validate({ params: projectParamSchema, body: updateProjectBodySchema }),
   projectController.update
 );
@@ -62,35 +57,6 @@ projectRouter.patch(
 projectRouter.delete(
   '/:id',
   requireAuth,
-  requireRole('Manager'),
   validate({ params: projectParamSchema }),
   projectController.delete
-);
-
-projectRouter.post(
-  '/:id/members',
-  requireAuth,
-  validate({ params: projectParamSchema, body: addMemberParamSchema }),
-  projectController.addMember
-);
-
-projectRouter.delete(
-  '/:id/members/:userId',
-  requireAuth,
-  validate({ params: removeMemberParamSchema }),
-  projectController.removeMember
-);
-
-projectRouter.get(
-  '/:id/members',
-  requireAuth,
-  validate({ params: listMembersParamSchema }),
-  projectController.listMembers
-);
-
-projectRouter.get(
-  '/:id/available-members',
-  requireAuth,
-  validate({ params: listMembersParamSchema }),
-  projectController.listAvailableMembers
 );

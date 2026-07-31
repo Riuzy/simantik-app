@@ -13,16 +13,17 @@ export class ProjectService {
 
     const code = await this.generateNextCode();
 
-    const project = await this.repository.create({
+    return this.repository.create({
       code,
       name: dto.name,
       slug: dto.slug,
       description: dto.description,
+      baseUrl: dto.baseUrl,
+      framework: dto.framework,
+      environment: dto.environment,
       status: 'ACTIVE',
       createdById,
     });
-
-    return project;
   }
 
   async getById(id: string) {
@@ -31,6 +32,10 @@ export class ProjectService {
       throw new AppError(404, 'Project not found');
     }
     return project;
+  }
+
+  async getBySlug(slug: string) {
+    return this.repository.findBySlugOrThrowWithDetails(slug);
   }
 
   async update(id: string, dto: UpdateProjectDTO) {
@@ -45,10 +50,12 @@ export class ProjectService {
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.slug !== undefined) updateData.slug = dto.slug;
     if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.baseUrl !== undefined) updateData.baseUrl = dto.baseUrl;
+    if (dto.framework !== undefined) updateData.framework = dto.framework;
+    if (dto.environment !== undefined) updateData.environment = dto.environment;
     if (dto.status !== undefined) updateData.status = dto.status;
 
-    const project = await this.repository.update(id, updateData);
-    return project;
+    return this.repository.update(id, updateData);
   }
 
   async delete(id: string) {
@@ -70,28 +77,6 @@ export class ProjectService {
         totalPages: result.totalPages,
       },
     };
-  }
-
-  async addMember(projectId: string, userId: string) {
-    const member = await this.repository.addMember(projectId, userId);
-    return member;
-  }
-
-  async removeMember(projectId: string, userId: string) {
-    await this.repository.removeMember(projectId, userId);
-  }
-
-  async listMembers(projectId: string) {
-    const members = await this.repository.listMembers(projectId);
-    return members;
-  }
-
-  async isMember(projectId: string, userId: string): Promise<boolean> {
-    return this.repository.isMember(projectId, userId);
-  }
-
-  async findAvailableMembers(projectId: string) {
-    return this.repository.findAvailableMembers(projectId);
   }
 
   private async generateNextCode(): Promise<string> {

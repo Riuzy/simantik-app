@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Modal, Paper, Group, Text, Button, Table, Badge, ActionIcon, Menu, TextInput, Center, Loader, Pagination, rem } from '@mantine/core';
+import { Paper, Group, Text, Button, Table, Badge, ActionIcon, Menu, TextInput, Center, Loader, Pagination, rem } from '@mantine/core';
 import { IconPlus, IconSearch, IconDots, IconEye, IconPencil, IconTrash } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
 import { useTestCases, useDeleteTestCase } from '../hooks';
 import { CreateTestCaseModal } from './create-test-case-modal';
 import { EditTestCaseModal } from './edit-test-case-modal';
+import type { TestPriority, TestCaseStatus } from '../types';
 
 const priorityColor: Record<string, string> = {
   LOW: 'gray',
@@ -19,13 +20,13 @@ const priorityColor: Record<string, string> = {
 const statusColor: Record<string, string> = {
   DRAFT: 'gray',
   READY: 'green',
-  OBSOLETE: 'yellow',
+  ARCHIVED: 'yellow',
 };
 
 const statusLabel: Record<string, string> = {
   DRAFT: 'Draft',
   READY: 'Ready',
-  OBSOLETE: 'Archived',
+  ARCHIVED: 'Archived',
 };
 
 interface Props {
@@ -39,7 +40,7 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [createOpened, setCreateOpened] = useState(false);
-  const [editTarget, setEditTarget] = useState<any>(null);
+  const [editTarget, setEditTarget] = useState<{ id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus } | null>(null);
   const [editOpened, setEditOpened] = useState(false);
 
   const { data, isLoading } = useTestCases(projectId, { search: search || undefined, page, limit: 20 });
@@ -52,13 +53,13 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
     modals.openConfirmModal({
       title: 'Delete Test Case',
       centered: true,
-      children: <Text size="sm">Are you sure you want to delete test case "{tc.title}"?</Text>,
+      children: <Text size="sm">Are you sure you want to delete test case &quot;{tc.title}&quot;?</Text>,
       labels: { confirm: 'Delete', cancel: 'Cancel' },
       confirmProps: { color: 'red' },
       onConfirm: () => deleteTestCase.mutate(tc.id),
     });
 
-  const openEdit = (tc: any) => {
+  const openEdit = (tc: { id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus }) => {
     setEditTarget(tc);
     setEditOpened(true);
   };
