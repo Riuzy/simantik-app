@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Container, Paper, Group, Text, Table, Badge, Pagination, TextInput, Center, Loader, ActionIcon, Menu, rem } from '@mantine/core';
+import { useState } from 'react';
+import { Container, Paper, Group, Text, Table, Badge, Pagination, TextInput, Center, Loader, ActionIcon, Menu } from '@mantine/core';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { IconSearch, IconDots, IconPlayerPlay, IconTrash, IconRefresh } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -72,7 +72,7 @@ export default function ExecutionPage() {
   const handleRetry = async (id: string, e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement | HTMLDivElement>) => {
     e.stopPropagation();
     try {
-      await retryExecution.mutateAsync(id);
+      await retryExecution.mutateAsync({ executionId: id, body: { headless: true } });
       refetch();
     } catch (error) {
       console.error('Failed to retry execution:', error);

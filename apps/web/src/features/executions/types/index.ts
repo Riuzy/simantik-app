@@ -1,4 +1,35 @@
-export type ExecutionStatus = 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'ERROR';
+export type ExecutionStatus = 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'ERROR' | 'CANCELLED';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+}
+
+export interface TestCaseSummary {
+  id: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  module?: string | null;
+  priority?: string | null;
+  status?: string | null;
+  tags?: string[] | null;
+  createdAt?: string | null;
+  createdBy?: User | null;
+}
+
+export interface ProjectSummary {
+  id: string;
+  code: string;
+  name: string;
+  slug: string;
+  baseUrl?: string | null;
+  framework?: string | null;
+  environment?: string | null;
+  createdBy?: User | null;
+}
 
 export interface ExecutionLog {
   id: string;
@@ -28,8 +59,8 @@ export interface Execution {
   consoleLog: string | null;
   error: string | null;
   createdAt: string;
-  testCase: { id: string; code: string; title: string };
-  project: { id: string; code: string; name: string; slug: string };
+  testCase: TestCaseSummary;
+  project: ProjectSummary;
   logs?: ExecutionLog[];
 }
 

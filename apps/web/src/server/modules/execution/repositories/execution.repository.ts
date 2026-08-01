@@ -1,5 +1,9 @@
 import { PrismaClient, Prisma, ExecutionStatus } from '@prisma/client';
 import { AppError } from '../../../middlewares/error-handler';
+import * as path from 'path';
+import * as fs from 'fs';
+import { spawn } from 'child_process';
+import { generatePlaywrightScript } from '../../automation/services/playwright-script.service';
 
 export class ExecutionRepository {
   constructor(private prisma: PrismaClient) {}
@@ -58,8 +62,46 @@ export class ExecutionRepository {
     return this.prisma.execution.findFirst({
       where: { id, deletedAt: null },
       include: {
-        testCase: { select: { id: true, code: true, title: true } },
-        project: { select: { id: true, code: true, name: true, slug: true } },
+        testCase: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            description: true,
+            module: true,
+            priority: true,
+            status: true,
+            tags: true,
+            createdAt: true,
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            slug: true,
+            baseUrl: true,
+            framework: true,
+            environment: true,
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true
+              }
+            }
+          }
+        },
         logs: { orderBy: { timestamp: 'asc' } },
       },
     });
@@ -129,15 +171,15 @@ export class ExecutionRepository {
         },
       });
 
-      const artifactsDir = require('path').resolve(process.cwd(), '.artifacts', 'executions', id);
-      require('fs').mkdirSync(artifactsDir, { recursive: true });
+      const artifactsDir = path.resolve(process.cwd(), '.artifacts', 'executions', id);
+      fs.mkdirSync(artifactsDir, { recursive: true });
 
-      const screenshotPath = require('path').join(artifactsDir, 'screenshot.png');
-      const script = require('path').join(artifactsDir, 'script.cjs');
+      const screenshotPath = path.join(artifactsDir, 'screenshot.png');
+      const script = path.join(artifactsDir, 'script.cjs');
 
       const baseUrl = config?.baseUrl ?? project.baseUrl;
 
-      const playwrightScript = require('./playwright-script.service').generatePlaywrightScript(
+      const playwrightScript = generatePlaywrightScript(
         testCase.title,
         testCase.steps.map((step) => ({
           stepNumber: step.stepNumber,
@@ -162,7 +204,7 @@ export class ExecutionRepository {
         project.framework,
       );
 
-      require('fs').writeFileSync(script, playwrightScript);
+      fs.writeFileSync(script, playwrightScript);
 
       const executionWithScript = await tx.execution.update({
         where: { id },
@@ -183,8 +225,46 @@ export class ExecutionRepository {
           errorMessage: result.error,
         },
         include: {
-          testCase: { select: { id: true, code: true, title: true } },
-          project: { select: { id: true, code: true, name: true, slug: true } },
+          testCase: {
+            select: {
+              id: true,
+              code: true,
+              title: true,
+              description: true,
+              module: true,
+              priority: true,
+              status: true,
+              tags: true,
+              createdAt: true,
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatar: true
+                }
+              }
+            }
+          },
+          project: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              slug: true,
+              baseUrl: true,
+              framework: true,
+              environment: true,
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  avatar: true
+                }
+              }
+            }
+          },
           logs: true,
         },
       });
@@ -205,11 +285,9 @@ export class ExecutionRepository {
     });
   }
 
-  private async runScript(scriptPath: string, timeoutMs: number, tx: any) {
-    const spawn = require('child_process').spawn;
-    const fs = require('fs');
+  private async runScript(scriptPath: string, timeoutMs: number, tx: Prisma.TransactionClient) {
 
-    return new Promise(async (resolve) => {
+    return new Promise<{ result: { status: 'PASSED' | 'FAILED' | 'ERROR'; error?: string; durationMs?: number }; logs: { stepNumber: number | null; action: string | null; level: string; message: string }[] }>(async (resolve) => {
       const child = spawn(process.execPath, [scriptPath], { stdio: ['ignore', 'pipe', 'pipe'] });
 
       let stdout = '';
@@ -221,19 +299,19 @@ export class ExecutionRepository {
         child.kill('SIGKILL');
       }, timeoutMs);
 
-      child.stdout.on('data', (chunk) => {
+      child.stdout.on('data', (chunk: Buffer) => {
         stdout += chunk.toString();
       });
 
-      child.stderr.on('data', (chunk) => {
+      child.stderr.on('data', (chunk: Buffer) => {
         stderr += chunk.toString();
       });
 
-      child.on('error', (err) => {
+      child.on('error', (err: Error) => {
         clearTimeout(timer);
         resolve({
           result: { status: 'ERROR', error: `Failed to spawn runner: ${err.message}` },
-          logs: [{ level: 'ERROR', message: `Failed to spawn runner: ${err.message}` }],
+          logs: [{ stepNumber: null, action: null, level: 'ERROR', message: `Failed to spawn runner: ${err.message}` }],
         });
       });
 
@@ -242,18 +320,18 @@ export class ExecutionRepository {
         if (timedOut) {
           resolve({
             result: { status: 'ERROR', error: `Execution timed out after ${Math.round(timeoutMs / 1000)}s` },
-            logs: [{ level: 'ERROR', message: `Execution timed out after ${Math.round(timeoutMs / 1000)}s` }],
+            logs: [{ stepNumber: null, action: null, level: 'ERROR', message: `Execution timed out after ${Math.round(timeoutMs / 1000)}s` }],
           });
           return;
         }
 
-        const logs = [];
+        const logs: { stepNumber: number | null; action: string | null; level: string; message: string }[] = [];
         for (const line of stdout.split('\n')) {
           if (line.startsWith('LOG:') && !line.startsWith('RESULT:')) {
             const rest = line.slice('LOG:'.length);
             const sepIndex = rest.indexOf(':');
             if (sepIndex > 0) {
-              logs.push({ level: rest.slice(0, sepIndex), message: rest.slice(sepIndex + 1) });
+              logs.push({ stepNumber: null, action: null, level: rest.slice(0, sepIndex), message: rest.slice(sepIndex + 1) });
             }
           }
         }
@@ -261,7 +339,7 @@ export class ExecutionRepository {
         const resultLine = stdout.split('\n').find((line) => line.startsWith('RESULT:'));
         if (resultLine) {
           try {
-            const parsed = JSON.parse(resultLine.slice('RESULT:'.length));
+            const parsed = JSON.parse(resultLine.slice('RESULT:'.length)) as { status: 'PASSED' | 'FAILED' | 'ERROR'; error?: string; durationMs?: number };
             resolve({ result: parsed, logs });
             return;
           } catch {
@@ -274,7 +352,7 @@ export class ExecutionRepository {
             status: 'ERROR',
             error: stderr || 'Runner exited without a result',
           },
-          logs: logs.length > 0 ? logs : [{ level: 'ERROR', message: stderr || 'Runner exited without a result' }],
+          logs: logs.length > 0 ? logs : [{ stepNumber: null, action: null, level: 'ERROR', message: stderr || 'Runner exited without a result' }],
         });
       });
     });
@@ -302,8 +380,15 @@ export class ExecutionRepository {
     }
 
     const logs = await this.getLogs(executionId);
+    
+    // Fetch test case with steps to get total step count
+    const testCaseWithSteps = await this.prisma.testCase.findUnique({
+      where: { id: execution.testCaseId },
+      select: { steps: { select: { id: true } } }
+    });
+    
     const passedSteps = logs.filter((log) => log.level === 'STEP').length;
-    const totalSteps = execution.testCase?.steps?.length || 0;
+    const totalSteps = testCaseWithSteps?.steps?.length || 0;
 
     return {
       execution: {

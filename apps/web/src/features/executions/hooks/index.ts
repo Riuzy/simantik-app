@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
 import * as executionService from '../services';
-import type { ListExecutionsParams, Execution, ExecutionLog } from '../types';
+import type { ListExecutionsParams } from '../types';
 
 export function useExecutions(params?: ListExecutionsParams) {
   return useQuery({
@@ -46,7 +46,7 @@ export function useRetryExecution() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ executionId, body }: { executionId: string; body: any }) =>
+    mutationFn: ({ executionId, body }: { executionId: string; body: Record<string, unknown> }) =>
       executionService.retryExecution(executionId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['executions'] });

@@ -36,6 +36,7 @@ export default function ExecutionDetailPage() {
   if (!execution) return <Center h={400}><Text c="dimmed">Execution not found</Text></Center>;
 
   const duration = execution.durationMs != null ? (execution.durationMs / 1000).toFixed(2) : null;
+  const hasScreenshot = !!execution.screenshotPath;
 
   return (
     <Container size="xl" py="md">
@@ -46,32 +47,46 @@ export default function ExecutionDetailPage() {
         </Group>
       </Group>
 
-      <SimpleGrid cols={{ base: 1, md: 3 }} mb="md">
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Test Case</Text>
-          <Link href={`/projects/${execution.project.slug}/test-cases/${execution.testCase.code}`}>
-            <Text size="sm" fw={500}>{execution.testCase.title}</Text>
-          </Link>
-        </Paper>
+      <Paper p="md" withBorder mb="md">
+        <Text fw={600} size="sm" mb="sm">Test Case</Text>
+        <Link href={`/projects/${execution.project.slug}/test-cases/${execution.testCase.code}`}>
+          <Text size="sm" fw={500}>{execution.testCase.title}</Text>
+        </Link>
+      </Paper>
+
+      <SimpleGrid cols={{ base: 1, md: 4 }} mb="md">
         <Paper p="md" withBorder>
           <Text size="xs" c="dimmed">Project</Text>
-          <Text size="sm">{execution.project.name}</Text>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Browser</Text>
-          <Text size="sm">{execution.browser ?? '\u2014'}</Text>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Duration</Text>
-          <Text size="sm">{duration ? `${duration}s` : '\u2014'}</Text>
+          <Text size="sm" fw={500}>{execution.project.name}</Text>
+          <Text size="xs" c="dimmed">{execution.project.code}</Text>
         </Paper>
         <Paper p="md" withBorder>
           <Text size="xs" c="dimmed">Environment</Text>
-          <Text size="sm">{execution.environment ?? '\u2014'}</Text>
+          <Text size="sm">{execution.environment ?? '—'}</Text>
+        </Paper>
+        <Paper p="md" withBorder>
+          <Text size="xs" c="dimmed">Base URL</Text>
+          <Text size="sm">{execution.project.baseUrl ?? '—'}</Text>
+        </Paper>
+        <Paper p="md" withBorder>
+          <Text size="xs" c="dimmed">Framework</Text>
+          <Text size="sm">{execution.project.framework ?? '—'}</Text>
+        </Paper>
+        <Paper p="md" withBorder>
+          <Text size="xs" c="dimmed">Browser</Text>
+          <Text size="sm">{execution.browser ?? '—'}</Text>
+        </Paper>
+        <Paper p="md" withBorder>
+          <Text size="xs" c="dimmed">Duration</Text>
+          <Text size="sm">{duration ? `${duration}s` : '—'}</Text>
         </Paper>
         <Paper p="md" withBorder>
           <Text size="xs" c="dimmed">Started At</Text>
-          <Text size="sm">{execution.startedAt ? new Date(execution.startedAt).toLocaleString() : '\u2014'}</Text>
+          <Text size="sm">{execution.startedAt ? new Date(execution.startedAt).toLocaleString() : '—'}</Text>
+        </Paper>
+        <Paper p="md" withBorder>
+          <Text size="xs" c="dimmed">Finished At</Text>
+          <Text size="sm">{execution.finishedAt ? new Date(execution.finishedAt).toLocaleString() : '—'}</Text>
         </Paper>
       </SimpleGrid>
 
@@ -83,7 +98,7 @@ export default function ExecutionDetailPage() {
       )}
 
       <Stack gap="md">
-        {execution.screenshotPath && (
+        {hasScreenshot ? (
           <Paper p="md" withBorder>
             <Text fw={600} size="sm" mb="sm">Screenshot</Text>
             <Image
@@ -93,6 +108,11 @@ export default function ExecutionDetailPage() {
               fit="contain"
               style={{ maxHeight: 480 }}
             />
+          </Paper>
+        ) : (
+          <Paper p="md" withBorder>
+            <Text fw={600} size="sm" mb="sm">Screenshot</Text>
+            <Text size="sm" c="dimmed">No screenshot available</Text>
           </Paper>
         )}
 
