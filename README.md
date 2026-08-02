@@ -1,67 +1,36 @@
-# SIMANTIK
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Software Testing Management System dengan visual test step builder dan Automation Testing Platform terintegrasi.
+## Getting Started
 
-## Fitur
+First, run the development server:
 
-- Manajemen Project dan Test Case dengan visual step builder
-- Generasi script Playwright otomatis dari test steps
-- Eksekusi test lokal (headless/headed) via Playwright
-- Pelacakan Executions dengan logs, screenshot, dan error detail
-- Dashboard dan Reports (status summary, recent executions)
-- Konfigurasi Automation per project
-- Pengaturan global dan manajemen profile user
-
-## Tech Stack
-
-- Next.js 15+ (App Router)
-- React 19
-- TypeScript
-- Express 5 (embedded server di `apps/web/src/server`)
-- Prisma 6 + MySQL
-- Playwright
-- Mantine UI
-- TanStack Query
-- Zustand
-- pnpm Workspace
-
-## Struktur
-
-```
-apps/
-    web/          # Next.js + Express backend
-
-docs/             # Dokumentasi arsitektur dan domain
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## Setup
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-1. Salin `.env.example` menjadi `.env.local` dan isi `DATABASE_URL`.
-2. Install dependencies: `pnpm install`
-3. Jalankan migration dan seed:
-   ```
-   pnpm db:migrate
-   pnpm db:seed
-   ```
-4. Jalankan development server (Next.js + Express sekaligus):
-   ```
-   pnpm dev
-   ```
-   - Web: http://localhost:3000
-   - API: http://localhost:3001
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Akun Default (Seed)
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-- Email: `tester@simantik.local`
-- Password: `Password123!`
+## Learn More
 
-## Script
+To learn more about Next.js, take a look at the following resources:
 
-| Perintah            | Deskripsi                          |
-| ------------------- | ---------------------------------- |
-| `pnpm dev`          | Jalankan web + API (dev)           |
-| `pnpm build`        | Build production (web)             |
-| `pnpm typecheck`    | Type-check seluruh workspace       |
-| `pnpm lint`         | ESLint                             |
-| `pnpm db:migrate`   | Jalankan Prisma migrate            |
-| `pnpm db:seed`      | Seed database                      |
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
