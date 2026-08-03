@@ -153,8 +153,20 @@ export class ProjectService {
 
   async list(page: number, limit: number, filters: ProjectFilters) {
     const result = await this.repository.list(page, limit, filters);
+    const stats = await this.repository.getProjectStats(result.items.map((i) => i.id));
+
     return {
-      data: result.items.map((item) => this.toList(item)),
+      data: result.items.map((item) => {
+        const execStats = stats.executions.get(item.id);
+        const completed = execStats ? execStats.passed + execStats.failed + execStats.error : 0;
+        const passRate = execStats && completed > 0 ? Math.round((execStats.passed / completed) * 100) : null;
+        return this.toList(item, {
+          executionCount: execStats?.total ?? item._count?.executions ?? 0,
+          testCaseCount: item._count?.testCases ?? 0,
+          automationCount: stats.automationCounts.get(item.id) ?? 0,
+          passRate,
+        });
+      }),
       pagination: {
         page,
         limit,
@@ -199,7 +211,15 @@ export class ProjectService {
     };
   }
 
-  private toList(project: ProjectListItem): ProjectListDTO {
+  private toList(
+    project: ProjectListItem,
+    counts?: {
+      testCaseCount: number;
+      automationCount: number;
+      executionCount: number;
+      passRate: number | null;
+    },
+  ): ProjectListDTO {
     return {
       id: project.id,
       code: project.code,
@@ -216,6 +236,10 @@ export class ProjectService {
         id: project.createdBy?.id ?? '',
         name: project.createdBy?.name ?? '',
       },
+      testCaseCount: counts?.testCaseCount ?? 0,
+      automationCount: counts?.automationCount ?? 0,
+      executionCount: counts?.executionCount ?? 0,
+      passRate: counts?.passRate ?? null,
     };
   }
 

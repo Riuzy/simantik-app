@@ -81,6 +81,48 @@ export class ProjectRepository {
     return this.prisma.project.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
+  async getProjectStats(projectIds: string[]) {
+    if (projectIds.length === 0) {
+      return {
+        executions: new Map<string, { passed: number; failed: number; error: number; total: number }>(),
+        automationCounts: new Map<string, number>(),
+      };
+    }
+
+    const [execGroup, automationGroup] = await Promise.all([
+      this.prisma.execution.groupBy({
+        by: ['projectId', 'status'],
+        where: { projectId: { in: projectIds }, deletedAt: null },
+        orderBy: { projectId: 'asc' },
+        _count: { _all: true },
+      }),
+      this.prisma.testCase.groupBy({
+        by: ['projectId'],
+        where: { projectId: { in: projectIds }, deletedAt: null, type: 'AUTOMATION' },
+        orderBy: { projectId: 'asc' },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const executions = new Map<string, { passed: number; failed: number; error: number; total: number }>();
+    for (const row of execGroup) {
+      const count = (row._count as { _all?: number } | undefined)?._all ?? 0;
+      const entry = executions.get(row.projectId) ?? { passed: 0, failed: 0, error: 0, total: 0 };
+      entry.total += count;
+      if (row.status === 'PASSED') entry.passed += count;
+      if (row.status === 'FAILED') entry.failed += count;
+      if (row.status === 'ERROR') entry.error += count;
+      executions.set(row.projectId, entry);
+    }
+
+    const automationCounts = new Map<string, number>();
+    for (const row of automationGroup) {
+      automationCounts.set(row.projectId, (row._count as { _all?: number } | undefined)?._all ?? 0);
+    }
+
+    return { executions, automationCounts };
+  }
+
   async list(page: number, limit: number, filters: ProjectFilters = {}) {
     const skip = (page - 1) * limit;
     const where: Record<string, unknown> = { deletedAt: null };
@@ -119,6 +161,7 @@ export class ProjectRepository {
           status: true,
           createdAt: true,
           createdBy: { select: { id: true, name: true } },
+          _count: { select: { testCases: true, executions: true } },
         },
       }),
       this.prisma.project.count({ where: where as Prisma.ProjectWhereInput }),

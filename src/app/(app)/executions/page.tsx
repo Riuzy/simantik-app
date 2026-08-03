@@ -1,5 +1,5 @@
-import ExecutionPage from './ExecutionPage';
+import { redirect } from 'next/navigation';
 
-export default function Page() {
-    return <ExecutionPage />;
+export default function ExecutionsPage() {
+  redirect('/projects');
 }

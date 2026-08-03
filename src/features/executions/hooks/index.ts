@@ -48,9 +48,9 @@ export function useRetryExecution() {
   return useMutation({
     mutationFn: ({ executionId, body }: { executionId: string; body: Record<string, unknown> }) =>
       executionService.retryExecution(executionId, body),
-    onSuccess: () => {
+    onSuccess: (execution) => {
       qc.invalidateQueries({ queryKey: ['executions'] });
-      notifications.show({ title: 'Success', message: 'Execution retried successfully', color: 'green' });
+      notifications.show({ title: 'Success', message: execution.message || 'Execution restarted', color: 'green' });
     },
     onError: () => notifications.show({ title: 'Error', message: 'Failed to retry execution', color: 'red' }),
   });

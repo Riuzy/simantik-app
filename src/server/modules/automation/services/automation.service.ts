@@ -127,15 +127,38 @@ export class AutomationService {
       environment: config.environment ?? undefined,
     });
 
-    await this.repository.markTestCaseRunning(testCaseId);
+    await this.repository.markTestCaseRunning(testCaseId, execution.id);
 
+    // Run Playwright asynchronously in the background. The request responds
+    // immediately so the client can redirect to the execution detail page
+    // and poll while the script runs.
+    void this.executeInBackground(execution.id, testCaseId, testCase, config);
+
+    return {
+      executionId: execution.id,
+      status: 'RUNNING',
+      message: 'Execution started',
+    };
+  }
+
+  private async executeInBackground(
+    executionId: string,
+    testCaseId: string,
+    testCase: Awaited<ReturnType<AutomationRepository['getTestCaseForRun']>>,
+    config: ProjectRunConfig,
+  ) {
     const cleanupEngine = new CleanupEngine(process.cwd(), config.debugMode);
     const authEngine = new AuthEngine(config.auth);
-
-    const tempDir = cleanupEngine.createExecutionTempDir(execution.number);
-    cleanupEngine.ensureStorageDir();
+    let executionNumber: string | null = null;
 
     try {
+      const execution = await this.repository.getExecutionById(executionId);
+      if (!execution) throw new Error('Execution record not found');
+      executionNumber = execution.number;
+
+      const tempDir = cleanupEngine.createExecutionTempDir(execution.number);
+      cleanupEngine.ensureStorageDir();
+
       const scriptOptions = {
         browser: config.browser,
         headless: config.headless,
@@ -161,7 +184,7 @@ export class AutomationService {
       // Persist a redacted copy of the script so the plain-text password never
       // appears in the database while the executed script keeps the secret.
       const storedScript = this.redactSecrets(script, config.auth.password);
-      await this.repository.updateExecutionGeneratedScript(execution.id, storedScript);
+      await this.repository.updateExecutionGeneratedScript(executionId, storedScript);
 
       const runTimeout = Math.max(config.timeout * (testCase.steps.length + 2) + 60000, 120000);
       const { result, logs } = await this.runScript(scriptPath, runTimeout);
@@ -173,7 +196,7 @@ export class AutomationService {
       const screenshotForDb = screenshotExists ? `storage/executions/${execution.number}.png` : null;
 
       await this.repository.finishExecution(
-        execution.id,
+        executionId,
         testCaseId,
         status,
         result.durationMs ?? 0,
@@ -181,12 +204,15 @@ export class AutomationService {
         result.error,
       );
 
-      await this.repository.createExecutionLogs(execution.id, logs);
-
-      return this.repository.getExecutionById(execution.id);
+      await this.repository.createExecutionLogs(executionId, logs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Execution failed unexpectedly';
+      await this.repository.finishExecution(executionId, testCaseId, 'ERROR', 0, null, message);
     } finally {
       // Always remove the temp execution folder, even if a DB write fails.
-      cleanupEngine.cleanupExecution(execution.number);
+      if (executionNumber) {
+        cleanupEngine.cleanupExecution(executionNumber);
+      }
     }
   }
 

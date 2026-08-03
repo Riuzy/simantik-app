@@ -10,6 +10,12 @@ export interface GeneratedScript {
   script: string;
 }
 
+export interface RunExecutionResponse {
+  executionId: string;
+  status: ExecutionStatus;
+  message: string;
+}
+
 export interface Execution {
   id: string;
   number: string;

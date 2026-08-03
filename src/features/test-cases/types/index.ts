@@ -32,6 +32,7 @@ export interface TestCase {
   type: TestCaseType;
   lastExecutionStatus: TestCaseLastResult;
   lastExecutedAt: string | null;
+  lastExecutionId: string | null;
   tags: string[];
   projectId: string;
   createdById: string;

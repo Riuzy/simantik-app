@@ -1,51 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Container, Group, Text, Badge, Paper, Tabs, ActionIcon, Stack, Loader, Center, SimpleGrid, Avatar } from '@mantine/core';
 import { IconArrowLeft, IconList, IconRobot, IconPlayerPlay, IconClock, IconFileText, IconSettings } from '@tabler/icons-react';
 import { useTestCaseByCode } from '../../../../../../features/test-cases/hooks';
+import { useExecutions } from '../../../../../../features/executions/hooks';
 import { TestStepsTab } from '../../../../../../features/test-cases/components/detail/test-steps-tab';
 import { TestCaseAutomationPanel } from '../../../../../../features/automation/components/test-case-automation-panel';
-import type { TestCase, TestCaseType, TestCaseLastResult } from '../../../../../../features/test-cases/types';
+import { PriorityBadge, TestCaseStatusBadge, TestCaseTypeBadge, LastResultBadge } from '../../../../../../components/ui/badges';
+import { Section } from '../../../../../../components/ui/section';
+import { EmptyState } from '../../../../../../components/ui/empty-state';
+import { ROUTES } from '../../../../../../constants/routes';
+import type { TestCase } from '../../../../../../features/test-cases/types';
 
 type TabValue = 'overview' | 'steps' | 'expected-result' | 'automation' | 'executions' | 'history';
 
-const priorityColor: Record<string, string> = {
-  LOW: 'gray',
-  MEDIUM: 'blue',
-  HIGH: 'orange',
-  CRITICAL: 'red',
-};
-
-const testCaseStatusColor: Record<string, string> = {
-  DRAFT: 'gray',
-  READY: 'green',
-  ARCHIVED: 'yellow',
-};
-
-const typeColor: Record<TestCaseType, string> = {
-  MANUAL: 'gray',
-  AUTOMATION: 'violet',
-};
-
-const lastResultColor: Record<TestCaseLastResult, string> = {
-  NOT_RUN: 'gray',
-  RUNNING: 'blue',
-  PASSED: 'green',
-  FAILED: 'red',
-};
-
-const lastResultLabel: Record<TestCaseLastResult, string> = {
-  NOT_RUN: 'Not Run',
-  RUNNING: 'Running',
-  PASSED: 'Passed',
-  FAILED: 'Failed',
-};
-
 export default function TestCaseDetailPage() {
-  const params = useParams<{ id: string; code: string }>();
-  const { code } = params;
+  const params = useParams<{ slug: string; code: string }>();
+  const { slug, code } = params;
+  const router = useRouter();
   const { data: testCase, isLoading } = useTestCaseByCode(code as string);
   const [activeTab, setActiveTab] = useState<TabValue>('overview');
 
@@ -53,22 +27,22 @@ export default function TestCaseDetailPage() {
   if (!testCase) return <Center h={400}><Text c="dimmed">Test case not found</Text></Center>;
 
   return (
-    <Container size="xl" py="md">
-      <Group justify="space-between" mb="md">
-        <Group>
-          <ActionIcon onClick={() => window.history.back()} variant="subtle">
+    <Container size="xl">
+      <Group justify="space-between" mb="md" wrap="nowrap">
+        <Group wrap="nowrap" style={{ minWidth: 0 }}>
+          <ActionIcon onClick={() => router.push(ROUTES.PROJECT_TEST_CASES(slug))} variant="subtle" aria-label="Back to test cases">
             <IconArrowLeft size={16} />
           </ActionIcon>
-          <div>
-            <Group gap="sm">
-              <Text fw={600} size="xl">{testCase.title}</Text>
+          <div style={{ minWidth: 0 }}>
+            <Group gap="sm" wrap="nowrap">
+              <Text fw={600} size="xl" lineClamp={1}>{testCase.title}</Text>
               <Badge ff="monospace" variant="light">{testCase.code}</Badge>
             </Group>
-            <Group gap="xs" mt={4}>
-              <Badge color={typeColor[testCase.type]} variant="light">{testCase.type}</Badge>
-              <Badge color={priorityColor[testCase.priority]} variant="light">{testCase.priority}</Badge>
-              <Badge color={testCaseStatusColor[testCase.status]} variant="light">{testCase.status}</Badge>
-              <Badge color={lastResultColor[testCase.lastExecutionStatus]} variant="dot">{lastResultLabel[testCase.lastExecutionStatus]}</Badge>
+            <Group gap="xs" mt={4} wrap="wrap">
+              <TestCaseTypeBadge value={testCase.type} />
+              <PriorityBadge value={testCase.priority} />
+              <TestCaseStatusBadge value={testCase.status} />
+              <LastResultBadge value={testCase.lastExecutionStatus} />
               {testCase.module && <Badge variant="light">{testCase.module}</Badge>}
             </Group>
           </div>
@@ -103,7 +77,7 @@ export default function TestCaseDetailPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="executions" pt="md">
-            <PlaceholderTab icon={IconPlayerPlay} message="Executions tab - under development" />
+            <ExecutionsTab testCase={testCase} />
           </Tabs.Panel>
 
           <Tabs.Panel value="history" pt="md">
@@ -116,68 +90,86 @@ export default function TestCaseDetailPage() {
 }
 
 function OverviewTab({ testCase }: { testCase: TestCase }) {
+  const info: { label: string; value: React.ReactNode }[] = [
+    { label: 'Project', value: testCase.project?.name ?? '\u2014' },
+    { label: 'Module', value: testCase.module ?? '\u2014' },
+    { label: 'Type', value: <TestCaseTypeBadge value={testCase.type} /> },
+    { label: 'Priority', value: <PriorityBadge value={testCase.priority} /> },
+    { label: 'Design Status', value: <TestCaseStatusBadge value={testCase.status} /> },
+    { label: 'Last Result', value: <LastResultBadge value={testCase.lastExecutionStatus} /> },
+    { label: 'Last Executed', value: testCase.lastExecutedAt ? new Date(testCase.lastExecutedAt).toLocaleString() : '\u2014' },
+    {
+      label: 'Created By',
+      value: testCase.createdBy ? (
+        <Group gap="xs">
+          {testCase.createdBy.avatar && <Avatar src={testCase.createdBy.avatar} size={24} radius="xl" />}
+          <Text size="sm">{testCase.createdBy.name || testCase.createdBy.email}</Text>
+        </Group>
+      ) : (
+        '\u2014'
+      ),
+    },
+    { label: 'Created', value: new Date(testCase.createdAt).toLocaleString() },
+    { label: 'Updated', value: new Date(testCase.updatedAt).toLocaleString() },
+    { label: 'Steps', value: testCase._count?.steps ?? testCase.steps?.length ?? 0 },
+  ];
+
   return (
     <Stack gap="md">
       {testCase.description && (
-        <Paper p="md" withBorder>
-          <Text fw={500} size="sm" mb={4}>Description</Text>
+        <Section title="Description">
           <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{testCase.description}</Text>
-        </Paper>
+        </Section>
       )}
 
-      <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }}>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Project</Text>
-          <Text size="sm">{testCase.project?.name ?? '\u2014'}</Text>
-          {testCase.project?.code && <Text size="xs" c="dimmed">{testCase.project.code}</Text>}
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Module</Text>
-          <Text size="sm">{testCase.module ?? '\u2014'}</Text>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Type</Text>
-          <Badge color={typeColor[testCase.type]} variant="light">{testCase.type}</Badge>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Priority</Text>
-          <Badge color={priorityColor[testCase.priority]} variant="light">{testCase.priority}</Badge>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Design Status</Text>
-          <Badge color={testCaseStatusColor[testCase.status]} variant="light">{testCase.status}</Badge>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Last Result</Text>
-          <Badge color={lastResultColor[testCase.lastExecutionStatus]} variant="dot">{lastResultLabel[testCase.lastExecutionStatus]}</Badge>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Last Executed</Text>
-          <Text size="sm">{testCase.lastExecutedAt ? new Date(testCase.lastExecutedAt).toLocaleString() : '\u2014'}</Text>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Created By</Text>
-          {testCase.createdBy ? (
-            <Group gap="xs" mt={4}>
-              {testCase.createdBy.avatar && (
-                <Avatar src={testCase.createdBy.avatar} size={24} radius="xl" />
-              )}
-              <Text size="sm">{testCase.createdBy.name || testCase.createdBy.email}</Text>
-            </Group>
-          ) : (
-            <Text size="sm" c="dimmed">Unknown User</Text>
-          )}
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Created</Text>
-          <Text size="sm">{new Date(testCase.createdAt).toLocaleString()}</Text>
-        </Paper>
-        <Paper p="md" withBorder>
-          <Text size="xs" c="dimmed">Updated</Text>
-          <Text size="sm">{new Date(testCase.updatedAt).toLocaleString()}</Text>
-        </Paper>
-      </SimpleGrid>
+      <Section title="Details">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+          {info.map((item) => (
+            <Paper key={item.label} p="md" withBorder>
+              <Text size="xs" c="dimmed">{item.label}</Text>
+              <div style={{ marginTop: 4 }}>{item.value}</div>
+            </Paper>
+          ))}
+        </SimpleGrid>
+      </Section>
     </Stack>
+  );
+}
+
+function ExecutionsTab({ testCase }: { testCase: TestCase }) {
+  const { data: executions, isLoading } = useExecutions({ testCaseId: testCase.id, page: 1, limit: 20 });
+
+  if (isLoading) return <Center py="xl"><Loader /></Center>;
+  if (!executions?.data?.length) {
+    return (
+      <EmptyState
+        title="No executions"
+        description="This test case has not been executed yet"
+        icon={IconPlayerPlay}
+        compact={false}
+      />
+    );
+  }
+
+  return (
+    <Paper p="md" withBorder>
+      <Stack gap="sm">
+        {executions.data.map((ex) => (
+          <Group key={ex.id} justify="space-between" wrap="nowrap">
+            <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+              <Badge color={ex.status === 'PASSED' ? 'green' : ex.status === 'FAILED' ? 'red' : ex.status === 'ERROR' ? 'orange' : 'gray'} variant="dot">
+                {ex.status}
+              </Badge>
+              <Text size="sm" fw={500} ff="monospace">{ex.number}</Text>
+              <Text size="sm" truncate>{new Date(ex.createdAt ?? '').toLocaleString()}</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              {ex.durationMs != null ? `${(ex.durationMs / 1000).toFixed(1)}s` : '\u2014'}
+            </Text>
+          </Group>
+        ))}
+      </Stack>
+    </Paper>
   );
 }
 

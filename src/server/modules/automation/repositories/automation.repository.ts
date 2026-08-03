@@ -75,18 +75,20 @@ export class AutomationRepository {
         data: {
           lastExecutionStatus,
           lastExecutedAt: new Date(),
+          lastExecutionId: id,
         },
       }),
     ]);
     return execution;
   }
 
-  async markTestCaseRunning(testCaseId: string) {
+  async markTestCaseRunning(testCaseId: string, executionId: string) {
     return this.prisma.testCase.update({
       where: { id: testCaseId },
       data: {
         lastExecutionStatus: 'RUNNING',
         lastExecutedAt: new Date(),
+        lastExecutionId: executionId,
       },
     });
   }

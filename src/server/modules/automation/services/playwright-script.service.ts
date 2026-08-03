@@ -31,23 +31,139 @@ export interface ScriptOptions {
 }
 
 /**
- * Universal Locator Engine priority. Semantic Playwright APIs are tried first,
- * CSS/XPATH act as the last-resort fallback so the engine works with any modern
- * web framework (Mantine, MUI, Ant Design, Bootstrap, Tailwind, native HTML).
+ * Field locator cascade. Strategies that map a single semantic value onto a
+ * Playwright API. Tried in this exact order so the engine self-heals to a more
+ * specific selector whenever a candidate is missing or matches more than one
+ * element (avoiding Playwright strict-mode violations). getByLabel/getByRole
+ * resolve framework-agnostic accessible names (Mantine, MUI, Ant, Bootstrap),
+ * then raw input[id]/input[name], then label:has-text() DOM traversal, then
+ * data-testid, with a guarded CSS fallback.
  */
-const LOCATOR_PRIORITY = [
+const FIELD_STRATEGIES = [
   'LABEL',
   'PLACEHOLDER',
   'ROLE',
-  'TEXT',
-  'TEST_ID',
   'NAME',
   'ID',
+  'ARIA_LABEL',
+  'ARIA_LABELLEDBY',
+  'LABEL_HAS_TEXT',
+  'DOM_LABEL',
+  'TEST_ID',
   'CSS',
   'XPATH',
-  'ALT_TEXT',
-  'TITLE',
-];
+] as const;
+
+/**
+ * Subset of the field cascade whose value is a single semantic token pointing
+ * at an input, select or textarea (test id, name, placeholder, label or
+ * accessible name). These get the full self-healing cascade. CSS/XPATH are raw
+ * selectors and TEXT/ALT_TEXT/TITLE target visible content, so those are kept
+ * as-is. ROLE is only expanded further when it targets a field role.
+ */
+const FIELD_SEMANTIC_STRATEGIES = new Set<string>(
+  FIELD_STRATEGIES.filter((s) => s !== 'CSS' && s !== 'XPATH'),
+);
+
+const FIELD_ROLES = new Set([
+  'textbox',
+  'combobox',
+  'searchbox',
+  'spinbutton',
+  'listbox',
+  'slider',
+  'switch',
+]);
+
+function isFieldRole(value: string): boolean {
+  const sep = value.indexOf(':');
+  const role = sep > 0 ? value.slice(0, sep).trim() : value.trim();
+  return FIELD_ROLES.has(role);
+}
+
+/**
+ * Expands a step's locators into a self-healing cascade of candidate locators.
+ * For every field-semantic value, a LABEL(getByLabel) -> PLACEHOLDER -> ROLE
+ * (textbox) -> NAME -> ID -> ARIA_LABEL -> ARIA_LABELLEDBY -> LABEL_HAS_TEXT
+ * (label:has-text()) -> DOM_LABEL (DOM traversal) -> TEST_ID -> original -> CSS
+ * chain is generated (keeping the original strategy in the chain) so a
+ * label/name/placeholder keeps working no matter which framework renders the
+ * field (Mantine, MUI, Ant, Bootstrap, native). Raw CSS/XPATH, visible-text
+ * strategies and explicit non-field ROLE locators (buttons, links, headings)
+ * are kept as-is so they stay fast and precise. The runtime probes each
+ * candidate and uses the first that resolves to exactly one element.
+ *
+ * Guard clauses guarantee we never emit `locator("#Project Name")` or
+ * `locator("Project Name")`: ID candidates are skipped when the value contains
+ * whitespace, and the CSS fallback is only emitted for selector-like tokens.
+ */
+function looksLikeCssSelector(value: string): boolean {
+  const v = (value ?? '').trim();
+  if (!v) return false;
+  if (v.includes(' ')) return false;
+  return true;
+}
+
+function expandFieldCandidates(cands: ScriptLocator[]): ScriptLocator[] {
+  const out: ScriptLocator[] = [];
+  const seen = new Set<string>();
+  const push = (strategy: string, value: string | null | undefined) => {
+    const v = (value ?? '').trim();
+    if (!v) return;
+    if (strategy === 'ID' && /\s/.test(v)) return;
+    if (strategy === 'CSS' && !looksLikeCssSelector(v)) return;
+    const key = `${strategy}\u0000${v}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ strategy, value: v });
+  };
+
+  for (const c of cands) {
+    if (c.strategy === 'CSS' || c.strategy === 'XPATH') {
+      push(c.strategy, c.value);
+      continue;
+    }
+    if (c.strategy === 'ROLE' && !isFieldRole(c.value ?? '')) {
+      push(c.strategy, c.value);
+      continue;
+    }
+    if (FIELD_SEMANTIC_STRATEGIES.has(c.strategy)) {
+      push('LABEL', c.value);
+      push('PLACEHOLDER', c.value);
+      push('ROLE', `textbox:${c.value}`);
+      push('NAME', c.value);
+      push('ID', c.value);
+      push('ARIA_LABEL', c.value);
+      push('ARIA_LABELLEDBY', c.value);
+      push('LABEL_HAS_TEXT', c.value);
+      push('DOM_LABEL', c.value);
+      push('TEST_ID', c.value);
+      push(c.strategy, c.value);
+      push('CSS', c.value);
+    } else {
+      push(c.strategy, c.value);
+    }
+  }
+  return out;
+}
+
+/**
+ * Text-resolution cascade for VERIFY_* actions that check for visible
+ * framework-agnostic text content. Prefers semantic landmarks (heading, h1,
+ * h2, main, section) before falling back to a plain getByText so we never rely
+ * on a brittle tag guess.
+ */
+function textLandmarks(value: string): ScriptLocator[] {
+  const q = JSON.stringify(value);
+  return [
+    { strategy: 'ROLE', value: `heading:${value}` },
+    { strategy: 'CSS', value: `h1:has-text(${q})` },
+    { strategy: 'CSS', value: `h2:has-text(${q})` },
+    { strategy: 'CSS', value: `main:has-text(${q})` },
+    { strategy: 'CSS', value: `section:has-text(${q})` },
+    { strategy: 'TEXT', value },
+  ];
+}
 
 function str(value: string | null | undefined): string {
   return JSON.stringify(value ?? '');
@@ -94,16 +210,20 @@ function resolveNavigateUrl(target: string | null, baseUrl: string | null): stri
  * Pure string concatenation (no template literals) so it embeds cleanly.
  */
 const locatorEngineHelpers = `
-  const LOCATOR_PRIORITY = ${JSON.stringify(LOCATOR_PRIORITY)};
-
   const __healed = {};
 
   const __cssEscape = (s) => String(s).replace(/([^a-zA-Z0-9_\\u00A0-\\uFFFF-])/g, (c) => '\\\\' + c);
 
   const __makeLocator = (page, strategy, value) => {
     switch (strategy) {
-      case 'LABEL': return page.getByLabel(value, { exact: false });
+      case 'ID': return page.locator('#' + __cssEscape(value));
+      case 'TEST_ID': return page.getByTestId(value);
+      case 'NAME': return page.locator('[name=' + JSON.stringify(value) + ']');
       case 'PLACEHOLDER': return page.getByPlaceholder(value, { exact: false });
+      case 'ARIA_LABEL': return page.getByLabel(value, { exact: false });
+      case 'ARIA_LABELLEDBY': return page.getByLabel(value, { exact: false });
+      case 'LABEL_HAS_TEXT': return page.locator('label:has-text(' + JSON.stringify(value) + ')');
+      case 'DOM_LABEL': return page.locator('label:has-text(' + JSON.stringify(value) + ') input, label:has-text(' + JSON.stringify(value) + ') select, label:has-text(' + JSON.stringify(value) + ') textarea');
       case 'ROLE': {
         const s = String(value);
         const sep = s.indexOf(':');
@@ -112,10 +232,8 @@ const locatorEngineHelpers = `
         }
         return page.getByRole(s.trim());
       }
+      case 'LABEL': return page.getByLabel(value, { exact: false });
       case 'TEXT': return page.getByText(value, { exact: false });
-      case 'TEST_ID': return page.getByTestId(value);
-      case 'NAME': return page.locator('[name=' + JSON.stringify(value) + ']');
-      case 'ID': return page.locator('#' + __cssEscape(value));
       case 'CSS': return page.locator(value);
       case 'XPATH': return page.locator('xpath=' + value);
       case 'ALT_TEXT': return page.getByAltText(value, { exact: false });
@@ -136,37 +254,45 @@ const locatorEngineHelpers = `
     }
   };
 
+  const __collect = (candidates, signature) => {
+    const out = [];
+    if (__healed[signature]) out.push(__healed[signature]);
+    for (const l of (Array.isArray(candidates) ? candidates : [])) {
+      if (!l || !l.value || String(l.value).trim().length === 0) continue;
+      if (!out.some((t) => t.strategy === l.strategy && t.value === l.value)) out.push(l);
+    }
+    return out;
+  };
+
+  const __probeTimeout = (opts) => Math.max(10000, Math.min(10000, opts.timeout || 10000));
+
   const __findElement = async (page, locators, signature, options) => {
-    const opts = Object.assign({ timeout: 30000, requireVisible: true, requireEnabled: true, htmlPath: '' }, options || {});
-    const candidates = [];
-    if (__healed[signature]) {
-      candidates.push({ strategy: __healed[signature].strategy, value: __healed[signature].value });
-    }
-    const ordered = (Array.isArray(locators) ? locators : [])
-      .filter((l) => l && l.value && String(l.value).length > 0)
-      .sort((a, b) => (LOCATOR_PRIORITY.indexOf(a.strategy) + 1 || 999) - (LOCATOR_PRIORITY.indexOf(b.strategy) + 1 || 999));
-    for (const c of ordered) {
-      if (!candidates.some((t) => t.strategy === c.strategy && t.value === c.value)) {
-        candidates.push(c);
-      }
-    }
-    if (candidates.length === 0) {
-      throw new Error('No locator provided for ' + signature);
-    }
-    const probeTimeout = Math.max(1500, Math.min(opts.timeout, Math.ceil(opts.timeout / Math.max(candidates.length, 1))));
+    const opts = Object.assign({ timeout: 30000, requireVisible: true, requireEnabled: true, multiMatch: 'skip', htmlPath: '' }, options || {});
+    const candidates = __collect(locators, signature);
+    if (candidates.length === 0) throw new Error('No locator provided for ' + signature);
+    const probeTimeout = __probeTimeout(opts);
     const attempted = [];
     for (const cand of candidates) {
-      __log('INFO', 'Trying ' + cand.strategy + ' ...');
+      __log('INFO', 'Trying ' + cand.strategy + '...');
       try {
         const loc = __makeLocator(page, cand.strategy, cand.value);
-        await loc.waitFor({ state: 'attached', timeout: probeTimeout });
-        if (opts.requireVisible && !(await loc.isVisible())) {
-          throw new Error('element is not visible');
+        await loc.first().waitFor({ state: 'attached', timeout: probeTimeout });
+        const count = await loc.count();
+        if (count === 0) throw new Error('no element matched');
+        if (count > 1 && opts.multiMatch === 'skip') {
+          attempted.push(cand.strategy + ' "' + cand.value + '" matched ' + count + ' elements (ambiguous), trying a more specific selector');
+          __log('INFO', cand.strategy + ' matched ' + count + ' elements, trying a more specific selector');
+          continue;
         }
-        if (opts.requireEnabled && !(await loc.isEnabled())) {
-          throw new Error('element is not enabled');
+        let anyVisible = !opts.requireVisible;
+        let anyEnabled = !opts.requireEnabled;
+        for (const m of await loc.all()) {
+          if (opts.requireVisible && (await m.isVisible())) anyVisible = true;
+          if (opts.requireEnabled && (await m.isEnabled())) anyEnabled = true;
         }
-        __log('INFO', cand.strategy + ' matched.');
+        if (opts.requireVisible && !anyVisible) throw new Error('element is not visible');
+        if (opts.requireEnabled && !anyEnabled) throw new Error('element is not enabled');
+        __log('INFO', 'Matched ' + cand.strategy);
         __healed[signature] = { strategy: cand.strategy, value: cand.value };
         return loc;
       } catch (err) {
@@ -177,21 +303,126 @@ const locatorEngineHelpers = `
     throw new Error('Locator resolution failed for ' + signature + '. Tried ' + attempted.length + ' locator(s):\\n' + attempted.map((a) => '  - ' + a).join('\\n') + (diag ? '\\n' + diag : ''));
   };
 
+  const __verifyText = async (page, locators, signature, expected, options) => {
+    const opts = Object.assign({ timeout: 30000, htmlPath: '' }, options || {});
+    const candidates = __collect(locators, signature);
+    if (candidates.length === 0) throw new Error('No locator provided for ' + signature);
+    const needle = String(expected || '').toLowerCase();
+    const probeTimeout = __probeTimeout(opts);
+    const attempted = [];
+    for (const cand of candidates) {
+      __log('INFO', 'Trying ' + cand.strategy + '...');
+      try {
+        const loc = __makeLocator(page, cand.strategy, cand.value);
+        await loc.first().waitFor({ state: 'attached', timeout: probeTimeout });
+        const count = await loc.count();
+        if (count === 0) throw new Error('no element matched');
+        const texts = [];
+        for (const el of await loc.all()) {
+          const t = (await el.textContent()) || '';
+          if (t) texts.push(t);
+        }
+        const actualText = texts.join(' ');
+        if (!actualText.toLowerCase().includes(needle)) {
+          attempted.push(cand.strategy + ' "' + cand.value + '" => text mismatch');
+          continue;
+        }
+        __log('INFO', 'Matched ' + cand.strategy);
+        __healed[signature] = { strategy: cand.strategy, value: cand.value };
+        return actualText;
+      } catch (err) {
+        attempted.push(cand.strategy + ' "' + cand.value + '" => ' + (err && err.message ? err.message : String(err)));
+      }
+    }
+    const pageTitle = (await page.title()) || '';
+    if (pageTitle.toLowerCase().includes(needle)) {
+      __log('INFO', 'Matched PAGE TITLE');
+      __healed[signature] = { strategy: 'TITLE', value: expected };
+      return pageTitle;
+    }
+    const pageUrl = page.url() || '';
+    if (pageUrl.toLowerCase().includes(needle)) {
+      __log('INFO', 'Matched PAGE URL');
+      __healed[signature] = { strategy: 'URL', value: expected };
+      return pageUrl;
+    }
+    const diag = await __dumpDiagnostics(page, opts.htmlPath);
+    throw new Error('Text "' + expected + '" not found for ' + signature + '. Tried ' + attempted.length + ' locator(s):\\n' + attempted.map((a) => '  - ' + a).join('\\n') + (diag ? '\\n' + diag : ''));
+  };
+
+  const __verifyNotVisible = async (page, locators, signature, options) => {
+    const opts = Object.assign({ timeout: 30000, htmlPath: '' }, options || {});
+    const candidates = __collect(locators, signature);
+    if (candidates.length === 0) throw new Error('No locator provided for ' + signature);
+    const probeTimeout = __probeTimeout(opts);
+    const attempted = [];
+    let foundAttached = false;
+    for (const cand of candidates) {
+      __log('INFO', 'Trying ' + cand.strategy + '...');
+      try {
+        const loc = __makeLocator(page, cand.strategy, cand.value);
+        await loc.first().waitFor({ state: 'attached', timeout: probeTimeout });
+        foundAttached = true;
+        const matches = await loc.all();
+        for (const m of matches) {
+          await m.waitFor({ state: 'hidden', timeout: opts.timeout });
+        }
+        __log('INFO', 'Matched ' + cand.strategy);
+        __healed[signature] = { strategy: cand.strategy, value: cand.value };
+        return;
+      } catch (err) {
+        attempted.push(cand.strategy + ' "' + cand.value + '" => ' + (err && err.message ? err.message : String(err)));
+      }
+    }
+    if (foundAttached) {
+      const diag = await __dumpDiagnostics(page, opts.htmlPath);
+      throw new Error('Expected element to be hidden for ' + signature + '. Tried ' + attempted.length + ' locator(s):\\n' + attempted.map((a) => '  - ' + a).join('\\n') + (diag ? '\\n' + diag : ''));
+    }
+    __log('INFO', 'Element not found in DOM - treated as not visible.');
+  };
+
+  const __prepare = async (page, loc, options) => {
+    const t = (options && options.timeout) || 30000;
+    await loc.waitFor({ state: 'attached', timeout: t });
+    await loc.waitFor({ state: 'visible', timeout: t });
+    await loc.scrollIntoViewIfNeeded();
+    return loc;
+  };
+
   const __clickElement = async (page, locators, signature, options) => {
     const loc = await __findElement(page, locators, signature, options);
-    await loc.click();
+    await __prepare(page, loc, options);
+    await loc.first().click();
+  };
+  const __dblClickElement = async (page, locators, signature, options) => {
+    const loc = await __findElement(page, locators, signature, options);
+    await __prepare(page, loc, options);
+    await loc.first().dblclick();
+  };
+  const __rightClickElement = async (page, locators, signature, options) => {
+    const loc = await __findElement(page, locators, signature, options);
+    await __prepare(page, loc, options);
+    await loc.first().click({ button: 'right' });
+  };
+  const __hoverElement = async (page, locators, signature, options) => {
+    const loc = await __findElement(page, locators, signature, options);
+    await __prepare(page, loc, options);
+    await loc.first().hover();
   };
   const __fillElement = async (page, locators, signature, value, options) => {
     const loc = await __findElement(page, locators, signature, options);
-    await loc.fill(String(value === null || value === undefined ? '' : value));
+    await __prepare(page, loc, options);
+    await loc.first().fill(String(value === null || value === undefined ? '' : value));
   };
   const __selectOption = async (page, locators, signature, value, options) => {
     const loc = await __findElement(page, locators, signature, options);
-    await loc.selectOption(String(value));
+    await __prepare(page, loc, options);
+    await loc.first().selectOption(String(value));
   };
   const __uploadFile = async (page, locators, signature, files, options) => {
     const loc = await __findElement(page, locators, signature, options);
-    await loc.setInputFiles(files);
+    await __prepare(page, loc, options);
+    await loc.first().setInputFiles(files);
   };
 `;
 
@@ -217,8 +448,8 @@ export function generatePlaywrightScript(
     const logs = `  __log('INFO', 'Step ${step.stepNumber}: ${label}');\n`;
 
     const stepFn = (body: string): string => `  await __step(${step.stepNumber}, async () => { ${body} });\n`;
-    const loc = (): string => locatorsLiteral(stepLocatorCandidates(step));
     const sig = (): string => str(stepSignature(step));
+    const fieldLoc = (): string => locatorsLiteral(expandFieldCandidates(stepLocatorCandidates(step)));
 
     const needLocator = (): ScriptLocator[] => {
       const cands = stepLocatorCandidates(step);
@@ -226,6 +457,13 @@ export function generatePlaywrightScript(
         throw new Error(`Step ${step.stepNumber}: ${step.action} requires at least one locator`);
       }
       return cands;
+    };
+
+    const resolveVerifyCands = (value: string): ScriptLocator[] => {
+      const cands = stepLocatorCandidates(step);
+      if (cands.length > 0) return expandFieldCandidates(cands);
+      if (value) return textLandmarks(value);
+      throw new Error(`Step ${step.stepNumber}: ${step.action} requires a locator or an expected value`);
     };
 
     switch (step.action) {
@@ -251,60 +489,60 @@ export function generatePlaywrightScript(
 
       case 'CLICK': {
         needLocator();
-        return logs + stepFn(`await __clickElement(page, ${loc()}, ${sig()}, __findOpts);`);
+        return logs + stepFn(`await __clickElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
       }
 
       case 'DOUBLE_CLICK': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, __findOpts); await __el.dblclick();`);
+        return logs + stepFn(`await __dblClickElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
       }
 
       case 'RIGHT_CLICK': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, __findOpts); await __el.click({ button: 'right' });`);
+        return logs + stepFn(`await __rightClickElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
       }
 
       case 'HOVER': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, __findOpts); await __el.hover();`);
+        return logs + stepFn(`await __hoverElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
       }
 
       case 'TYPE': {
         needLocator();
-        return logs + stepFn(`await __fillElement(page, ${loc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
+        return logs + stepFn(`await __fillElement(page, ${fieldLoc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
       }
 
       case 'CLEAR': {
         needLocator();
-        return logs + stepFn(`await __fillElement(page, ${loc()}, ${sig()}, '', __findOpts);`);
+        return logs + stepFn(`await __fillElement(page, ${fieldLoc()}, ${sig()}, '', __findOpts);`);
       }
 
       case 'SELECT': {
         needLocator();
-        return logs + stepFn(`await __selectOption(page, ${loc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
+        return logs + stepFn(`await __selectOption(page, ${fieldLoc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
       }
 
       case 'CHECK': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, __findOpts); await __el.check();`);
+        return logs + stepFn(`const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, __findOpts); await __el.first().check();`);
       }
 
       case 'UNCHECK': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, __findOpts); await __el.uncheck();`);
+        return logs + stepFn(`const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, __findOpts); await __el.first().uncheck();`);
       }
 
       case 'PRESS_KEY': {
         const cands = stepLocatorCandidates(step);
         if (cands.length > 0) {
-          return logs + stepFn(`const __el = await __findElement(page, ${locatorsLiteral(cands)}, ${sig()}, __findOpts); await __el.press(${str(step.inputValue)});`);
+          return logs + stepFn(`const __el = await __findElement(page, ${locatorsLiteral(expandFieldCandidates(cands))}, ${sig()}, __findOpts); await __el.first().press(${str(step.inputValue)});`);
         }
         return logs + stepFn(`await page.keyboard.press(${str(step.inputValue)});`);
       }
 
       case 'UPLOAD_FILE': {
         needLocator();
-        return logs + stepFn(`await __uploadFile(page, ${loc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
+        return logs + stepFn(`await __uploadFile(page, ${fieldLoc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
       }
 
       case 'WAIT': {
@@ -315,14 +553,14 @@ export function generatePlaywrightScript(
       case 'SCROLL': {
         const cands = stepLocatorCandidates(step);
         if (cands.length > 0) {
-          return logs + stepFn(`const __el = await __findElement(page, ${locatorsLiteral(cands)}, ${sig()}, __findOpts); await __el.scrollIntoViewIfNeeded();`);
+          return logs + stepFn(`const __el = await __findElement(page, ${locatorsLiteral(expandFieldCandidates(cands))}, ${sig()}, __findOpts); await __el.first().scrollIntoViewIfNeeded();`);
         }
         const y = Number(step.inputValue || 500);
         return logs + stepFn(`await page.mouse.wheel(0, ${y});`);
       }
 
       case 'DRAG_AND_DROP': {
-        const sourceCands = stepLocatorCandidates(step);
+        const sourceCands = expandFieldCandidates(stepLocatorCandidates(step));
         if (sourceCands.length === 0) {
           throw new Error(`Step ${step.stepNumber}: DRAG_AND_DROP requires a source locator`);
         }
@@ -330,11 +568,11 @@ export function generatePlaywrightScript(
         if (!destValue) {
           throw new Error(`Step ${step.stepNumber}: DRAG_AND_DROP requires a destination locator`);
         }
-        const destCands = [{ strategy: step.locatorStrategy || 'CSS', value: destValue }];
+        const destCands = expandFieldCandidates([{ strategy: step.locatorStrategy || 'CSS', value: destValue }]);
         return logs + stepFn(
           `const __src = await __findElement(page, ${locatorsLiteral(sourceCands)}, ${str(`step${step.stepNumber}:${step.action}:src`)}, __findOpts); ` +
           `const __dst = await __findElement(page, ${locatorsLiteral(destCands)}, ${str(`step${step.stepNumber}:${step.action}:dst`)}, __findOpts); ` +
-          `await __src.dragTo(__dst);`,
+          `await __src.first().dragTo(__dst.first());`,
         );
       }
 
@@ -348,47 +586,53 @@ export function generatePlaywrightScript(
         const expected = step.inputValue ?? step.target ?? options.baseUrl;
         if (!expected) throw new Error(`Step ${step.stepNumber}: VERIFY_URL requires a value`);
         const target = resolveNavigateUrl(expected, options.baseUrl);
-        return logs + stepFn(`await page.waitForURL(${str(target)}, { timeout: ${options.timeout} });`);
+        return logs + stepFn(`await page.waitForURL((url) => url.toString().includes(${str(target)}), { timeout: ${options.timeout} });`);
       }
 
       case 'VERIFY_TITLE': {
         const expected = step.inputValue ?? step.expectedResult ?? '';
-        return logs + stepFn(`const actualTitle = await page.title(); if (actualTitle !== ${str(expected)}) throw new Error('Expected title ' + ${str(expected)} + ' but got: ' + actualTitle);`);
+        if (!expected) throw new Error(`Step ${step.stepNumber}: VERIFY_TITLE requires an expected value`);
+        return logs + stepFn(`const actualTitle = await page.title(); if (!actualTitle.toLowerCase().includes(${str(expected)}.toLowerCase())) throw new Error('Expected title containing ' + ${str(expected)} + ' but got: ' + actualTitle);`);
       }
 
       case 'VERIFY_TEXT': {
-        needLocator();
         const expected = step.inputValue ?? step.expectedResult ?? '';
-        return logs + stepFn(
-          `const __el = await __findElement(page, ${loc()}, ${sig()}, __findOpts); ` +
-          `const actualText = (await __el.textContent()) ?? ''; ` +
-          `if (!actualText.includes(${str(expected)})) throw new Error('Expected text ' + ${str(expected)} + ' but got: ' + actualText);`,
-        );
+        if (!expected) throw new Error(`Step ${step.stepNumber}: VERIFY_TEXT requires an expected value`);
+        const cands = [...stepLocatorCandidates(step), ...textLandmarks(expected)];
+        return logs + stepFn(`await __verifyText(page, ${locatorsLiteral(cands)}, ${sig()}, ${str(expected)}, __findOpts);`);
       }
 
       case 'VERIFY_ELEMENT': {
-        needLocator();
-        return logs + stepFn(`await __findElement(page, ${loc()}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false, requireEnabled: false }));`);
+        const value = step.inputValue ?? step.expectedResult ?? '';
+        const resolved = resolveVerifyCands(value);
+        return logs + stepFn(`await __findElement(page, ${locatorsLiteral(resolved)}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false, requireEnabled: false, multiMatch: 'all' }));`);
       }
 
       case 'VERIFY_VISIBLE': {
-        needLocator();
-        return logs + stepFn(`await __findElement(page, ${loc()}, ${sig()}, __findOpts);`);
+        const value = step.inputValue ?? step.expectedResult ?? '';
+        const resolved = resolveVerifyCands(value);
+        return logs + stepFn(`await __findElement(page, ${locatorsLiteral(resolved)}, ${sig()}, Object.assign({}, __findOpts, { multiMatch: 'all' }));`);
       }
 
       case 'VERIFY_HIDDEN': {
-        needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false, requireEnabled: false })); await __el.waitFor({ state: 'hidden', timeout: ${options.timeout} });`);
+        const value = step.inputValue ?? step.expectedResult ?? '';
+        const resolved = resolveVerifyCands(value);
+        return logs + stepFn(`await __verifyNotVisible(page, ${locatorsLiteral(resolved)}, ${sig()}, __findOpts);`);
       }
 
       case 'VERIFY_ENABLED': {
-        needLocator();
-        return logs + stepFn(`await __findElement(page, ${loc()}, ${sig()}, __findOpts);`);
+        const value = step.inputValue ?? step.expectedResult ?? '';
+        const resolved = resolveVerifyCands(value);
+        return logs + stepFn(`await __findElement(page, ${locatorsLiteral(resolved)}, ${sig()}, Object.assign({}, __findOpts, { multiMatch: 'all' }));`);
       }
 
       case 'VERIFY_DISABLED': {
-        needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${loc()}, ${sig()}, Object.assign({}, __findOpts, { requireEnabled: false })); if (await __el.isEnabled()) throw new Error('Expected element to be disabled');`);
+        const value = step.inputValue ?? step.expectedResult ?? '';
+        const resolved = resolveVerifyCands(value);
+        return logs + stepFn(
+          `const __el = await __findElement(page, ${locatorsLiteral(resolved)}, ${sig()}, Object.assign({}, __findOpts, { requireEnabled: false })); ` +
+          `if (await __el.first().isEnabled()) throw new Error('Expected element to be disabled');`,
+        );
       }
 
       case 'VERIFY_ATTRIBUTE': {
@@ -396,8 +640,8 @@ export function generatePlaywrightScript(
         const attr = step.inputValue ?? 'value';
         const expected = step.expectedResult ?? '';
         return logs + stepFn(
-          `const __el = await __findElement(page, ${loc()}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false })); ` +
-          `const actual = await __el.getAttribute(${str(attr)}); ` +
+          `const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false })); ` +
+          `const actual = await __el.first().getAttribute(${str(attr)}); ` +
           `if (actual !== ${str(expected)}) throw new Error('Expected attribute ' + ${str(attr)} + ' to be ' + ${str(expected)} + ' but got: ' + actual);`,
         );
       }
@@ -406,7 +650,7 @@ export function generatePlaywrightScript(
         needLocator();
         const expected = Number(step.inputValue ?? step.expectedResult ?? 1);
         return logs + stepFn(
-          `const __el = await __findElement(page, ${loc()}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false, requireEnabled: false })); ` +
+          `const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, Object.assign({}, __findOpts, { requireVisible: false, requireEnabled: false, multiMatch: 'all' })); ` +
           `const count = await __el.count(); ` +
           `if (count !== ${expected}) throw new Error('Expected ${expected} elements but found: ' + count);`,
         );

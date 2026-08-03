@@ -153,6 +153,7 @@ model TestCase {
   type                TestCaseType       @default(MANUAL)
   lastExecutionStatus TestCaseLastResult @default(NOT_RUN) @map("last_execution_status")
   lastExecutedAt      DateTime?          @map("last_executed_at")
+  lastExecutionId     String?            @map("last_execution_id") @db.Char(36)
   tags                Json?
   projectId           String             @map("project_id") @db.Char(36)
   createdById         String             @map("created_by_id") @db.Char(36)

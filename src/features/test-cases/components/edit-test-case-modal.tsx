@@ -48,7 +48,7 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
         type: testCase.type,
       });
     }
-  }, [testCase]);
+  }, [testCase, form]);
 
   const handleSubmit = (values: UpdateTestCaseForm) => {
     if (!testCase) return;

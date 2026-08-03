@@ -132,23 +132,73 @@ export class ExecutionRepository {
       throw new AppError(400, 'Cannot retry execution without test case');
     }
 
-    let artifactsDir: string | null = null;
+    const testCase = await this.prisma.testCase.findFirst({
+      where: { id: existing.testCaseId, deletedAt: null },
+      include: {
+        project: true,
+        steps: { orderBy: { stepNumber: 'asc' } },
+      },
+    });
+
+    if (!testCase || !testCase.project) {
+      throw new AppError(404, 'Test case or project not found');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.execution.update({
+        where: { id },
+        data: {
+          status: 'RUNNING',
+          startedAt: new Date(),
+          finishedAt: null,
+          durationMs: null,
+          screenshotPath: null,
+          errorMessage: null,
+        },
+      }),
+      this.prisma.testCase.update({
+        where: { id: testCase.id },
+        data: {
+          lastExecutionStatus: 'RUNNING',
+          lastExecutedAt: new Date(),
+          lastExecutionId: id,
+        },
+      }),
+    ]);
+
+    // Run Playwright asynchronously in the background so the request returns
+    // immediately with a RUNNING status; the detail page polls for the result.
+    void this.executeRetryInBackground(id, existing.testCaseId, body);
+
+    return { executionId: id, status: 'RUNNING', message: 'Execution restarted' };
+  }
+
+  private async executeRetryInBackground(
+    id: string,
+    testCaseId: string,
+    body: { headless?: boolean; browser?: string; viewportWidth?: number; viewportHeight?: number },
+  ) {
+    const artifactsDir = path.resolve(process.cwd(), '.artifacts', 'executions', id);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const testCase = await tx.testCase.findFirst({
-        where: { id: existing.testCaseId, deletedAt: null },
+      const testCase = await this.prisma.testCase.findFirst({
+        where: { id: testCaseId, deletedAt: null },
         include: {
           project: true,
           steps: { orderBy: { stepNumber: 'asc' } },
         },
       });
-
-      if (!testCase || !testCase.project) {
-        throw new AppError(404, 'Test case or project not found');
-      }
+      if (!testCase || !testCase.project) return;
 
       const project = testCase.project;
+      const execution = await this.prisma.execution.findFirst({
+        where: { id, deletedAt: null },
+        include: {
+          testCase: { select: { id: true, code: true, title: true } },
+          project: { select: { id: true, code: true, name: true, slug: true } },
+        },
+      });
+      if (!execution) return;
 
       const browser = body.browser ?? project.browser ?? 'CHROMIUM';
       const headless = body.headless ?? project.headless ?? true;
@@ -168,29 +218,11 @@ export class ExecutionRepository {
         timeout,
       });
 
-      const execution = await tx.execution.update({
-        where: { id },
-        data: {
-          status: 'RUNNING',
-          startedAt: new Date(),
-          finishedAt: null,
-          durationMs: null,
-          screenshotPath: null,
-          errorMessage: null,
-        },
-        include: {
-          testCase: { select: { id: true, code: true, title: true } },
-          project: { select: { id: true, code: true, name: true, slug: true } },
-        },
-      });
-
-      artifactsDir = path.resolve(process.cwd(), '.artifacts', 'executions', id);
       fs.mkdirSync(artifactsDir, { recursive: true });
 
       const storageDir = path.resolve(process.cwd(), 'storage', 'executions');
       fs.mkdirSync(storageDir, { recursive: true });
 
-      const screenshotPath = path.join(artifactsDir, 'screenshot.png');
       const script = path.join(artifactsDir, 'script.cjs');
       const executionNumber = execution.number;
 
@@ -227,13 +259,13 @@ export class ExecutionRepository {
 
       fs.writeFileSync(script, playwrightScript);
 
-      const executionWithScript = await tx.execution.update({
+      await this.prisma.execution.update({
         where: { id },
         data: { generatedScript: this.redactSecrets(playwrightScript, decryptSecret(project.loginPassword)) },
       });
 
       const runTimeout = 120000;
-      const { result, logs } = await this.runScript(script, runTimeout, tx);
+      const { result, logs } = await this.runScript(script, runTimeout);
 
       const status = this.mapStatus(result.status);
 
@@ -242,7 +274,7 @@ export class ExecutionRepository {
       const relativeScreenshotPath = `storage/executions/${executionNumber}.png`;
       const screenshotForDb = screenshotExists ? relativeScreenshotPath : null;
 
-      const executionResult = await tx.execution.update({
+      await this.prisma.execution.update({
         where: { id },
         data: {
           status,
@@ -251,53 +283,19 @@ export class ExecutionRepository {
           screenshotPath: screenshotForDb,
           errorMessage: result.error,
         },
-        include: {
-          testCase: {
-            select: {
-              id: true,
-              code: true,
-              title: true,
-              description: true,
-              module: true,
-              priority: true,
-              status: true,
-              tags: true,
-              createdAt: true,
-              createdBy: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  avatar: true
-                }
-              }
-            }
-          },
-          project: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              slug: true,
-              baseUrl: true,
-              framework: true,
-              environment: true,
-              createdBy: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  avatar: true
-                }
-              }
-            }
-          },
-          logs: true,
+      });
+
+      await this.prisma.testCase.update({
+        where: { id: testCase.id },
+        data: {
+          lastExecutionStatus: status === 'PASSED' ? 'PASSED' : 'FAILED',
+          lastExecutedAt: new Date(),
+          lastExecutionId: id,
         },
       });
 
       if (logs.length > 0) {
-        await tx.executionLog.createMany({
+        await this.prisma.executionLog.createMany({
           data: logs.map((log) => ({
             executionId: id,
             stepNumber: log.stepNumber,
@@ -307,19 +305,26 @@ export class ExecutionRepository {
           })),
         });
       }
-
-      return executionResult;
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Retry failed unexpectedly';
+      await this.prisma.execution
+        .update({
+          where: { id },
+          data: {
+            status: 'ERROR',
+            finishedAt: new Date(),
+            errorMessage: message,
+          },
+        })
+        .catch(() => undefined);
     } finally {
       // Never leave temp artifacts behind after a retry; only the final
       // screenshot in storage/executions is kept as permanent storage.
-      if (artifactsDir) {
-        fs.rmSync(artifactsDir, { recursive: true, force: true });
-      }
+      fs.rmSync(artifactsDir, { recursive: true, force: true });
     }
   }
 
-  private async runScript(scriptPath: string, timeoutMs: number, tx: Prisma.TransactionClient) {
+  private async runScript(scriptPath: string, timeoutMs: number) {
 
     return new Promise<{ result: { status: 'PASSED' | 'FAILED' | 'ERROR'; error?: string; durationMs?: number }; logs: { stepNumber: number | null; action: string | null; level: string; message: string }[] }>(async (resolve) => {
       const child = spawn(process.execPath, [scriptPath], { stdio: ['ignore', 'pipe', 'pipe'] });

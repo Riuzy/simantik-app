@@ -59,7 +59,7 @@ export function EditTestStepModal({ testCaseId, step, opened, onClose }: Props) 
         expectedResult: step.expectedResult ?? '',
       });
     }
-  }, [step]);
+  }, [step, form]);
 
   const handleSubmit = (values: {
     action: string;

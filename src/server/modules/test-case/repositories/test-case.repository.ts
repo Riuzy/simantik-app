@@ -129,6 +129,7 @@ export class TestCaseRepository {
           type: true,
           lastExecutionStatus: true,
           lastExecutedAt: true,
+          lastExecutionId: true,
           tags: true,
           createdAt: true,
           createdBy: { select: { id: true, name: true, avatar: true } },

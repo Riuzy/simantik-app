@@ -66,6 +66,10 @@ export interface ProjectListDTO {
     id: string;
     name: string;
   };
+  testCaseCount: number;
+  automationCount: number;
+  executionCount: number;
+  passRate: number | null;
 }
 
 export interface PaginationDTO {

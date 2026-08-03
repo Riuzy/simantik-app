@@ -28,3 +28,9 @@ export interface ExecutionResponseDTO {
   generatedScript: string | null;
   createdAt: Date;
 }
+
+export interface RunExecutionResponseDTO {
+  executionId: string;
+  status: ExecutionStatus;
+  message: string;
+}

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import * as automationService from '../services';
+import { ROUTES } from '../../../constants/routes';
 
 export function useGenerateScript(testCaseId: string) {
   return useMutation({
@@ -21,9 +22,13 @@ export function useRunTest() {
       automationService.runTest(testCaseId, data),
     onSuccess: (execution) => {
       qc.invalidateQueries({ queryKey: ['executions'] });
-      qc.invalidateQueries({ queryKey: ['execution', execution.id] });
-      notifications.show({ title: 'Success', message: `Execution ${execution.number} started`, color: 'green' });
-      router.push(`/executions/${execution.id}`);
+      qc.invalidateQueries({ queryKey: ['test-cases'] });
+      notifications.show({
+        title: 'Success',
+        message: execution.message || 'Execution started',
+        color: 'green',
+      });
+      router.push(ROUTES.EXECUTION_DETAIL(execution.executionId));
     },
     onError: () => notifications.show({ title: 'Error', message: 'Failed to run test', color: 'red' }),
   });

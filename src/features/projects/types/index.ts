@@ -48,6 +48,10 @@ export interface ProjectList {
   status: ProjectStatus;
   createdAt: string;
   createdBy: { id: string; name: string };
+  testCaseCount: number;
+  automationCount: number;
+  executionCount: number;
+  passRate: number | null;
 }
 
 export type ProjectStatus = 'ACTIVE' | 'COMPLETED';

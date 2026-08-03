@@ -33,7 +33,7 @@ export function LocatorsEditor({ value, onChange }: Props) {
           Add locator
         </Button>
       </Group>
-      <Text size="xs" c="dimmed">Tried in priority order: LABEL, PLACEHOLDER, ROLE, TEXT, TEST_ID, NAME, ID, CSS, XPATH. The first matching locator is used.</Text>
+      <Text size="xs" c="dimmed">The engine self-heals across frameworks. Field actions (click, type, select) try your locator as a cascade: ID, data-testid, name, placeholder, aria-label, role textbox, label, then CSS. Text checks try a heading, h1, h2, main, section, then plain text. Ambiguous matches (count &gt; 1) are skipped automatically in favour of a more specific selector.</Text>
       {rows.length === 0 && (
         <Text size="xs" c="dimmed">No locators yet. Add at least one.</Text>
       )}

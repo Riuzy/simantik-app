@@ -74,6 +74,12 @@ export interface ExecutionListResponse {
   };
 }
 
+export interface RunExecutionResponse {
+  executionId: string;
+  status: ExecutionStatus;
+  message: string;
+}
+
 export interface ListExecutionsParams {
   projectId?: string;
   testCaseId?: string;
