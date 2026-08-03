@@ -12,7 +12,7 @@ import { PageHeader } from '../../../components/common/page';
 export default function AutomationPage() {
   const { data: projects } = useProjects({ limit: 100 });
   const [projectId, setProjectId] = useState<string | null>(null);
-  const { data: testCasesData } = useTestCases(projectId ?? '', { page: 1, limit: 50 });
+  const { data: testCasesData } = useTestCases(projectId ?? '', { page: 1, limit: 50, type: 'AUTOMATION' });
   const runTest = useRunTest();
 
   const projectList = projects?.data ?? [];

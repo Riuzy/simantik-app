@@ -35,40 +35,45 @@ export default function DashboardPage() {
 
   return (
     <Container size="xl" py="md">
-      <Title order={2} mb="lg">Dashboard</Title>
+      <Stack gap="md" mb="lg">
+        <Stack gap="xs">
+          <Title order={2}>Dashboard</Title>
+          <Text c="dimmed" size="sm">Welcome to SIMANTIK Automation Testing Platform</Text>
+        </Stack>
 
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} mb="lg">
-        <StatCard title="Total Projects" value={report?.totalProjects ?? 0} icon={<IconFolder size={24} />} color="blue" />
-        <StatCard title="Test Cases" value={report?.totalTestCases ?? 0} icon={<IconTestPipe size={24} />} color="violet" />
-        <StatCard title="Total Executions" value={report?.totalExecutions ?? 0} icon={<IconPlayerPlay size={24} />} color="cyan" />
-      </SimpleGrid>
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+          <StatCard title="Total Projects" value={report?.totalProjects ?? 0} icon={<IconFolder size={24} />} color="blue" />
+          <StatCard title="Test Cases" value={report?.totalTestCases ?? 0} icon={<IconTestPipe size={24} />} color="violet" />
+          <StatCard title="Total Executions" value={report?.totalExecutions ?? 0} icon={<IconPlayerPlay size={24} />} color="cyan" />
+        </SimpleGrid>
 
-      <Paper p="lg" radius="md" withBorder mb="md">
-        <Title order={4} mb="md">Execution Status</Title>
-        <ExecutionStatusSummary status={report?.executionStatus ?? { PASSED: 0, FAILED: 0, ERROR: 0, SKIPPED: 0, RUNNING: 0 }} total={report?.totalExecutions ?? 0} />
-      </Paper>
+        <Paper p="lg" radius="md" withBorder>
+          <Title order={4} mb="md">Execution Status</Title>
+          <ExecutionStatusSummary status={report?.executionStatus ?? { PASSED: 0, FAILED: 0, ERROR: 0, SKIPPED: 0, RUNNING: 0 }} total={report?.totalExecutions ?? 0} />
+        </Paper>
 
-      <Paper p="lg" radius="md" withBorder>
-        <Title order={4} mb="md">Recent Executions</Title>
-        {!report || report.recentExecutions.length === 0 ? (
-          <Text c="dimmed" size="sm">No executions yet. Run a test to see results here.</Text>
-        ) : (
-          <Stack gap="xs">
-            {report.recentExecutions.map((execution) => (
-              <Group key={execution.id} justify="space-between" wrap="nowrap">
-                <Link href={`/executions/${execution.id}`} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
-                  <Group gap="sm" wrap="nowrap">
-                    <Badge color={statusColor[execution.status]} variant="light">{execution.status}</Badge>
-                    <Text size="sm" fw={500} ff="monospace">{execution.number}</Text>
-                    <Text size="sm" truncate>{execution.testCase.title}</Text>
-                  </Group>
-                </Link>
-                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>{new Date(execution.createdAt).toLocaleString()}</Text>
-              </Group>
-            ))}
-          </Stack>
-        )}
-      </Paper>
+        <Paper p="lg" radius="md" withBorder>
+          <Title order={4} mb="md">Recent Executions</Title>
+          {!report || report.recentExecutions.length === 0 ? (
+            <Text c="dimmed" size="sm">No executions yet. Run a test to see results here.</Text>
+          ) : (
+            <Stack gap="xs">
+              {report.recentExecutions.map((execution) => (
+                <Group key={execution.id} justify="space-between" wrap="nowrap">
+                  <Link href={`/executions/${execution.id}`} style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
+                    <Group gap="sm" wrap="nowrap">
+                      <Badge color={statusColor[execution.status]} variant="light">{execution.status}</Badge>
+                      <Text size="sm" fw={500} ff="monospace">{execution.number}</Text>
+                      <Text size="sm" truncate>{execution.testCase.title}</Text>
+                    </Group>
+                  </Link>
+                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>{new Date(execution.createdAt).toLocaleString()}</Text>
+                </Group>
+              ))}
+            </Stack>
+          )}
+        </Paper>
+      </Stack>
     </Container>
   );
 }

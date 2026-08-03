@@ -5,18 +5,24 @@ import { Modal, TextInput, Textarea, Select, Group, Button, Stack } from '@manti
 import { useForm, schemaResolver } from '@mantine/form';
 import { useRouter } from 'next/navigation';
 import { createTestCaseSchema, type CreateTestCaseForm } from '../schemas';
-import { useCreateTestCase } from '../hooks';
+import { useCreateTestCase, useCreateTestCaseGlobal } from '../hooks';
+import { useProjects } from '../../projects/hooks';
 
 interface Props {
-  projectId: string;
+  projectId?: string;
   projectSlug?: string;
   opened: boolean;
   onClose: () => void;
 }
 
 export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }: Props) {
-  const createTestCase = useCreateTestCase(projectId);
+  const createTestCase = useCreateTestCase(projectId ?? '');
+  const createTestCaseGlobal = useCreateTestCaseGlobal();
+  const { data: projectsData } = useProjects({ limit: 100 });
   const router = useRouter();
+
+  const isGlobal = !projectId;
+  const create = isGlobal ? createTestCaseGlobal : createTestCase;
 
   const form = useForm<CreateTestCaseForm>({
     validate: schemaResolver(createTestCaseSchema),
@@ -26,12 +32,13 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
       module: '',
       priority: 'MEDIUM',
       status: 'DRAFT',
-      projectId,
+      type: 'MANUAL',
+      projectId: projectId ?? '',
     },
   });
 
   const handleSubmit = useCallback((values: CreateTestCaseForm) => {
-    createTestCase.mutate(values, {
+    create.mutate(values, {
       onSuccess: (data) => {
         form.reset();
         onClose();
@@ -40,12 +47,28 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
         }
       },
     });
-  }, [createTestCase, form, router, onClose, projectSlug]);
+  }, [create, form, router, onClose, projectSlug]);
+
+  const projectOptions = (projectsData?.data ?? []).map((p) => ({
+    value: p.id,
+    label: `${p.code} - ${p.name}`,
+  }));
 
   return (
     <Modal opened={opened} onClose={onClose} title="Create Test Case" size="lg">
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
+          {isGlobal && (
+            <Select
+              label="Project"
+              placeholder="Select project"
+              data={projectOptions}
+              required
+              searchable
+              {...form.getInputProps('projectId')}
+            />
+          )}
+
           <TextInput
             label="Title"
             placeholder="Enter test case title"
@@ -68,6 +91,15 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
 
           <Group grow>
             <Select
+              label="Type"
+              data={[
+                { value: 'MANUAL', label: 'Manual' },
+                { value: 'AUTOMATION', label: 'Automation' },
+              ]}
+              {...form.getInputProps('type')}
+            />
+
+            <Select
               label="Priority"
               data={[
                 { value: 'LOW', label: 'Low' },
@@ -77,7 +109,9 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
               ]}
               {...form.getInputProps('priority')}
             />
+          </Group>
 
+          <Group grow>
             <Select
               label="Status"
               data={[
@@ -91,7 +125,7 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={onClose}>Cancel</Button>
-            <Button type="submit" loading={createTestCase.isPending}>Create</Button>
+            <Button type="submit" loading={create.isPending}>Create</Button>
           </Group>
         </Stack>
       </form>

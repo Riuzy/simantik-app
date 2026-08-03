@@ -1,10 +1,14 @@
 import { spawn } from 'child_process';
-import { mkdirSync, writeFileSync, existsSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
 import path from 'path';
-import { ExecutionStatus } from '@prisma/client';
+import { ExecutionStatus, Framework } from '@prisma/client';
 import { AutomationRepository } from '../repositories/automation.repository';
-import { generatePlaywrightScript } from './playwright-script.service';
-import { UpsertAutomationConfigDTO, RunTestDTO } from '../types/automation.dto';
+import { AppError } from '../../../middlewares/error-handler';
+import { generatePlaywrightScript, ScriptLocator } from './playwright-script.service';
+import { AuthEngine, AuthConfig } from './auth-engine.service';
+import { CleanupEngine } from './cleanup-engine.service';
+import { RunTestDTO } from '../types/automation.dto';
+import { decryptSecret } from '../../../utils/encryption';
 
 interface ExecutionResult {
   status: 'PASSED' | 'FAILED' | 'ERROR';
@@ -22,151 +26,168 @@ interface RunOutcome {
   logs: ExecutionLogEntry[];
 }
 
+interface ProjectRunConfig {
+  browser: string;
+  headless: boolean;
+  viewportWidth: number;
+  viewportHeight: number;
+  timeout: number;
+  slowMo: number;
+  baseUrl: string | null;
+  environment: string | null;
+  debugMode: boolean;
+  framework: Framework;
+  auth: AuthConfig;
+}
+
 export class AutomationService {
   constructor(private repository: AutomationRepository) {}
 
-  async getConfig(projectId: string) {
-    await this.repository.getProjectWithDetails(projectId);
-    const config = await this.repository.getConfig(projectId);
-    if (!config) return null;
-    return config;
-  }
+  /**
+   * Loads the test case with its project and resolves every piece of
+   * configuration from the Project itself (single source of truth).
+   */
+  private async loadRunConfig(testCaseId: string, override?: { headless?: boolean }): Promise<{
+    testCase: Awaited<ReturnType<AutomationRepository['getTestCaseForRun']>>;
+    config: ProjectRunConfig;
+  }> {
+    const testCase = await this.repository.getTestCaseForRun(testCaseId);
+    if (testCase.type === 'MANUAL') {
+      throw new AppError(400, 'Manual test cases cannot be executed by the automation engine');
+    }
+    const project = testCase.project;
 
-  async upsertConfig(projectId: string, dto: UpsertAutomationConfigDTO) {
-    await this.repository.getProjectWithDetails(projectId);
-    const updateData: Record<string, unknown> = {};
-    if (dto.framework !== undefined) updateData.framework = dto.framework;
-    if (dto.browser !== undefined) updateData.browser = dto.browser;
-    if (dto.baseUrl !== undefined) updateData.baseUrl = dto.baseUrl;
-    if (dto.headless !== undefined) updateData.headless = dto.headless;
-    if (dto.viewportWidth !== undefined) updateData.viewportWidth = dto.viewportWidth;
-    if (dto.viewportHeight !== undefined) updateData.viewportHeight = dto.viewportHeight;
-    if (dto.timeout !== undefined) updateData.timeout = dto.timeout;
-    if (dto.retry !== undefined) updateData.retry = dto.retry;
-    if (dto.parallel !== undefined) updateData.parallel = dto.parallel;
-    if (dto.slowMotion !== undefined) updateData.slowMotion = dto.slowMotion;
+    const auth: AuthConfig = {
+      enabled: project.authenticationEnabled,
+      baseUrl: project.baseUrl,
+      loginUrl: project.loginUrl,
+      email: project.loginEmail,
+      password: decryptSecret(project.loginPassword),
+      loginMethod: project.loginMethod,
+      sessionStrategy: project.sessionStrategy,
+      timeout: project.timeout ?? 30000,
+    };
 
-    return this.repository.upsertConfig(projectId, updateData);
+    const config: ProjectRunConfig = {
+      browser: project.browser ?? 'CHROMIUM',
+      headless: override?.headless ?? project.headless ?? true,
+      viewportWidth: project.viewportWidth ?? 1280,
+      viewportHeight: project.viewportHeight ?? 720,
+      timeout: project.timeout ?? 30000,
+      slowMo: project.slowMo ?? 0,
+      baseUrl: project.baseUrl,
+      environment: project.environment,
+      debugMode: project.debugMode ?? false,
+      framework: project.framework,
+      auth,
+    };
+
+    return { testCase, config };
   }
 
   async generateScript(testCaseId: string) {
-    const testCase = await this.repository.getTestCaseForRun(testCaseId);
-    const config = testCase.project.automationConfig;
-    const project = testCase.project;
+    const { testCase, config } = await this.loadRunConfig(testCaseId);
+    const authEngine = new AuthEngine(config.auth);
 
     const script = generatePlaywrightScript(
       testCase.title,
-      testCase.steps.map((step) => ({
-        stepNumber: step.stepNumber,
-        action: step.action,
-        description: step.description,
-        locatorStrategy: step.locatorStrategy,
-        locatorValue: step.locatorValue,
-        inputValue: step.inputValue,
-        expectedResult: step.expectedResult,
-        target: step.target,
-      })),
+      this.mapSteps(testCase.steps),
       {
-        browser: config?.browser ?? 'CHROMIUM',
-        headless: config?.headless ?? true,
-        viewportWidth: config?.viewportWidth ?? 1280,
-        viewportHeight: config?.viewportHeight ?? 720,
-        timeout: config?.timeout ?? 30000,
-        slowMotion: config?.slowMotion ?? 0,
-        baseUrl: config?.baseUrl ?? project.baseUrl,
+        browser: config.browser,
+        headless: config.headless,
+        viewportWidth: config.viewportWidth,
+        viewportHeight: config.viewportHeight,
+        timeout: config.timeout,
+        slowMotion: config.slowMo,
+        baseUrl: config.baseUrl,
         screenshotPath: '',
       },
-      project.framework,
+      config.framework,
+      authEngine,
     );
 
     return {
       testCaseId,
       code: testCase.code,
       title: testCase.title,
-      framework: project.framework,
+      framework: config.framework,
       script,
     };
   }
 
   async run(testCaseId: string, dto: RunTestDTO) {
-    const testCase = await this.repository.getTestCaseForRun(testCaseId);
-    const config = testCase.project.automationConfig;
+    const { testCase, config } = await this.loadRunConfig(testCaseId, dto);
     const project = testCase.project;
-
-    const browser = config?.browser ?? 'CHROMIUM';
-    const headless = dto.headless ?? config?.headless ?? true;
-    const viewportWidth = config?.viewportWidth ?? 1280;
-    const viewportHeight = config?.viewportHeight ?? 720;
-    const timeout = config?.timeout ?? 30000;
-    const slowMotion = config?.slowMotion ?? 0;
-    const baseUrl = config?.baseUrl ?? project.baseUrl;
 
     const execution = await this.repository.createExecution({
       number: await this.generateNextExecutionNumber(),
       projectId: project.id,
       testCaseId,
-      browser,
-      environment: project.environment ?? undefined,
+      browser: config.browser,
+      environment: config.environment ?? undefined,
     });
 
-    const artifactsDir = path.resolve(process.cwd(), '.artifacts', 'executions', execution.id);
-    mkdirSync(artifactsDir, { recursive: true });
+    await this.repository.markTestCaseRunning(testCaseId);
 
-    const storageDir = path.resolve(process.cwd(), 'storage', 'executions');
-    mkdirSync(storageDir, { recursive: true });
+    const cleanupEngine = new CleanupEngine(process.cwd(), config.debugMode);
+    const authEngine = new AuthEngine(config.auth);
 
-    const executionNumber = execution.number;
-    const screenshotPath = path.join(storageDir, `${executionNumber}.png`);
-    const script = generatePlaywrightScript(
-      testCase.title,
-      testCase.steps.map((step) => ({
-        stepNumber: step.stepNumber,
-        action: step.action,
-        description: step.description,
-        locatorStrategy: step.locatorStrategy,
-        locatorValue: step.locatorValue,
-        inputValue: step.inputValue,
-        expectedResult: step.expectedResult,
-        target: step.target,
-      })),
-      {
-        browser,
-        headless,
-        viewportWidth,
-        viewportHeight,
-        timeout,
-        slowMotion,
-        baseUrl,
-        screenshotPath: screenshotPath.replace(/\\/g, '/'),
-      },
-      project.framework,
-    );
+    const tempDir = cleanupEngine.createExecutionTempDir(execution.number);
+    cleanupEngine.ensureStorageDir();
 
-    const scriptPath = path.join(artifactsDir, 'script.cjs');
-    writeFileSync(scriptPath, script);
+    try {
+      const scriptOptions = {
+        browser: config.browser,
+        headless: config.headless,
+        viewportWidth: config.viewportWidth,
+        viewportHeight: config.viewportHeight,
+        timeout: config.timeout,
+        slowMotion: config.slowMo,
+        baseUrl: config.baseUrl,
+        screenshotPath: path.join(cleanupEngine.ensureStorageDir(), `${execution.number}.png`),
+      };
 
-    await this.repository.updateExecutionGeneratedScript(execution.id, script);
+      const script = generatePlaywrightScript(
+        testCase.title,
+        this.mapSteps(testCase.steps),
+        scriptOptions,
+        config.framework,
+        authEngine,
+      );
 
-    const runTimeout = Math.max(timeout * (testCase.steps.length + 2) + 60000, 120000);
-    const { result, logs } = await this.runScript(scriptPath, runTimeout);
+      const scriptPath = path.join(tempDir, 'script.cjs');
+      writeFileSync(scriptPath, script);
 
-    const status = this.mapStatus(result.status);
+      // Persist a redacted copy of the script so the plain-text password never
+      // appears in the database while the executed script keeps the secret.
+      const storedScript = this.redactSecrets(script, config.auth.password);
+      await this.repository.updateExecutionGeneratedScript(execution.id, storedScript);
 
-    // Verify screenshot exists on disk after Playwright execution
-    const screenshotExists = existsSync(screenshotPath);
-    const screenshotForDb = screenshotExists ? `storage/executions/${executionNumber}.png` : null;
+      const runTimeout = Math.max(config.timeout * (testCase.steps.length + 2) + 60000, 120000);
+      const { result, logs } = await this.runScript(scriptPath, runTimeout);
 
-    await this.repository.finishExecution(
-      execution.id,
-      status,
-      result.durationMs ?? 0,
-      screenshotForDb,
-      result.error,
-    );
+      const status = this.mapStatus(result.status);
 
-    await this.repository.createExecutionLogs(execution.id, logs);
+      const screenshotPath = scriptOptions.screenshotPath;
+      const screenshotExists = existsSync(screenshotPath);
+      const screenshotForDb = screenshotExists ? `storage/executions/${execution.number}.png` : null;
 
-    return this.repository.getExecutionById(execution.id);
+      await this.repository.finishExecution(
+        execution.id,
+        testCaseId,
+        status,
+        result.durationMs ?? 0,
+        screenshotForDb,
+        result.error,
+      );
+
+      await this.repository.createExecutionLogs(execution.id, logs);
+
+      return this.repository.getExecutionById(execution.id);
+    } finally {
+      // Always remove the temp execution folder, even if a DB write fails.
+      cleanupEngine.cleanupExecution(execution.number);
+    }
   }
 
   private runScript(scriptPath: string, timeoutMs: number): Promise<RunOutcome> {
@@ -253,5 +274,44 @@ export class AutomationService {
     const latest = await this.repository.findLatestExecutionNumber();
     const nextNumber = latest ? parseInt(latest.number.replace('EX-', ''), 10) + 1 : 1;
     return `EX-${String(nextNumber).padStart(4, '0')}`;
+  }
+
+  private mapSteps(steps: Array<{
+    stepNumber: number;
+    action: string;
+    description: string | null;
+    locatorStrategy: string | null;
+    locatorValue: string | null;
+    locators?: unknown;
+    inputValue: string | null;
+    expectedResult: string | null;
+    target: string | null;
+  }>): Array<{
+    stepNumber: number;
+    action: string;
+    description: string | null;
+    locatorStrategy: string | null;
+    locatorValue: string | null;
+    locators?: ScriptLocator[] | null;
+    inputValue: string | null;
+    expectedResult: string | null;
+    target: string | null;
+  }> {
+    return steps.map((step) => ({
+      stepNumber: step.stepNumber,
+      action: step.action,
+      description: step.description,
+      locatorStrategy: step.locatorStrategy,
+      locatorValue: step.locatorValue,
+      locators: (step.locators as ScriptLocator[] | null) ?? null,
+      inputValue: step.inputValue,
+      expectedResult: step.expectedResult,
+      target: step.target,
+    }));
+  }
+
+  private redactSecrets(script: string, secret: string | null): string {
+    if (!secret) return script;
+    return script.split(secret).join('*****');
   }
 }

@@ -15,6 +15,7 @@ export const API = {
     BASE: '/test-cases',
     DETAIL: (id: string) => `/test-cases/${id}`,
     BY_CODE: (code: string) => `/test-cases/code/${code}`,
+    MODULES: '/test-cases/modules',
     DUPLICATE: (id: string) => `/test-cases/${id}/duplicate`,
     CLONE: (id: string) => `/test-cases/${id}/clone`,
     STEPS: (id: string) => `/test-cases/${id}/steps`,
@@ -22,7 +23,6 @@ export const API = {
     STEP_DETAIL: (testCaseId: string, stepNumber: number) => `/test-cases/${testCaseId}/steps/${stepNumber}`,
   },
   AUTOMATION: {
-    CONFIG: (projectId: string) => `/projects/${projectId}/automation-config`,
     GENERATE_SCRIPT: (testCaseId: string) => `/test-cases/${testCaseId}/generate-script`,
     RUN: (testCaseId: string) => `/test-cases/${testCaseId}/run`,
   },

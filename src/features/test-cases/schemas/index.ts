@@ -7,6 +7,7 @@ export const createTestCaseSchema = z.object({
   module: z.string().max(255).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
   status: z.enum(['DRAFT', 'READY', 'ARCHIVED']).default('DRAFT'),
+  type: z.enum(['MANUAL', 'AUTOMATION']).default('MANUAL'),
   tags: z.array(z.string().max(50)).max(20).optional(),
   projectId: z.string().uuid('Invalid project ID'),
 });
@@ -17,6 +18,7 @@ export const updateTestCaseSchema = z.object({
   module: z.string().max(255).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
   status: z.enum(['DRAFT', 'READY', 'ARCHIVED']).optional(),
+  type: z.enum(['MANUAL', 'AUTOMATION']).optional(),
   tags: z.array(z.string().max(50)).max(20).optional(),
 }).refine(data => Object.keys(data).length > 0, { message: 'At least one field required for update' });
 

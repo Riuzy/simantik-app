@@ -15,7 +15,9 @@ import { setupRoutes } from './routes';
 const app = express();
 
 app.use(requestId);
-app.use(helmet());
+// Screenshots served from /storage are public static files that are embedded
+// cross-origin by the web app (<img>), so CORP must allow cross-origin loading.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors(config.cors));
 app.use(compression());
 app.use(pinoHttp({ logger }));

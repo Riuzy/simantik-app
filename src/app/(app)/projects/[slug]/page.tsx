@@ -2,11 +2,12 @@
 
 import { useParams } from 'next/navigation';
 import { Container, Group, Text, Badge, Paper, SimpleGrid, Button, Loader, Center, Tabs, rem } from '@mantine/core';
-import { IconFolder, IconTestPipe, IconInfoCircle, IconPlayerPlay, IconLink, IconRobot } from '@tabler/icons-react';
+import { IconFolder, IconTestPipe, IconInfoCircle, IconPlayerPlay, IconLink, IconRobot, IconLock } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useProjectBySlug } from '../../../../features/projects/hooks';
 import { TestCasesTab } from '../../../../features/test-cases/components/test-cases-tab';
-import { AutomationConfigForm } from '../../../../features/automation/components/automation-config-form';
+import { AutomationSettings } from '../../../../features/projects/components/automation-settings';
+import { AuthenticationSettings } from '../../../../features/projects/components/authentication-settings';
 import { PageHeader } from '../../../../components/common/page';
 
 const statusColor: Record<string, string> = {
@@ -85,6 +86,7 @@ export default function ProjectDetailPage() {
           <Tabs.Tab value="overview" leftSection={<IconInfoCircle style={{ width: rem(16), height: rem(16) }} />}>Overview</Tabs.Tab>
           <Tabs.Tab value="test-cases" leftSection={<IconTestPipe style={{ width: rem(16), height: rem(16) }} />}>Test Cases</Tabs.Tab>
           <Tabs.Tab value="automation" leftSection={<IconRobot style={{ width: rem(16), height: rem(16) }} />}>Automation</Tabs.Tab>
+          <Tabs.Tab value="authentication" leftSection={<IconLock style={{ width: rem(16), height: rem(16) }} />}>Authentication</Tabs.Tab>
           <Tabs.Tab value="executions" leftSection={<IconFolder style={{ width: rem(16), height: rem(16) }} />}>Executions</Tabs.Tab>
         </Tabs.List>
 
@@ -97,7 +99,11 @@ export default function ProjectDetailPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="automation">
-          <AutomationConfigForm projectId={projectId} />
+          <AutomationSettings project={project} />
+        </Tabs.Panel>
+
+        <Tabs.Panel value="authentication">
+          <AuthenticationSettings project={project} />
         </Tabs.Panel>
 
         <Tabs.Panel value="executions">

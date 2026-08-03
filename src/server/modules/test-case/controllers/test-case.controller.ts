@@ -3,7 +3,7 @@ import { AuthRequest } from '../../../middlewares/auth';
 import { TestCaseService } from '../services/test-case.service';
 import { AppError } from '../../../middlewares/error-handler';
 import { ApiResponse } from '../../../utils/api-response';
-import { TestPriority, TestCaseStatus } from '@prisma/client';
+import { TestPriority, TestCaseStatus, TestCaseType, TestCaseLastResult } from '@prisma/client';
 import {
   idParamSchema,
   testCaseAndStepParamSchema,
@@ -87,10 +87,13 @@ export class TestCaseController {
         projectId: query.projectId,
         priority: query.priority as TestPriority | undefined,
         status: query.status as TestCaseStatus | undefined,
+        type: query.type as TestCaseType | undefined,
+        lastResult: query.lastResult as TestCaseLastResult | undefined,
+        module: query.module,
         tag: query.tag,
         createdById: query.createdById,
         search: query.search,
-        sortBy: query.sortBy as 'createdAt' | 'title' | 'updatedAt' | 'priority',
+        sortBy: query.sortBy as 'createdAt' | 'title' | 'updatedAt' | 'priority' | 'code' | 'status' | 'type' | 'module' | 'project' | 'lastResult',
         sortOrder: query.sortOrder,
       });
 
@@ -102,6 +105,15 @@ export class TestCaseController {
         result.pagination.total,
         result.pagination.totalPages
       );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listModules = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const modules = await this.testCaseService.listModules(req.query.projectId as string | undefined);
+      ApiResponse.success(res, modules);
     } catch (error) {
       next(error);
     }

@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Container, Paper, Group, Text, Table, Badge, TextInput, Button, Select, Center, Loader, Box } from '@mantine/core';
+import { Container, Paper, Group, Text, Table, Badge, TextInput, Button, Select, Center, Loader, Box, ActionIcon } from '@mantine/core';
 import { IconSearch, IconChevronDown, IconChevronUp, IconChevronLeft, IconChevronRight, IconPlus } from '@tabler/icons-react';
-import { useTestCases } from '../../../features/test-cases/hooks';
+import { useTestCases, useTestCaseModules } from '../../../features/test-cases/hooks';
 import { useProjects } from '../../../features/projects/hooks';
 import { PageHeader } from '../../../components/common/page';
-import type { TestPriority, TestCaseStatus } from '../../../features/test-cases/types';
+import { CreateTestCaseModal } from '../../../features/test-cases/components/create-test-case-modal';
+import type { TestPriority, TestCaseStatus, TestCaseType, TestCaseLastResult } from '../../../features/test-cases/types';
 
 const priorityColor: Record<string, string> = {
   LOW: 'gray',
@@ -20,6 +21,18 @@ const statusColor: Record<string, string> = {
   DRAFT: 'gray',
   READY: 'green',
   ARCHIVED: 'yellow',
+};
+
+const typeColor: Record<TestCaseType, string> = {
+  MANUAL: 'gray',
+  AUTOMATION: 'violet',
+};
+
+const lastResultColor: Record<TestCaseLastResult, string> = {
+  NOT_RUN: 'gray',
+  RUNNING: 'blue',
+  PASSED: 'green',
+  FAILED: 'red',
 };
 
 const priorityOptions = [
@@ -37,27 +50,49 @@ const statusOptions = [
   { value: 'ARCHIVED', label: 'Archived' },
 ];
 
+const typeOptions = [
+  { value: '', label: 'All Types' },
+  { value: 'MANUAL', label: 'Manual' },
+  { value: 'AUTOMATION', label: 'Automation' },
+];
+
+const lastResultOptions = [
+  { value: '', label: 'All Results' },
+  { value: 'NOT_RUN', label: 'Not Run' },
+  { value: 'RUNNING', label: 'Running' },
+  { value: 'PASSED', label: 'Passed' },
+  { value: 'FAILED', label: 'Failed' },
+];
+
 const PAGE_SIZE = 10;
 
 interface SortConfig {
-  column: 'code' | 'project' | 'priority' | 'status' | 'createdAt';
+  column: 'code' | 'title' | 'project' | 'type' | 'priority' | 'status' | 'module' | 'lastResult';
   order: 'asc' | 'desc';
 }
 
 export default function TestCasesPage() {
   const router = useRouter();
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [module, setModule] = useState<string>('');
   const [search, setSearch] = useState('');
   const [priority, setPriority] = useState<string>('');
   const [status, setStatus] = useState<string>('');
+  const [type, setType] = useState<string>('');
+  const [lastResult, setLastResult] = useState<string>('');
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<SortConfig>({ column: 'createdAt', order: 'desc' });
+  const [sort, setSort] = useState<SortConfig>({ column: 'code', order: 'asc' });
+  const [createOpened, setCreateOpened] = useState(false);
 
   const { data: projects } = useProjects({ page: 1, limit: 100 });
+  const { data: modules } = useTestCaseModules(projectId ?? undefined);
   const { data, isLoading } = useTestCases(projectId ?? '', {
     search: search || undefined,
+    module: module || undefined,
     priority: (priority as TestPriority) || undefined,
     status: (status as TestCaseStatus) || undefined,
+    type: (type as TestCaseType) || undefined,
+    lastResult: (lastResult as TestCaseLastResult) || undefined,
     page,
     limit: PAGE_SIZE,
     sortBy: sort.column,
@@ -67,6 +102,13 @@ export default function TestCasesPage() {
   const projectList = projects?.data ?? [];
   const testCases = data?.data ?? [];
   const pagination = data?.pagination;
+  const moduleOptions = useMemo(
+    () => [
+      { value: '', label: 'All Modules' },
+      ...(modules?.map((m) => ({ value: m, label: m })) ?? []),
+    ],
+    [modules],
+  );
 
   const handleSort = (column: SortConfig['column']) => {
     setSort((prev) => ({
@@ -88,19 +130,20 @@ export default function TestCasesPage() {
     </Table.Th>
   );
 
-  const goToCreate = () => {
-    if (projectId) {
-      const project = projectList.find((p) => p.id === projectId);
-      router.push(`/projects/${project?.slug ?? ''}/test-cases`);
-    }
-  };
-
   const start = pagination && pagination.total > 0 ? (page - 1) * PAGE_SIZE + 1 : 0;
   const endRange = pagination ? Math.min(page * PAGE_SIZE, pagination.total) : 0;
 
   return (
     <Container size="xl" py="md">
-      <PageHeader title="Test Cases" description="All test cases across projects" />
+      <PageHeader
+        title="Test Cases"
+        description="All test cases across projects"
+        actions={
+          <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpened(true)}>
+            New Test Case
+          </Button>
+        }
+      />
 
       <Paper p="md" withBorder mb="md">
         <Box
@@ -125,9 +168,26 @@ export default function TestCasesPage() {
           <TextInput
             label="Search"
             leftSection={<IconSearch size={16} />}
-            placeholder="Search test cases..."
+            placeholder="Search title, code or module..."
             value={search}
             onChange={(e) => { setSearch(e.currentTarget.value); setPage(1); }}
+          />
+          <Select
+            label="Module"
+            placeholder="All Modules"
+            data={moduleOptions}
+            value={module}
+            onChange={(value) => { setModule(value || ''); setPage(1); }}
+            clearable
+            searchable
+          />
+          <Select
+            label="Type"
+            placeholder="All Types"
+            data={typeOptions}
+            value={type}
+            onChange={(value) => { setType(value || ''); setPage(1); }}
+            clearable
           />
           <Select
             label="Priority"
@@ -145,6 +205,14 @@ export default function TestCasesPage() {
             onChange={(value) => { setStatus(value || ''); setPage(1); }}
             clearable
           />
+          <Select
+            label="Last Result"
+            placeholder="All Results"
+            data={lastResultOptions}
+            value={lastResult}
+            onChange={(value) => { setLastResult(value || ''); setPage(1); }}
+            clearable
+          />
         </Box>
       </Paper>
 
@@ -158,34 +226,23 @@ export default function TestCasesPage() {
                 <Table.Tr>
                   {sortHeader('code', 'Code')}
                   <Table.Th>Title</Table.Th>
-                  {sortHeader('project', 'Project')}
+                  {sortHeader('module', 'Module')}
+                  {sortHeader('type', 'Type')}
                   {sortHeader('priority', 'Priority')}
-                  {sortHeader('status', 'Status')}
+                  {sortHeader('status', 'Design Status')}
+                  {sortHeader('lastResult', 'Last Result')}
                   <Table.Th>Steps</Table.Th>
-                  {sortHeader('createdAt', 'Created')}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {testCases.length === 0 && (
                   <Table.Tr>
-                    <Table.Td colSpan={7}>
+                    <Table.Td colSpan={8}>
                       <Center py="xl" style={{ flexDirection: 'column', gap: 8 }}>
                         <Text fw={500}>No test cases found.</Text>
                         <Text c="dimmed" size="sm">
-                          {projectId
-                            ? "This project doesn't have any test cases yet."
-                            : 'There are no test cases matching your filters.'}
+                          There are no test cases matching your filters.
                         </Text>
-                        {projectId && (
-                          <Button
-                            size="xs"
-                            variant="light"
-                            leftSection={<IconPlus size={14} />}
-                            onClick={goToCreate}
-                          >
-                            Create Test Case
-                          </Button>
-                        )}
                       </Center>
                     </Table.Td>
                   </Table.Tr>
@@ -202,16 +259,23 @@ export default function TestCasesPage() {
                   >
                     <Table.Td ff="monospace">{testCase.code}</Table.Td>
                     <Table.Td>
-                      <Text size="sm">{testCase.title}</Text>
-                      {testCase.module && <Text size="xs" c="dimmed">{testCase.module}</Text>}
+                      <Text size="sm" fw={500}>{testCase.title}</Text>
+                      {testCase.project?.name && <Text size="xs" c="dimmed">{testCase.project.name}</Text>}
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">{testCase.project?.name ?? '\u2014'}</Text>
+                      {testCase.module ? <Text size="sm">{testCase.module}</Text> : <Text c="dimmed">{'\u2014'}</Text>}
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge color={typeColor[testCase.type]} variant="light">{testCase.type}</Badge>
                     </Table.Td>
                     <Table.Td><Badge color={priorityColor[testCase.priority]} variant="light">{testCase.priority}</Badge></Table.Td>
                     <Table.Td><Badge color={statusColor[testCase.status]} variant="light">{testCase.status}</Badge></Table.Td>
+                    <Table.Td>
+                      <Badge color={lastResultColor[testCase.lastExecutionStatus]} variant="dot">
+                        {testCase.lastExecutionStatus === 'NOT_RUN' ? 'Not Run' : testCase.lastExecutionStatus}
+                      </Badge>
+                    </Table.Td>
                     <Table.Td>{testCase._count?.steps ?? 0}</Table.Td>
-                    <Table.Td>{new Date(testCase.createdAt).toLocaleDateString()}</Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -223,7 +287,7 @@ export default function TestCasesPage() {
               <Text size="sm" c="dimmed">
                 Showing {start}–{endRange} of {pagination.total} results
               </Text>
-              <Box style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <Group gap={4}>
                 <Button
                   size="xs"
                   variant="light"
@@ -234,15 +298,14 @@ export default function TestCasesPage() {
                   Previous
                 </Button>
                 {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((p) => (
-                  <Button
+                  <ActionIcon
                     key={p}
-                    size="xs"
+                    size="md"
                     variant={page === p ? 'filled' : 'light'}
                     onClick={() => setPage(p)}
-                    style={{ minWidth: 32 }}
                   >
                     {p}
-                  </Button>
+                  </ActionIcon>
                 ))}
                 <Button
                   size="xs"
@@ -253,11 +316,13 @@ export default function TestCasesPage() {
                 >
                   Next
                 </Button>
-              </Box>
+              </Group>
             </Group>
           )}
         </>
       )}
+
+      <CreateTestCaseModal opened={createOpened} onClose={() => setCreateOpened(false)} />
     </Container>
   );
 }

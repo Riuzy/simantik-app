@@ -66,6 +66,7 @@ export class ProjectController {
         search: query.search,
         createdById: query.createdById,
         framework: query.framework,
+        browser: query.browser,
         sortBy: query.sortBy,
         sortOrder: query.sortOrder,
       };

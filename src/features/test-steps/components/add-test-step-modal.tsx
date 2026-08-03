@@ -3,8 +3,10 @@
 import { Modal, Select, TextInput, Textarea, Group, Button, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useCreateTestStep } from '../hooks';
-import { ACTION_OPTIONS, LOCATOR_OPTIONS } from '../../../constants/test-step-actions';
+import { ACTION_OPTIONS } from '../../../constants/test-step-actions';
 import type { TestStepAction } from '../../../constants/test-step-actions';
+import type { LocatorItem } from '../types';
+import { LocatorsEditor } from './locators-editor';
 
 interface Props {
   testCaseId: string;
@@ -19,8 +21,7 @@ export function AddTestStepModal({ testCaseId, opened, onClose }: Props) {
     initialValues: {
       action: '',
       description: '',
-      locatorStrategy: '',
-      locatorValue: '',
+      locators: [] as LocatorItem[],
       inputValue: '',
       expectedResult: '',
     },
@@ -32,16 +33,19 @@ export function AddTestStepModal({ testCaseId, opened, onClose }: Props) {
   const handleSubmit = (values: {
     action: string;
     description: string;
-    locatorStrategy: string;
-    locatorValue: string;
+    locators: LocatorItem[];
     inputValue: string;
     expectedResult: string;
   }) => {
+    const locators = values.locators.filter((l) => l && l.value && l.value.trim().length > 0);
+    const primary = locators[0];
+
     const payload = {
       action: values.action as TestStepAction,
       description: values.description || undefined,
-      locatorStrategy: values.locatorStrategy || undefined,
-      locatorValue: values.locatorValue || undefined,
+      locators: locators.length > 0 ? locators : undefined,
+      locatorStrategy: primary?.strategy,
+      locatorValue: primary?.value,
       inputValue: values.inputValue || undefined,
       expectedResult: values.expectedResult || undefined,
     };
@@ -66,20 +70,10 @@ export function AddTestStepModal({ testCaseId, opened, onClose }: Props) {
             {...form.getInputProps('action')}
           />
 
-          <Group grow>
-            <Select
-              label="Locator Strategy"
-              placeholder="e.g. CSS, TEXT, ROLE"
-              data={LOCATOR_OPTIONS}
-              clearable
-              {...form.getInputProps('locatorStrategy')}
-            />
-            <TextInput
-              label="Locator Value"
-              placeholder="e.g. #submit-button"
-              {...form.getInputProps('locatorValue')}
-            />
-          </Group>
+          <LocatorsEditor
+            value={form.values.locators}
+            onChange={(rows) => form.setFieldValue('locators', rows)}
+          />
 
           <TextInput
             label="Input Value"

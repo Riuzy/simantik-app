@@ -1,27 +1,8 @@
 import { z } from 'zod';
-import {
-  upsertAutomationConfigBodySchema,
-  runTestBodySchema,
-} from '../validators/automation.validators';
-import { Browser, ExecutionStatus, Framework } from '@prisma/client';
+import { runTestBodySchema } from '../validators/automation.validators';
+import { ExecutionStatus, Framework } from '@prisma/client';
 
-export type UpsertAutomationConfigDTO = z.infer<typeof upsertAutomationConfigBodySchema>;
 export type RunTestDTO = z.infer<typeof runTestBodySchema>;
-
-export interface AutomationConfigResponseDTO {
-  id: string;
-  projectId: string;
-  framework: Framework;
-  browser: Browser;
-  baseUrl: string | null;
-  headless: boolean;
-  viewportWidth: number;
-  viewportHeight: number;
-  timeout: number;
-  retry: number;
-  parallel: number;
-  slowMotion: number;
-}
 
 export interface GeneratedScriptDTO {
   testCaseId: string;

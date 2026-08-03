@@ -29,6 +29,14 @@ export function useTestCaseByCode(code: string) {
   });
 }
 
+export function useTestCaseModules(projectId?: string) {
+  return useQuery({
+    queryKey: ['test-case-modules', projectId],
+    queryFn: () => testCaseService.listTestCaseModules(projectId),
+    enabled: true,
+  });
+}
+
 export function useCreateTestCase(projectId: string) {
   const qc = useQueryClient();
 
@@ -37,6 +45,22 @@ export function useCreateTestCase(projectId: string) {
       testCaseService.createTestCase({ ...data, projectId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['test-cases', projectId] });
+      notifications.show({ title: 'Success', message: 'Test case created', color: 'green' });
+    },
+    onError: () =>
+      notifications.show({ title: 'Error', message: 'Failed to create test case', color: 'red' }),
+  });
+}
+
+export function useCreateTestCaseGlobal() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateTestCaseForm) =>
+      testCaseService.createTestCase(data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['test-cases', variables.projectId] });
+      qc.invalidateQueries({ queryKey: ['test-cases', ''] });
       notifications.show({ title: 'Success', message: 'Test case created', color: 'green' });
     },
     onError: () =>

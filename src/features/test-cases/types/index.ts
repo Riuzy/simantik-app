@@ -4,6 +4,8 @@ export type TestStepAction = (typeof TEST_STEP_ACTIONS)[number];
 
 export type TestPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type TestCaseStatus = 'DRAFT' | 'READY' | 'ARCHIVED';
+export type TestCaseType = 'MANUAL' | 'AUTOMATION';
+export type TestCaseLastResult = 'NOT_RUN' | 'RUNNING' | 'PASSED' | 'FAILED';
 
 export interface TestCaseStep {
   id: string;
@@ -27,6 +29,9 @@ export interface TestCase {
   module: string | null;
   priority: TestPriority;
   status: TestCaseStatus;
+  type: TestCaseType;
+  lastExecutionStatus: TestCaseLastResult;
+  lastExecutedAt: string | null;
   tags: string[];
   projectId: string;
   createdById: string;
@@ -54,6 +59,7 @@ export interface CreateTestCaseForm {
   module?: string;
   priority: TestPriority;
   status?: TestCaseStatus;
+  type?: TestCaseType;
   tags?: string[];
   projectId: string;
 }
@@ -64,6 +70,7 @@ export interface UpdateTestCaseForm {
   module?: string;
   priority?: TestPriority;
   status?: TestCaseStatus;
+  type?: TestCaseType;
   tags?: string[];
 }
 

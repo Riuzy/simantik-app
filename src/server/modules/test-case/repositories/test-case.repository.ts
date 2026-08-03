@@ -7,6 +7,7 @@ interface CreateStepData {
   description?: string;
   locatorStrategy?: string;
   locatorValue?: string;
+  locators?: Array<{ strategy: string; value: string }>;
   inputValue?: string;
   expectedResult?: string;
   stepNumber?: number;
@@ -17,6 +18,7 @@ interface UpdateStepData {
   description?: string;
   locatorStrategy?: string;
   locatorValue?: string;
+  locators?: Array<{ strategy: string; value: string }>;
   inputValue?: string;
   expectedResult?: string;
 }
@@ -83,24 +85,30 @@ export class TestCaseRepository {
     if (filters.projectId) where.projectId = filters.projectId;
     if (filters.priority) where.priority = filters.priority;
     if (filters.status) where.status = filters.status;
+    if (filters.type) where.type = filters.type;
+    if (filters.lastResult) where.lastExecutionStatus = filters.lastResult;
+    if (filters.module) where.module = filters.module;
     if (filters.createdById) where.createdById = filters.createdById;
     if (filters.tag) {
       where.tags = { has: filters.tag };
     }
     if (filters.search) {
       where.OR = [
-        { title: { contains: filters.search, mode: 'insensitive' } },
-        { code: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search } },
+        { code: { contains: filters.search } },
+        { module: { contains: filters.search } },
       ];
     }
 
     let orderBy: Prisma.TestCaseOrderByWithRelationInput | Record<string, 'asc' | 'desc'> = {};
-    const sortBy = filters.sortBy || 'createdAt';
-    const sortOrder = filters.sortOrder || 'desc';
+    const sortBy = filters.sortBy || 'code';
+    const sortOrder = filters.sortOrder || 'asc';
 
-    // Handle relation sorting (project)
+    // Handle relation / renamed-column sorting
     if (sortBy === 'project') {
       orderBy = { project: { name: sortOrder } };
+    } else if (sortBy === 'lastResult') {
+      orderBy = { lastExecutionStatus: sortOrder };
     } else {
       orderBy[sortBy] = sortOrder;
     }
@@ -118,6 +126,9 @@ export class TestCaseRepository {
           module: true,
           priority: true,
           status: true,
+          type: true,
+          lastExecutionStatus: true,
+          lastExecutedAt: true,
           tags: true,
           createdAt: true,
           createdBy: { select: { id: true, name: true, avatar: true } },
@@ -150,6 +161,26 @@ export class TestCaseRepository {
     });
   }
 
+  async findDistinctModules(projectId?: string): Promise<string[]> {
+    const where: Prisma.TestCaseWhereInput = {
+      deletedAt: null,
+      module: { not: null },
+      ...(projectId ? { projectId } : {}),
+    };
+
+    const modules = await this.prisma.testCase.findMany({
+      where,
+      select: { module: true },
+      distinct: ['module'],
+      orderBy: { module: 'asc' },
+    });
+
+    return modules
+      .map((m) => m.module)
+      .filter((m): m is string => m !== null)
+      .sort((a, b) => a.localeCompare(b));
+  }
+
   async duplicate(id: string, newCode: string, newTitle?: string) {
     return this.prisma.$transaction(async (tx) => {
       const original = await tx.testCase.findUnique({
@@ -169,6 +200,7 @@ export class TestCaseRepository {
           module: original.module,
           priority: original.priority,
           status: original.status,
+          type: original.type,
           tags: (original.tags as string[] | null) ?? [],
           projectId: original.projectId,
           createdById: original.createdById,
@@ -187,6 +219,7 @@ export class TestCaseRepository {
             description: step.description,
             locatorStrategy: step.locatorStrategy,
             locatorValue: step.locatorValue,
+            locators: (step.locators as Prisma.InputJsonValue) ?? undefined,
             inputValue: step.inputValue,
             expectedResult: step.expectedResult,
             createdAt: new Date(),
@@ -226,6 +259,7 @@ export class TestCaseRepository {
           module: original.module,
           priority: original.priority,
           status: original.status,
+          type: original.type,
           tags: (original.tags as string[] | null) ?? [],
           projectId,
           createdById: original.createdById,
@@ -244,6 +278,7 @@ export class TestCaseRepository {
             description: step.description,
             locatorStrategy: step.locatorStrategy,
             locatorValue: step.locatorValue,
+            locators: (step.locators as Prisma.InputJsonValue) ?? undefined,
             inputValue: step.inputValue,
             expectedResult: step.expectedResult,
             createdAt: new Date(),
@@ -277,6 +312,7 @@ export class TestCaseRepository {
           description: data.description ?? null,
           locatorStrategy: data.locatorStrategy ?? null,
           locatorValue: data.locatorValue ?? null,
+          locators: (data.locators && data.locators.length > 0 ? data.locators : null) as Prisma.InputJsonValue | undefined,
           inputValue: data.inputValue ?? null,
           expectedResult: data.expectedResult ?? null,
           createdAt: new Date(),
@@ -300,6 +336,9 @@ export class TestCaseRepository {
     if (data.description !== undefined) updateData.description = data.description;
     if (data.locatorStrategy !== undefined) updateData.locatorStrategy = data.locatorStrategy;
     if (data.locatorValue !== undefined) updateData.locatorValue = data.locatorValue;
+    if (data.locators !== undefined) {
+      updateData.locators = data.locators.length > 0 ? data.locators : null;
+    }
     if (data.inputValue !== undefined) updateData.inputValue = data.inputValue;
     if (data.expectedResult !== undefined) updateData.expectedResult = data.expectedResult;
 

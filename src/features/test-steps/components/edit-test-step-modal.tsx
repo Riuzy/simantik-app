@@ -4,8 +4,10 @@ import { useEffect } from 'react';
 import { Modal, Select, TextInput, Textarea, Group, Button, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useUpdateTestStep } from '../hooks';
-import { ACTION_OPTIONS, LOCATOR_OPTIONS } from '../../../constants/test-step-actions';
+import { ACTION_OPTIONS } from '../../../constants/test-step-actions';
 import type { TestStepAction } from '../../../constants/test-step-actions';
+import type { LocatorItem } from '../types';
+import { LocatorsEditor } from './locators-editor';
 
 interface Props {
   testCaseId: string;
@@ -16,6 +18,7 @@ interface Props {
     description: string | null;
     locatorStrategy: string | null;
     locatorValue: string | null;
+    locators?: LocatorItem[] | null;
     inputValue: string | null;
     expectedResult: string | null;
   } | null;
@@ -30,8 +33,7 @@ export function EditTestStepModal({ testCaseId, step, opened, onClose }: Props) 
     initialValues: {
       action: '',
       description: '',
-      locatorStrategy: '',
-      locatorValue: '',
+      locators: [] as LocatorItem[],
       inputValue: '',
       expectedResult: '',
     },
@@ -42,11 +44,17 @@ export function EditTestStepModal({ testCaseId, step, opened, onClose }: Props) 
 
   useEffect(() => {
     if (step) {
+      const initialLocators: LocatorItem[] =
+        step.locators && step.locators.length > 0
+          ? step.locators.map((l) => ({ strategy: l.strategy, value: l.value }))
+          : step.locatorStrategy && step.locatorValue
+            ? [{ strategy: step.locatorStrategy, value: step.locatorValue }]
+            : [];
+
       form.setValues({
         action: step.action,
         description: step.description ?? '',
-        locatorStrategy: step.locatorStrategy ?? '',
-        locatorValue: step.locatorValue ?? '',
+        locators: initialLocators,
         inputValue: step.inputValue ?? '',
         expectedResult: step.expectedResult ?? '',
       });
@@ -56,17 +64,20 @@ export function EditTestStepModal({ testCaseId, step, opened, onClose }: Props) 
   const handleSubmit = (values: {
     action: string;
     description: string;
-    locatorStrategy: string;
-    locatorValue: string;
+    locators: LocatorItem[];
     inputValue: string;
     expectedResult: string;
   }) => {
     if (!step) return;
+    const locators = values.locators.filter((l) => l && l.value && l.value.trim().length > 0);
+    const primary = locators[0];
+
     const payload = {
       action: values.action as TestStepAction,
       description: values.description || undefined,
-      locatorStrategy: values.locatorStrategy || undefined,
-      locatorValue: values.locatorValue || undefined,
+      locators: locators.length > 0 ? locators : undefined,
+      locatorStrategy: primary?.strategy,
+      locatorValue: primary?.value,
       inputValue: values.inputValue || undefined,
       expectedResult: values.expectedResult || undefined,
     };
@@ -91,20 +102,10 @@ export function EditTestStepModal({ testCaseId, step, opened, onClose }: Props) 
             {...form.getInputProps('action')}
           />
 
-          <Group grow>
-            <Select
-              label="Locator Strategy"
-              placeholder="e.g. CSS, TEXT, ROLE"
-              data={LOCATOR_OPTIONS}
-              clearable
-              {...form.getInputProps('locatorStrategy')}
-            />
-            <TextInput
-              label="Locator Value"
-              placeholder="e.g. #submit-button"
-              {...form.getInputProps('locatorValue')}
-            />
-          </Group>
+          <LocatorsEditor
+            value={form.values.locators}
+            onChange={(rows) => form.setFieldValue('locators', rows)}
+          />
 
           <TextInput
             label="Input Value"

@@ -25,6 +25,12 @@ const testCaseController = new TestCaseController(testCaseService);
 export const testCaseRouter = Router();
 
 testCaseRouter.get(
+  '/modules',
+  requireAuth,
+  testCaseController.listModules
+);
+
+testCaseRouter.get(
   '/code/:code',
   requireAuth,
   testCaseController.getByCode

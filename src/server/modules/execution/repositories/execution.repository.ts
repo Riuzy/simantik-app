@@ -3,7 +3,9 @@ import { AppError } from '../../../middlewares/error-handler';
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { generatePlaywrightScript } from '../../automation/services/playwright-script.service';
+import { generatePlaywrightScript, ScriptLocator } from '../../automation/services/playwright-script.service';
+import { AuthEngine } from '../../automation/services/auth-engine.service';
+import { decryptSecret } from '../../../utils/encryption';
 
 export class ExecutionRepository {
   constructor(private prisma: PrismaClient) {}
@@ -129,31 +131,42 @@ export class ExecutionRepository {
     if (!existing.testCaseId) {
       throw new AppError(400, 'Cannot retry execution without test case');
     }
-    return this.prisma.$transaction(async (tx) => {
-      const [testCase, executionConfig] = await Promise.all([
-        tx.testCase.findFirst({
-          where: { id: existing.testCaseId, deletedAt: null },
-          include: {
-            project: { include: { automationConfig: true } },
-            steps: { orderBy: { stepNumber: 'asc' } },
-          },
-        }),
-        tx.automationConfig.findUnique({
-          where: { projectId: existing.projectId },
-        }),
-      ]);
+
+    let artifactsDir: string | null = null;
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const testCase = await tx.testCase.findFirst({
+        where: { id: existing.testCaseId, deletedAt: null },
+        include: {
+          project: true,
+          steps: { orderBy: { stepNumber: 'asc' } },
+        },
+      });
 
       if (!testCase || !testCase.project) {
         throw new AppError(404, 'Test case or project not found');
       }
 
       const project = testCase.project;
-      const config = executionConfig;
 
-      const browser = body.browser ?? config?.browser ?? 'CHROMIUM';
-      const headless = body.headless ?? config?.headless ?? true;
-      const viewportWidth = body.viewportWidth ?? config?.viewportWidth ?? 1280;
-      const viewportHeight = body.viewportHeight ?? config?.viewportHeight ?? 720;
+      const browser = body.browser ?? project.browser ?? 'CHROMIUM';
+      const headless = body.headless ?? project.headless ?? true;
+      const viewportWidth = body.viewportWidth ?? project.viewportWidth ?? 1280;
+      const viewportHeight = body.viewportHeight ?? project.viewportHeight ?? 720;
+      const timeout = project.timeout ?? 30000;
+      const baseUrl = project.baseUrl;
+
+      const authEngine = new AuthEngine({
+        enabled: project.authenticationEnabled,
+        baseUrl: project.baseUrl,
+        loginUrl: project.loginUrl,
+        email: project.loginEmail,
+        password: decryptSecret(project.loginPassword),
+        loginMethod: project.loginMethod,
+        sessionStrategy: project.sessionStrategy,
+        timeout,
+      });
 
       const execution = await tx.execution.update({
         where: { id },
@@ -171,7 +184,7 @@ export class ExecutionRepository {
         },
       });
 
-      const artifactsDir = path.resolve(process.cwd(), '.artifacts', 'executions', id);
+      artifactsDir = path.resolve(process.cwd(), '.artifacts', 'executions', id);
       fs.mkdirSync(artifactsDir, { recursive: true });
 
       const storageDir = path.resolve(process.cwd(), 'storage', 'executions');
@@ -185,8 +198,6 @@ export class ExecutionRepository {
       const storageScreenshotPath = path.join(storageDir, `${executionNumber}.png`);
       const storageScreenshotPathForScript = path.join(storageDir, `${executionNumber}.png`).replace(/\\/g, '/');
 
-      const baseUrl = config?.baseUrl ?? project.baseUrl;
-
       const playwrightScript = generatePlaywrightScript(
         testCase.title,
         testCase.steps.map((step) => ({
@@ -195,6 +206,7 @@ export class ExecutionRepository {
           description: step.description,
           locatorStrategy: step.locatorStrategy,
           locatorValue: step.locatorValue,
+          locators: (step.locators as ScriptLocator[] | null) ?? null,
           inputValue: step.inputValue,
           expectedResult: step.expectedResult,
           target: step.target,
@@ -204,19 +216,20 @@ export class ExecutionRepository {
           headless,
           viewportWidth,
           viewportHeight,
-          timeout: config?.timeout ?? 30000,
-          slowMotion: config?.slowMotion ?? 0,
+          timeout,
+          slowMotion: project.slowMo ?? 0,
           baseUrl,
           screenshotPath: storageScreenshotPathForScript,
         },
         project.framework,
+        authEngine,
       );
 
       fs.writeFileSync(script, playwrightScript);
 
       const executionWithScript = await tx.execution.update({
         where: { id },
-        data: { generatedScript: playwrightScript },
+        data: { generatedScript: this.redactSecrets(playwrightScript, decryptSecret(project.loginPassword)) },
       });
 
       const runTimeout = 120000;
@@ -296,7 +309,14 @@ export class ExecutionRepository {
       }
 
       return executionResult;
-    });
+      });
+    } finally {
+      // Never leave temp artifacts behind after a retry; only the final
+      // screenshot in storage/executions is kept as permanent storage.
+      if (artifactsDir) {
+        fs.rmSync(artifactsDir, { recursive: true, force: true });
+      }
+    }
   }
 
   private async runScript(scriptPath: string, timeoutMs: number, tx: Prisma.TransactionClient) {
@@ -378,6 +398,11 @@ export class ExecutionRepository {
       case 'FAILED': return 'FAILED';
       default: return 'ERROR';
     }
+  }
+
+  private redactSecrets(script: string, secret: string | null): string {
+    if (!secret) return script;
+    return script.split(secret).join('*****');
   }
 
   async getLogs(executionId: string) {

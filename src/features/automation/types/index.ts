@@ -2,21 +2,6 @@ export type Browser = 'CHROMIUM' | 'FIREFOX' | 'WEBKIT';
 export type Framework = 'PLAYWRIGHT' | 'SELENIUM' | 'CYPRESS';
 export type ExecutionStatus = 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'ERROR';
 
-export interface AutomationConfig {
-  id: string;
-  projectId: string;
-  framework: Framework;
-  browser: Browser;
-  baseUrl: string | null;
-  headless: boolean;
-  viewportWidth: number;
-  viewportHeight: number;
-  timeout: number;
-  retry: number;
-  parallel: number;
-  slowMotion: number;
-}
-
 export interface GeneratedScript {
   testCaseId: string;
   code: string;
@@ -56,17 +41,4 @@ export interface ExecutionLog {
   level: string;
   message: string;
   timestamp: string;
-}
-
-export interface UpsertAutomationConfigForm {
-  framework?: Framework;
-  browser?: Browser;
-  baseUrl?: string | null;
-  headless?: boolean;
-  viewportWidth?: number;
-  viewportHeight?: number;
-  timeout?: number;
-  retry?: number;
-  parallel?: number;
-  slowMotion?: number;
 }

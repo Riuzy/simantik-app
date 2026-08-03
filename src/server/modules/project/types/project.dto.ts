@@ -4,22 +4,42 @@ import {
   updateProjectBodySchema,
   listProjectsQuerySchema,
 } from '../validators/project.validators';
-import { Framework, ProjectStatus } from '@prisma/client';
+import { Browser, Framework, LoginMethod, ProjectStatus, SessionStrategy } from '@prisma/client';
 
 export type CreateProjectDTO = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectDTO = z.infer<typeof updateProjectBodySchema>;
 export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>;
 
+/**
+ * Public project representation returned to clients.
+ * loginPassword is NEVER exposed - only a boolean indicating whether a
+ * password has been set (so the UI can show a masked input).
+ */
 export interface ProjectResponseDTO {
   id: string;
   code: string;
   name: string;
   slug: string;
   description: string | null;
-  baseUrl: string | null;
-  framework: Framework;
-  environment: string | null;
   status: ProjectStatus;
+  framework: Framework;
+  // Automation
+  baseUrl: string | null;
+  browser: Browser;
+  environment: string | null;
+  headless: boolean;
+  timeout: number;
+  slowMo: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  debugMode: boolean;
+  // Authentication
+  authenticationEnabled: boolean;
+  loginUrl: string | null;
+  loginEmail: string | null;
+  loginMethod: LoginMethod;
+  sessionStrategy: SessionStrategy;
+  loginPasswordSet: boolean;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +55,10 @@ export interface ProjectListDTO {
   code: string;
   name: string;
   slug: string;
+  description: string | null;
+  baseUrl: string | null;
+  browser: Browser;
+  environment: string | null;
   framework: Framework;
   status: ProjectStatus;
   createdAt: Date;
@@ -68,6 +92,7 @@ export interface ProjectFilters {
   search?: string;
   createdById?: string;
   framework?: string;
+  browser?: string;
   sortBy?: 'createdAt' | 'name' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }

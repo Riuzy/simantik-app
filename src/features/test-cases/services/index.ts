@@ -12,6 +12,13 @@ export async function listTestCases(projectId: string, params?: Record<string, u
   return { data: res.data.data, pagination: res.data.meta };
 }
 
+export async function listTestCaseModules(projectId?: string): Promise<string[]> {
+  const res = await apiClient.get(API.TEST_CASES.MODULES, {
+    params: projectId ? { projectId } : undefined,
+  });
+  return res.data.data;
+}
+
 export async function getTestCase(id: string): Promise<TestCase> {
   const res = await apiClient.get(API.TEST_CASES.DETAIL(id));
   return res.data.data;

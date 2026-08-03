@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { encryptSecret } from '../src/server/utils/encryption';
 
 const prisma = new PrismaClient();
 
@@ -27,84 +28,88 @@ async function main() {
 
   console.log('User: tester@simantik.local / Password123!');
 
-  // Create SIMANTIK project
+  // Project config is the single source of truth for the automation engine.
+  const projectConfig = {
+    name: 'SIMANTIK',
+    slug: 'simantik',
+    description: 'Automation Testing Platform SIMANTIK.',
+    baseUrl: 'http://localhost:3000',
+    // Automation
+    browser: 'CHROMIUM',
+    environment: 'Local Development',
+    headless: true,
+    timeout: 30000,
+    slowMo: 0,
+    viewportWidth: 1280,
+    viewportHeight: 720,
+    debugMode: false,
+    // Authentication
+    authenticationEnabled: true,
+    loginUrl: '/login',
+    loginEmail: 'tester@simantik.local',
+    loginPassword: encryptSecret('Password123!'),
+    loginMethod: 'BROWSER',
+    sessionStrategy: 'REUSE_CONTEXT',
+    framework: 'PLAYWRIGHT',
+    status: 'ACTIVE',
+  } as const;
+
   const project = await prisma.project.upsert({
-    where: { code: 'PRJ-0001' },
+    where: { slug: 'simantik' },
     update: {
-      name: 'SIMANTIK',
-      slug: 'simantik',
-      description: 'Automation Testing Platform SIMANTIK.',
-      baseUrl: 'http://localhost:3000',
-      framework: 'PLAYWRIGHT',
-      environment: 'Local Development',
-      status: 'ACTIVE',
+      ...projectConfig,
+      code: 'PRJ-0001',
       createdById: user.id,
     },
     create: {
       code: 'PRJ-0001',
-      name: 'SIMANTIK',
-      slug: 'simantik',
-      description: 'Automation Testing Platform SIMANTIK.',
-      baseUrl: 'http://localhost:3000',
-      framework: 'PLAYWRIGHT',
-      environment: 'Local Development',
-      status: 'ACTIVE',
+      ...projectConfig,
       createdById: user.id,
     },
   });
 
   console.log('Project:', project.name, '(', project.code, ')');
 
-  // Create automation config for SIMANTIK
-  await prisma.automationConfig.upsert({
-    where: { projectId: project.id },
-    update: {
-      framework: 'PLAYWRIGHT',
-      browser: 'CHROMIUM',
-      baseUrl: 'http://localhost:3000',
-      headless: true,
-      viewportWidth: 1280,
-      viewportHeight: 720,
-      timeout: 30000,
-      retry: 0,
-      parallel: 1,
-      slowMotion: 0,
-    },
-    create: {
-      projectId: project.id,
-      framework: 'PLAYWRIGHT',
-      browser: 'CHROMIUM',
-      baseUrl: 'http://localhost:3000',
-      headless: true,
-      viewportWidth: 1280,
-      viewportHeight: 720,
-      timeout: 30000,
-      retry: 0,
-      parallel: 1,
-      slowMotion: 0,
-    },
-  });
-
-  console.log('Automation config created');
-
   // Create test cases for SIMANTIK
-  const testCases = [
+  interface SeedStep {
+    stepNumber: number;
+    action: string;
+    description?: string;
+    target?: string;
+    locators?: Array<{ strategy: string; value: string }>;
+    locatorStrategy?: string;
+    locatorValue?: string;
+    inputValue?: string;
+    expectedResult?: string;
+  }
+
+  interface SeedTestCase {
+    code: string;
+    title: string;
+    description: string;
+    module: string;
+    priority: 'HIGH' | 'MEDIUM';
+    status: 'READY';
+    type: 'AUTOMATION';
+    tags: string[];
+    steps: SeedStep[];
+  }
+
+  const testCases: SeedTestCase[] = [
     {
       code: 'TC-0001',
       title: 'Login to SIMANTIK',
-      description: 'Automated login test for SIMANTIK platform',
+      description: 'Automated login test using the project authentication config',
       module: 'Authentication',
       priority: 'HIGH' as const,
       status: 'READY' as const,
+      type: 'AUTOMATION' as const,
       tags: ['login', 'auth', 'smoke'],
       steps: [
         { stepNumber: 1, action: 'OPEN_BROWSER', description: 'Open browser', expectedResult: 'Browser opens successfully' },
-        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to SIMANTIK login page', target: 'http://localhost:3000/login', expectedResult: 'Login page loads' },
-        { stepNumber: 3, action: 'TYPE', description: 'Enter email', locatorStrategy: 'CSS', locatorValue: 'input[name="email"]', inputValue: 'tester@simantik.local', expectedResult: 'Email entered' },
-        { stepNumber: 4, action: 'TYPE', description: 'Enter password', locatorStrategy: 'CSS', locatorValue: 'input[name="password"]', inputValue: 'Password123!', expectedResult: 'Password entered' },
-        { stepNumber: 5, action: 'CLICK', description: 'Click login button', locatorStrategy: 'CSS', locatorValue: 'button[type="submit"]', expectedResult: 'Login successful' },
-        { stepNumber: 6, action: 'VERIFY_URL', description: 'Verify redirected to dashboard', inputValue: 'http://localhost:3000/dashboard', expectedResult: 'URL matches dashboard' },
-        { stepNumber: 7, action: 'VERIFY_TEXT', description: 'Verify welcome message', locatorStrategy: 'TEXT', locatorValue: 'Welcome', expectedResult: 'Welcome message visible' },
+        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to dashboard after auto login', target: '/dashboard', expectedResult: 'Authenticated page loads' },
+        { stepNumber: 3, action: 'VERIFY_URL', description: 'Verify redirected to dashboard', inputValue: '/dashboard', expectedResult: 'URL matches dashboard' },
+        { stepNumber: 4, action: 'VERIFY_TEXT', description: 'Verify dashboard title', locatorStrategy: 'CSS', locatorValue: 'h2', inputValue: 'Dashboard', expectedResult: 'Dashboard title visible' },
       ],
     },
     {
@@ -114,16 +119,66 @@ async function main() {
       module: 'Project Management',
       priority: 'MEDIUM' as const,
       status: 'READY' as const,
+      type: 'AUTOMATION' as const,
       tags: ['project', 'crud', 'positive'],
       steps: [
         { stepNumber: 1, action: 'OPEN_BROWSER', description: 'Open browser', expectedResult: 'Browser opens' },
-        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to projects page', target: 'http://localhost:3000/projects', expectedResult: 'Projects page loads' },
-        { stepNumber: 3, action: 'CLICK', description: 'Click create project button', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Create Project")', expectedResult: 'Create modal opens' },
-        { stepNumber: 4, action: 'TYPE', description: 'Enter project code', locatorStrategy: 'CSS', locatorValue: 'input[name="code"]', inputValue: 'PRJ-0002', expectedResult: 'Code entered' },
-        { stepNumber: 5, action: 'TYPE', description: 'Enter project name', locatorStrategy: 'CSS', locatorValue: 'input[name="name"]', inputValue: 'Test Project', expectedResult: 'Name entered' },
-        { stepNumber: 6, action: 'TYPE', description: 'Enter base URL', locatorStrategy: 'CSS', locatorValue: 'input[name="baseUrl"]', inputValue: 'http://localhost:3000', expectedResult: 'Base URL entered' },
-        { stepNumber: 7, action: 'CLICK', description: 'Submit form', locatorStrategy: 'CSS', locatorValue: 'button[type="submit"]', expectedResult: 'Project created' },
-        { stepNumber: 8, action: 'VERIFY_TEXT', description: 'Verify project in list', locatorStrategy: 'TEXT', locatorValue: 'Test Project', expectedResult: 'Project visible in list' },
+        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to create project page', target: '/projects/create', expectedResult: 'Create project page loads' },
+        {
+          stepNumber: 3,
+          action: 'TYPE',
+          description: 'Enter project name',
+          locators: [
+            { strategy: 'LABEL', value: 'Project Name' },
+            { strategy: 'PLACEHOLDER', value: 'e.g. Automation Suite' },
+            { strategy: 'ROLE', value: 'textbox:Project Name' },
+            { strategy: 'NAME', value: 'name' },
+            { strategy: 'ID', value: 'name' },
+            { strategy: 'CSS', value: 'input[name="name"]' },
+            { strategy: 'XPATH', value: '//input[@name="name"]' },
+          ],
+          inputValue: 'Test Project',
+          expectedResult: 'Name entered',
+        },
+        {
+          stepNumber: 4,
+          action: 'TYPE',
+          description: 'Enter project slug',
+          locators: [
+            { strategy: 'LABEL', value: 'Slug' },
+            { strategy: 'PLACEHOLDER', value: 'project-name' },
+            { strategy: 'ROLE', value: 'textbox:Slug' },
+            { strategy: 'NAME', value: 'slug' },
+            { strategy: 'ID', value: 'slug' },
+            { strategy: 'CSS', value: 'input[name="slug"]' },
+            { strategy: 'XPATH', value: '//input[@name="slug"]' },
+          ],
+          inputValue: 'test-project',
+          expectedResult: 'Slug entered',
+        },
+        {
+          stepNumber: 5,
+          action: 'CLICK',
+          description: 'Submit form',
+          locators: [
+            { strategy: 'ROLE', value: 'button:Create Project' },
+            { strategy: 'TEXT', value: 'Create Project' },
+            { strategy: 'CSS', value: 'button[type="submit"]' },
+          ],
+          expectedResult: 'Project created',
+        },
+        {
+          stepNumber: 6,
+          action: 'VERIFY_TEXT',
+          description: 'Verify redirected to projects list',
+          locators: [
+            { strategy: 'ROLE', value: 'heading:Projects' },
+            { strategy: 'TEXT', value: 'Projects' },
+            { strategy: 'CSS', value: 'h2' },
+          ],
+          inputValue: 'Projects',
+          expectedResult: 'Projects page visible',
+        },
       ],
     },
     {
@@ -133,17 +188,12 @@ async function main() {
       module: 'Test Management',
       priority: 'MEDIUM' as const,
       status: 'READY' as const,
+      type: 'AUTOMATION' as const,
       tags: ['testcase', 'crud', 'positive'],
       steps: [
         { stepNumber: 1, action: 'OPEN_BROWSER', description: 'Open browser', expectedResult: 'Browser opens' },
-        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to test cases', target: 'http://localhost:3000/projects/simantik/test-cases', expectedResult: 'Test cases page loads' },
-        { stepNumber: 3, action: 'CLICK', description: 'Click create test case', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Create Test Case")', expectedResult: 'Create modal opens' },
-        { stepNumber: 4, action: 'TYPE', description: 'Enter test case code', locatorStrategy: 'CSS', locatorValue: 'input[name="code"]', inputValue: 'TC-0004', expectedResult: 'Code entered' },
-        { stepNumber: 5, action: 'TYPE', description: 'Enter test case title', locatorStrategy: 'CSS', locatorValue: 'input[name="title"]', inputValue: 'Logout Test', expectedResult: 'Title entered' },
-        { stepNumber: 6, action: 'CLICK', description: 'Add first step', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Add Step")', expectedResult: 'Step form opens' },
-        { stepNumber: 7, action: 'SELECT', description: 'Select OPEN_BROWSER action', locatorStrategy: 'CSS', locatorValue: 'select[name="action"]', inputValue: 'OPEN_BROWSER', expectedResult: 'Action selected' },
-        { stepNumber: 8, action: 'CLICK', description: 'Save step', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Save")', expectedResult: 'Step saved' },
-        { stepNumber: 9, action: 'CLICK', description: 'Save test case', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Save Test Case")', expectedResult: 'Test case created' },
+        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to test cases', target: '/test-cases', expectedResult: 'Test cases page loads' },
+        { stepNumber: 3, action: 'VERIFY_TEXT', description: 'Verify test cases page', locators: [{ strategy: 'ROLE', value: 'heading:Test Cases' }, { strategy: 'TEXT', value: 'Test Cases' }, { strategy: 'CSS', value: 'h2' }], inputValue: 'Test Cases', expectedResult: 'Test cases page visible' },
       ],
     },
     {
@@ -153,16 +203,12 @@ async function main() {
       module: 'Automation',
       priority: 'HIGH' as const,
       status: 'READY' as const,
+      type: 'AUTOMATION' as const,
       tags: ['automation', 'execution', 'smoke'],
       steps: [
         { stepNumber: 1, action: 'OPEN_BROWSER', description: 'Open browser', expectedResult: 'Browser opens' },
-        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to automation page', target: 'http://localhost:3000/automation', expectedResult: 'Automation page loads' },
-        { stepNumber: 3, action: 'CLICK', description: 'Select SIMANTIK project', locatorStrategy: 'CSS', locatorValue: 'select[name="projectId"]', expectedResult: 'Project selected' },
-        { stepNumber: 4, action: 'CLICK', description: 'Select test case', locatorStrategy: 'CSS', locatorValue: 'select[name="testCaseId"]', expectedResult: 'Test case selected' },
-        { stepNumber: 5, action: 'CLICK', description: 'Click run button', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Run")', expectedResult: 'Execution starts' },
-        { stepNumber: 6, action: 'WAIT', description: 'Wait for execution to complete', inputValue: '60000', expectedResult: 'Execution completes' },
-        { stepNumber: 7, action: 'VERIFY_TEXT', description: 'Verify PASSED status', locatorStrategy: 'TEXT', locatorValue: 'PASSED', expectedResult: 'Status is PASSED' },
-        { stepNumber: 8, action: 'CLICK', description: 'View execution detail', locatorStrategy: 'TEXT', locatorValue: 'View Details', expectedResult: 'Detail page opens' },
+        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to automation page', target: '/automation', expectedResult: 'Automation page loads' },
+        { stepNumber: 3, action: 'VERIFY_TEXT', description: 'Verify automation page', locatorStrategy: 'CSS', locatorValue: 'h2', inputValue: 'Automation', expectedResult: 'Automation page visible' },
       ],
     },
     {
@@ -172,14 +218,12 @@ async function main() {
       module: 'Reporting',
       priority: 'MEDIUM' as const,
       status: 'READY' as const,
+      type: 'AUTOMATION' as const,
       tags: ['report', 'reporting', 'verification'],
       steps: [
         { stepNumber: 1, action: 'OPEN_BROWSER', description: 'Open browser', expectedResult: 'Browser opens' },
-        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to reports page', target: 'http://localhost:3000/reports', expectedResult: 'Reports page loads' },
-        { stepNumber: 3, action: 'CLICK', description: 'Click generate report', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Generate Report")', expectedResult: 'Report generation starts' },
-        { stepNumber: 4, action: 'WAIT', description: 'Wait for report generation', inputValue: '30000', expectedResult: 'Report generated' },
-        { stepNumber: 5, action: 'VERIFY_TEXT', description: 'Verify report data', locatorStrategy: 'TEXT', locatorValue: 'PASSED', expectedResult: 'Report shows passed tests' },
-        { stepNumber: 6, action: 'CLICK', description: 'Download report', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Download")', expectedResult: 'Report downloaded' },
+        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to reports page', target: '/reports', expectedResult: 'Reports page loads' },
+        { stepNumber: 3, action: 'VERIFY_TEXT', description: 'Verify reports page', locatorStrategy: 'CSS', locatorValue: 'h2', inputValue: 'Reports', expectedResult: 'Reports page visible' },
       ],
     },
     {
@@ -189,14 +233,12 @@ async function main() {
       module: 'Automation',
       priority: 'HIGH' as const,
       status: 'READY' as const,
+      type: 'AUTOMATION' as const,
       tags: ['screenshot', 'artifact', 'verification'],
       steps: [
         { stepNumber: 1, action: 'OPEN_BROWSER', description: 'Open browser', expectedResult: 'Browser opens' },
-        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to executions', target: 'http://localhost:3000/executions', expectedResult: 'Executions page loads' },
-        { stepNumber: 3, action: 'CLICK', description: 'Click execution with screenshot', locatorStrategy: 'CSS', locatorValue: 'tr:has-text("PASSED")', expectedResult: 'Execution detail opens' },
-        { stepNumber: 4, action: 'VERIFY_TEXT', description: 'Verify screenshot section', locatorStrategy: 'TEXT', locatorValue: 'Screenshot', expectedResult: 'Screenshot section visible' },
-        { stepNumber: 5, action: 'VERIFY_TEXT', description: 'Verify image loaded', locatorStrategy: 'CSS', locatorValue: 'img[alt="Execution screenshot"]', expectedResult: 'Screenshot image loads' },
-        { stepNumber: 6, action: 'CLICK', description: 'Download screenshot', locatorStrategy: 'CSS', locatorValue: 'button:has-text("Download")', expectedResult: 'Screenshot downloaded' },
+        { stepNumber: 2, action: 'NAVIGATE', description: 'Navigate to executions', target: '/executions', expectedResult: 'Executions page loads' },
+        { stepNumber: 3, action: 'VERIFY_TEXT', description: 'Verify executions page', locatorStrategy: 'CSS', locatorValue: 'h2', inputValue: 'Executions', expectedResult: 'Executions page visible' },
       ],
     },
   ];
@@ -222,14 +264,17 @@ async function main() {
     await prisma.testStep.deleteMany({ where: { testCaseId: testCase.id } });
 
     for (const step of steps) {
+      const locators = step.locators;
       await prisma.testStep.create({
         data: {
           testCaseId: testCase.id,
           stepNumber: step.stepNumber,
           action: step.action,
           description: step.description,
+          target: step.target,
           locatorStrategy: step.locatorStrategy,
           locatorValue: step.locatorValue,
+          ...(locators && locators.length > 0 ? { locators } : {}),
           inputValue: step.inputValue,
           expectedResult: step.expectedResult,
         },

@@ -8,7 +8,7 @@ import { modals } from '@mantine/modals';
 import { useTestCases, useDeleteTestCase } from '../hooks';
 import { CreateTestCaseModal } from './create-test-case-modal';
 import { EditTestCaseModal } from './edit-test-case-modal';
-import type { TestPriority, TestCaseStatus } from '../types';
+import type { TestPriority, TestCaseStatus, TestCaseType, TestCaseLastResult } from '../types';
 
 const priorityColor: Record<string, string> = {
   LOW: 'gray',
@@ -21,6 +21,25 @@ const statusColor: Record<string, string> = {
   DRAFT: 'gray',
   READY: 'green',
   ARCHIVED: 'yellow',
+};
+
+const typeColor: Record<TestCaseType, string> = {
+  MANUAL: 'gray',
+  AUTOMATION: 'violet',
+};
+
+const lastResultColor: Record<TestCaseLastResult, string> = {
+  NOT_RUN: 'gray',
+  RUNNING: 'blue',
+  PASSED: 'green',
+  FAILED: 'red',
+};
+
+const lastResultLabel: Record<TestCaseLastResult, string> = {
+  NOT_RUN: 'Not Run',
+  RUNNING: 'Running',
+  PASSED: 'Passed',
+  FAILED: 'Failed',
 };
 
 const statusLabel: Record<string, string> = {
@@ -40,7 +59,7 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [createOpened, setCreateOpened] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus; type: TestCaseType } | null>(null);
   const [editOpened, setEditOpened] = useState(false);
 
   const { data, isLoading } = useTestCases(projectId, { search: search || undefined, page, limit: 20 });
@@ -59,7 +78,7 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
       onConfirm: () => deleteTestCase.mutate(tc.id),
     });
 
-  const openEdit = (tc: { id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus }) => {
+  const openEdit = (tc: { id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus; type: TestCaseType }) => {
     setEditTarget(tc);
     setEditOpened(true);
   };
@@ -101,9 +120,10 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
                 <Table.Tr>
                   <Table.Th>Code</Table.Th>
                   <Table.Th>Title</Table.Th>
+                  <Table.Th>Type</Table.Th>
                   <Table.Th>Priority</Table.Th>
                   <Table.Th>Status</Table.Th>
-                  <Table.Th>Created By</Table.Th>
+                  <Table.Th>Last Result</Table.Th>
                   <Table.Th>Created</Table.Th>
                   <Table.Th w={60}>Actions</Table.Th>
                 </Table.Tr>
@@ -118,6 +138,11 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
                       <Text size="sm" lineClamp={1}>{tc.title}</Text>
                     </Table.Td>
                     <Table.Td>
+                      <Badge color={typeColor[tc.type]} variant="light" size="sm">
+                        {tc.type}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
                       <Badge color={priorityColor[tc.priority]} variant="light" size="sm">
                         {tc.priority}
                       </Badge>
@@ -128,7 +153,9 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="sm">{tc.createdBy?.name}</Text>
+                      <Badge color={lastResultColor[tc.lastExecutionStatus]} variant="dot" size="sm">
+                        {lastResultLabel[tc.lastExecutionStatus]}
+                      </Badge>
                     </Table.Td>
                     <Table.Td>
                       <Text size="xs" c="dimmed">{formatDate(tc.createdAt)}</Text>

@@ -4,32 +4,15 @@ import { AppError } from '../../../middlewares/error-handler';
 export class AutomationRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async getConfig(projectId: string) {
-    return this.prisma.automationConfig.findUnique({ where: { projectId } });
-  }
-
-  async upsertConfig(projectId: string, data: Record<string, unknown>) {
-    return this.prisma.automationConfig.upsert({
-      where: { projectId },
-      create: { project: { connect: { id: projectId } }, ...data } as Prisma.AutomationConfigCreateInput,
-      update: { ...data, updatedAt: new Date() } as Prisma.AutomationConfigUpdateInput,
-    });
-  }
-
-  async getProjectWithDetails(projectId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, deletedAt: null },
-      include: { automationConfig: true },
-    });
-    if (!project) throw new AppError(404, 'Project not found');
-    return project;
-  }
-
   async getTestCaseForRun(testCaseId: string) {
     const testCase = await this.prisma.testCase.findFirst({
       where: { id: testCaseId, deletedAt: null },
-      include: {
-        project: { include: { automationConfig: true } },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        type: true,
+        project: true,
         steps: { orderBy: { stepNumber: 'asc' } },
       },
     });
@@ -68,22 +51,58 @@ export class AutomationRepository {
 
   async finishExecution(
     id: string,
+    testCaseId: string,
     status: ExecutionStatus,
     durationMs: number,
     screenshotPath: string | null,
     error?: string | null,
   ) {
     const consoleLog = error ? { error } : null;
-    return this.prisma.execution.update({
-      where: { id },
+    const lastExecutionStatus = this.mapToLastResult(status);
+    const [execution] = await this.prisma.$transaction([
+      this.prisma.execution.update({
+        where: { id },
+        data: {
+          status,
+          durationMs,
+          finishedAt: new Date(),
+          screenshotPath,
+          ...(consoleLog ? { consoleLog: consoleLog as Prisma.InputJsonValue } : {}),
+        },
+      }),
+      this.prisma.testCase.update({
+        where: { id: testCaseId },
+        data: {
+          lastExecutionStatus,
+          lastExecutedAt: new Date(),
+        },
+      }),
+    ]);
+    return execution;
+  }
+
+  async markTestCaseRunning(testCaseId: string) {
+    return this.prisma.testCase.update({
+      where: { id: testCaseId },
       data: {
-        status,
-        durationMs,
-        finishedAt: new Date(),
-        screenshotPath,
-        ...(consoleLog ? { consoleLog: consoleLog as Prisma.InputJsonValue } : {}),
+        lastExecutionStatus: 'RUNNING',
+        lastExecutedAt: new Date(),
       },
     });
+  }
+
+  private mapToLastResult(status: ExecutionStatus): 'NOT_RUN' | 'RUNNING' | 'PASSED' | 'FAILED' {
+    switch (status) {
+      case 'PASSED':
+        return 'PASSED';
+      case 'FAILED':
+      case 'ERROR':
+        return 'FAILED';
+      case 'RUNNING':
+        return 'RUNNING';
+      default:
+        return 'NOT_RUN';
+    }
   }
 
   async getExecutionById(id: string) {

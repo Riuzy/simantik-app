@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Container, Paper, Group, Text, Badge, SimpleGrid, Stack, Loader, Center, Image, Code } from '@mantine/core';
 import Link from 'next/link';
 import { useExecution, useExecutionLogs, usePollExecution } from '../../../../features/executions/hooks';
+
+import { appConfig } from '../../../../config';
 
 const statusColor: Record<string, string> = {
   QUEUED: 'gray',
@@ -30,14 +33,17 @@ export default function ExecutionDetailPage() {
   const isRunning = execution?.status === 'RUNNING';
   usePollExecution(id, isRunning);
   const { data: logs } = useExecutionLogs(id, true);
+  const [screenshotFailed, setScreenshotFailed] = useState(false);
 
   if (isLoading) return <Center h={400}><Loader /></Center>;
   if (!execution) return <Center h={400}><Text c="dimmed">Execution not found</Text></Center>;
 
   const duration = execution.durationMs != null ? (execution.durationMs / 1000).toFixed(2) : null;
-  const hasScreenshot = !!execution.screenshotPath;
+  const hasScreenshot = !!execution.screenshotPath && !screenshotFailed;
+
+  // Build an absolute URL to the backend storage endpoint (/storage on the API host)
   const screenshotUrl = execution.screenshotPath
-    ? `${process.env.NEXT_PUBLIC_API_URL ?? ''}/${execution.screenshotPath}`
+    ? `${appConfig.storageBaseUrl}/${execution.screenshotPath}`
     : null;
 
   return (
@@ -109,6 +115,7 @@ export default function ExecutionDetailPage() {
               radius="sm"
               fit="contain"
               style={{ maxHeight: 480 }}
+              onError={() => setScreenshotFailed(true)}
             />
           </Paper>
         ) : (

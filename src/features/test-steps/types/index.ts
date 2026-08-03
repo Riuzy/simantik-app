@@ -1,5 +1,10 @@
 import type { TestStepAction } from '../../../constants/test-step-actions';
 
+export interface LocatorItem {
+  strategy: string;
+  value: string;
+}
+
 export interface TestStep {
   id: string;
   testCaseId: string;
@@ -8,6 +13,7 @@ export interface TestStep {
   description: string | null;
   locatorStrategy: string | null;
   locatorValue: string | null;
+  locators: LocatorItem[] | null;
   inputValue: string | null;
   expectedResult: string | null;
   createdAt: string;
@@ -19,6 +25,7 @@ export interface CreateTestStepForm {
   description?: string;
   locatorStrategy?: string;
   locatorValue?: string;
+  locators?: LocatorItem[];
   inputValue?: string;
   expectedResult?: string;
   stepNumber?: number;
@@ -29,6 +36,7 @@ export interface UpdateTestStepForm {
   description?: string;
   locatorStrategy?: string;
   locatorValue?: string;
+  locators?: LocatorItem[];
   inputValue?: string;
   expectedResult?: string;
 }

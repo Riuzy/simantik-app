@@ -9,11 +9,24 @@ export class ProjectRepository {
     code: string;
     name: string;
     slug: string;
-    description?: string;
-    baseUrl?: string;
+    description?: string | null;
     framework: string;
-    environment?: string;
     status: string;
+    baseUrl?: string | null;
+    browser?: string;
+    environment?: string | null;
+    headless?: boolean;
+    timeout?: number;
+    slowMo?: number;
+    viewportWidth?: number;
+    viewportHeight?: number;
+    debugMode?: boolean;
+    authenticationEnabled?: boolean;
+    loginUrl?: string | null;
+    loginEmail?: string | null;
+    loginPassword?: string | null;
+    loginMethod?: string;
+    sessionStrategy?: string;
     createdById: string;
   }) {
     const { createdById, ...rest } = data;
@@ -31,7 +44,6 @@ export class ProjectRepository {
       where: { id, deletedAt: null },
       include: {
         createdBy: { select: { id: true, name: true, email: true, avatar: true } },
-        automationConfig: true,
         _count: { select: { testCases: true, executions: true } },
       },
     });
@@ -42,7 +54,6 @@ export class ProjectRepository {
       where: { slug, deletedAt: null },
       include: {
         createdBy: { select: { id: true, name: true, email: true, avatar: true } },
-        automationConfig: true,
         _count: { select: { testCases: true, executions: true } },
       },
     });
@@ -76,6 +87,7 @@ export class ProjectRepository {
 
     if (filters.status) where.status = filters.status;
     if (filters.framework) where.framework = filters.framework;
+    if (filters.browser) where.browser = filters.browser;
     if (filters.createdById) where.createdById = filters.createdById;
     if (filters.search) {
       where.OR = [
@@ -101,8 +113,9 @@ export class ProjectRepository {
           slug: true,
           description: true,
           baseUrl: true,
-          framework: true,
+          browser: true,
           environment: true,
+          framework: true,
           status: true,
           createdAt: true,
           createdBy: { select: { id: true, name: true } },

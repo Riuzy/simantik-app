@@ -24,6 +24,7 @@ export class TestCaseService {
       module: dto.module,
       priority: dto.priority || 'MEDIUM',
       status: dto.status || 'DRAFT',
+      type: dto.type || 'MANUAL',
       tags: dto.tags ?? [],
       projectId: dto.projectId,
       createdById,
@@ -49,6 +50,7 @@ export class TestCaseService {
     if (dto.module !== undefined) updateData.module = dto.module;
     if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.type !== undefined) updateData.type = dto.type;
     if (dto.tags !== undefined) updateData.tags = dto.tags;
 
     return this.repository.update(id, updateData);
@@ -73,6 +75,10 @@ export class TestCaseService {
         totalPages: result.totalPages,
       },
     };
+  }
+
+  async listModules(projectId?: string) {
+    return this.repository.findDistinctModules(projectId);
   }
 
   async duplicate(id: string, dto: DuplicateTestCaseDTO) {

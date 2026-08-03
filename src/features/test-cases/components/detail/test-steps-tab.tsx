@@ -14,6 +14,7 @@ import { useDeleteTestStep, useReorderTestSteps } from '../../../test-steps/hook
 import { AddTestStepModal } from '../../../test-steps/components/add-test-step-modal';
 import { EditTestStepModal } from '../../../test-steps/components/edit-test-step-modal';
 import { TEST_STEP_ACTION_LABELS } from '../../../../constants/test-step-actions';
+import type { LocatorItem } from '../../../test-steps/types';
 
 interface TestStepsTabProps {
   testCase: {
@@ -26,6 +27,7 @@ interface TestStepsTabProps {
       description: string | null;
       locatorStrategy: string | null;
       locatorValue: string | null;
+      locators?: LocatorItem[] | null;
       inputValue: string | null;
       expectedResult: string | null;
       createdAt: string;
@@ -68,7 +70,7 @@ const actionColorMap: Record<string, string> = {
 
 export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
   const [addOpened, setAddOpened] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; inputValue: string | null; expectedResult: string | null } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; locators?: LocatorItem[] | null; inputValue: string | null; expectedResult: string | null } | null>(null);
   const [editOpened, setEditOpened] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -84,6 +86,7 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
     description: string | null;
     locatorStrategy: string | null;
     locatorValue: string | null;
+    locators?: LocatorItem[] | null;
     inputValue: string | null;
     expectedResult: string | null;
     createdAt: string;
@@ -101,7 +104,7 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
       onConfirm: () => deleteStep.mutate(stepNumber),
     });
 
-  const openEdit = (step: { id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; inputValue: string | null; expectedResult: string | null }) => {
+  const openEdit = (step: { id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; locators?: LocatorItem[] | null; inputValue: string | null; expectedResult: string | null }) => {
     setEditTarget(step);
     setEditOpened(true);
   };
@@ -214,11 +217,19 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
                   </Badge>
                 </Group>
 
-                {step.locatorValue && (
+                {step.locators && step.locators.length > 0 ? (
+                  <Stack gap={2}>
+                    {step.locators.map((l, i) => (
+                      <Text key={i} size="xs" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
+                        {l.strategy}: {l.value}
+                      </Text>
+                    ))}
+                  </Stack>
+                ) : step.locatorValue ? (
                   <Text size="xs" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
                     {step.locatorStrategy}: {step.locatorValue}
                   </Text>
-                )}
+                ) : null}
 
                 {step.inputValue && (
                   <Text size="xs" c="dimmed">value: {step.inputValue}</Text>
