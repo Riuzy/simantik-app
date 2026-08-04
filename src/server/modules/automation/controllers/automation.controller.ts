@@ -28,4 +28,12 @@ export class AutomationController {
       ApiResponse.success(res, execution);
     } catch (error) { next(error); }
   };
+
+  resetExecutionHistory = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const params = testCaseIdParamSchema.parse(req.params);
+      const result = await this.automationService.resetExecutionHistory(params.testCaseId);
+      ApiResponse.success(res, result);
+    } catch (error) { next(error); }
+  };
 }

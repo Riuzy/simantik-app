@@ -7,14 +7,14 @@ import {
 } from '@mantine/core';
 import {
   IconPlus, IconGripVertical, IconPencil, IconTrash,
-  IconArrowUp, IconArrowDown,
+  IconArrowUp, IconArrowDown, IconCopy,
 } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
 import { useDeleteTestStep, useReorderTestSteps } from '../../../test-steps/hooks';
-import { AddTestStepModal } from '../../../test-steps/components/add-test-step-modal';
-import { EditTestStepModal } from '../../../test-steps/components/edit-test-step-modal';
-import { TEST_STEP_ACTION_LABELS } from '../../../../constants/test-step-actions';
+import { TestStepModal } from '../../../test-steps/modal';
+import { TEST_STEP_ACTION_LABELS, TEST_STEP_ACTIONS } from '../../../../constants/test-step-actions';
 import type { LocatorItem } from '../../../test-steps/types';
+import type { TestStepAction } from '../../../../constants/test-step-actions';
 
 interface TestStepsTabProps {
   testCase: {
@@ -69,9 +69,23 @@ const actionColorMap: Record<string, string> = {
 };
 
 export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
-  const [addOpened, setAddOpened] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; locators?: LocatorItem[] | null; inputValue: string | null; expectedResult: string | null } | null>(null);
-  const [editOpened, setEditOpened] = useState(false);
+  interface ModalStep {
+    id: string;
+    stepNumber: number;
+    action: TestStepAction;
+    description: string | null;
+    locatorStrategy: string | null;
+    locatorValue: string | null;
+    locators: LocatorItem[] | null;
+    inputValue: string | null;
+    expectedResult: string | null;
+  }
+
+  const [modal, setModal] = useState<{
+    mode: 'create' | 'edit' | 'duplicate' | 'copy' | 'preview';
+    step: ModalStep | null;
+  } | null>(null);
+
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
@@ -104,10 +118,12 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
       onConfirm: () => deleteStep.mutate(stepNumber),
     });
 
-  const openEdit = (step: { id: string; stepNumber: number; action: string; description: string | null; locatorStrategy: string | null; locatorValue: string | null; locators?: LocatorItem[] | null; inputValue: string | null; expectedResult: string | null }) => {
-    setEditTarget(step);
-    setEditOpened(true);
-  };
+  const openModal = useCallback((
+    mode: 'create' | 'edit' | 'duplicate' | 'copy' | 'preview',
+    step?: ModalStep | null
+  ) => {
+    setModal({ mode, step: step ?? null });
+  }, []);
 
   const handleDragStart = (index: number) => {
     setDragIndex(index);
@@ -152,18 +168,29 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
     reorderSteps.mutate({ stepIds: reordered.map((s) => s.id) });
   };
 
+  const handleSave = useCallback((stepNumber: number) => {
+    // Refresh will happen via React Query invalidation in hooks
+    console.log('Step saved:', stepNumber);
+  }, []);
+
   if (steps.length === 0) {
     return (
       <Paper p="md" withBorder>
         <Text c="dimmed" ta="center" py="xl">No steps added yet</Text>
         {canManage && (
           <Group justify="center" mt="md">
-            <Button leftSection={<IconPlus size={16} />} onClick={() => setAddOpened(true)}>
+            <Button leftSection={<IconPlus size={16} />} onClick={() => openModal('create')}>
               Add Step
             </Button>
           </Group>
         )}
-        <AddTestStepModal testCaseId={testCase.id} opened={addOpened} onClose={() => setAddOpened(false)} />
+        <TestStepModal
+          testCaseId={testCase.id}
+          mode="create"
+          opened={modal?.mode === 'create'}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+        />
       </Paper>
     );
   }
@@ -173,7 +200,7 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
       <Group justify="space-between" mb="md">
         <Text fw={500} size="sm">Steps ({sortedSteps.length})</Text>
         {canManage && (
-          <Button leftSection={<IconPlus size={16} />} size="sm" onClick={() => setAddOpened(true)}>
+          <Button leftSection={<IconPlus size={16} />} size="sm" onClick={() => openModal('create')}>
             Add Step
           </Button>
         )}
@@ -251,8 +278,11 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
                   <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => moveStep(index, 'down')} disabled={index === sortedSteps.length - 1}>
                     <IconArrowDown size={14} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => openEdit(step)}>
+                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => openModal('edit', { ...step, action: step.action as TestStepAction, locators: step.locators ?? null })}>
                     <IconPencil size={14} />
+                  </ActionIcon>
+                  <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => openModal('duplicate', { ...step, action: step.action as TestStepAction, locators: step.locators ?? null })}>
+                    <IconCopy size={14} />
                   </ActionIcon>
                   <ActionIcon variant="subtle" color="red" size="sm" onClick={() => openDeleteConfirm(step.stepNumber)}>
                     <IconTrash size={14} />
@@ -264,8 +294,15 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
         ))}
       </Stack>
 
-      <AddTestStepModal testCaseId={testCase.id} opened={addOpened} onClose={() => setAddOpened(false)} />
-      <EditTestStepModal testCaseId={testCase.id} step={editTarget} opened={editOpened} onClose={() => { setEditOpened(false); setEditTarget(null); }} />
+      <TestStepModal
+        testCaseId={testCase.id}
+        mode={modal?.mode ?? 'create'}
+        stepNumber={modal?.step?.stepNumber}
+        initialStep={modal?.step}
+        opened={!!modal}
+        onClose={() => setModal(null)}
+        onSave={handleSave}
+      />
     </Paper>
   );
 }

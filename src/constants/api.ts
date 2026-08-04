@@ -25,6 +25,7 @@ export const API = {
   AUTOMATION: {
     GENERATE_SCRIPT: (testCaseId: string) => `/test-cases/${testCaseId}/generate-script`,
     RUN: (testCaseId: string) => `/test-cases/${testCaseId}/run`,
+    RESET_EXECUTION: (testCaseId: string) => `/test-cases/${testCaseId}/reset-execution`,
   },
   EXECUTIONS: {
     BASE: '/executions',

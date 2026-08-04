@@ -47,7 +47,11 @@ export interface Execution {
   projectId: string;
   testCaseId: string;
   status: ExecutionStatus;
+  runCount: number;
   durationMs: number | null;
+  lastDurationMs: number | null;
+  lastRunAt: string | null;
+  lastResult: ExecutionStatus | null;
   startedAt: string | null;
   finishedAt: string | null;
   browser: string | null;
@@ -59,6 +63,7 @@ export interface Execution {
   consoleLog: string | null;
   error: string | null;
   createdAt: string;
+  updatedAt: string;
   testCase: TestCaseSummary;
   project: ProjectSummary;
   logs?: ExecutionLog[];

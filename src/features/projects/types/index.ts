@@ -2,6 +2,7 @@ export type Browser = 'CHROMIUM' | 'FIREFOX' | 'WEBKIT';
 export type Framework = 'PLAYWRIGHT' | 'SELENIUM' | 'CYPRESS';
 export type LoginMethod = 'BROWSER' | 'API';
 export type SessionStrategy = 'REUSE_CONTEXT' | 'NEW_SESSION';
+export type ScreenshotTiming = 'BEFORE_ACTION' | 'AFTER_ACTION' | 'FINAL_STATE';
 
 export interface Project {
   id: string;
@@ -20,6 +21,7 @@ export interface Project {
   slowMo: number;
   viewportWidth: number;
   viewportHeight: number;
+  screenshotTiming: ScreenshotTiming;
   debugMode: boolean;
   // Authentication
   authenticationEnabled: boolean;

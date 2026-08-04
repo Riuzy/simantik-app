@@ -19,6 +19,7 @@ interface ProjectEntity {
   slowMo: number;
   viewportWidth: number;
   viewportHeight: number;
+  screenshotTiming: string;
   debugMode: boolean;
   authenticationEnabled: boolean;
   loginUrl: string | null;
@@ -75,6 +76,7 @@ export class ProjectService {
       slowMo: dto.slowMo,
       viewportWidth: dto.viewportWidth,
       viewportHeight: dto.viewportHeight,
+      screenshotTiming: dto.screenshotTiming,
       debugMode: dto.debugMode,
       // Authentication
       authenticationEnabled: dto.authenticationEnabled,
@@ -128,6 +130,7 @@ export class ProjectService {
     if (dto.slowMo !== undefined) updateData.slowMo = dto.slowMo;
     if (dto.viewportWidth !== undefined) updateData.viewportWidth = dto.viewportWidth;
     if (dto.viewportHeight !== undefined) updateData.viewportHeight = dto.viewportHeight;
+    if (dto.screenshotTiming !== undefined) updateData.screenshotTiming = dto.screenshotTiming;
     if (dto.debugMode !== undefined) updateData.debugMode = dto.debugMode;
     // Authentication
     if (dto.authenticationEnabled !== undefined) updateData.authenticationEnabled = dto.authenticationEnabled;
@@ -193,6 +196,7 @@ export class ProjectService {
       slowMo: project.slowMo,
       viewportWidth: project.viewportWidth,
       viewportHeight: project.viewportHeight,
+      screenshotTiming: project.screenshotTiming as ProjectResponseDTO['screenshotTiming'],
       debugMode: project.debugMode,
       authenticationEnabled: project.authenticationEnabled,
       loginUrl: project.loginUrl,

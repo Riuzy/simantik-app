@@ -14,6 +14,12 @@ const BROWSER_OPTIONS = [
   { value: 'WEBKIT', label: 'WebKit' },
 ];
 
+const SCREENSHOT_TIMING_OPTIONS = [
+  { value: 'FINAL_STATE', label: 'Final State (default)' },
+  { value: 'AFTER_ACTION', label: 'After Each Action' },
+  { value: 'BEFORE_ACTION', label: 'Before Each Action' },
+];
+
 interface Props {
   project: Project;
 }
@@ -39,8 +45,9 @@ export function AutomationSettings({ project }: Props) {
       headless: true,
       timeout: 30000,
       slowMo: 0,
-      viewportWidth: 1280,
-      viewportHeight: 720,
+      viewportWidth: 1600,
+      viewportHeight: 900,
+      screenshotTiming: 'FINAL_STATE',
       debugMode: false,
     },
   });
@@ -56,6 +63,7 @@ export function AutomationSettings({ project }: Props) {
         slowMo: project.slowMo,
         viewportWidth: project.viewportWidth,
         viewportHeight: project.viewportHeight,
+        screenshotTiming: project.screenshotTiming,
         debugMode: project.debugMode,
       });
     }
@@ -72,6 +80,7 @@ export function AutomationSettings({ project }: Props) {
       slowMo: values.slowMo,
       viewportWidth: values.viewportWidth,
       viewportHeight: values.viewportHeight,
+      screenshotTiming: values.screenshotTiming,
       debugMode: values.debugMode,
     });
   };
@@ -101,7 +110,11 @@ export function AutomationSettings({ project }: Props) {
           </Group>
 
           <Group grow>
+            <Select label="Screenshot Timing" data={SCREENSHOT_TIMING_OPTIONS} {...form.getInputProps('screenshotTiming')} />
             <NumberInput label="Slow Motion (ms)" min={0} max={10000} step={100} {...form.getInputProps('slowMo')} />
+          </Group>
+
+          <Group grow>
             <Switch
               label="Debug Mode"
               {...form.getInputProps('debugMode', { type: 'checkbox' })}

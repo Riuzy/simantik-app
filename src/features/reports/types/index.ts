@@ -10,9 +10,11 @@ export interface RecentExecution {
   id: string;
   number: string;
   status: string;
+  runCount: number;
   durationMs: number | null;
+  lastRunAt: string | null;
   createdAt: string;
-  testCase: { id: string; code: string; title: string };
+  testCase: { id: string; code: string; title: string; module?: string | null };
   project: { id: string; slug: string; name: string };
 }
 

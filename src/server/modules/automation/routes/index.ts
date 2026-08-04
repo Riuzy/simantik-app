@@ -29,3 +29,10 @@ automationRouter.post(
   validate({ params: testCaseIdParamSchema, body: runTestBodySchema }),
   automationController.run
 );
+
+automationRouter.post(
+  '/test-cases/:testCaseId/reset-execution',
+  requireAuth,
+  validate({ params: testCaseIdParamSchema }),
+  automationController.resetExecutionHistory
+);

@@ -68,3 +68,21 @@ export function useDeleteExecution() {
     onError: () => notifications.show({ title: 'Error', message: 'Failed to delete execution', color: 'red' }),
   });
 }
+
+export function useResetExecutionHistory() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (testCaseId: string) => executionService.resetExecutionHistory(testCaseId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['executions'] });
+      qc.invalidateQueries({ queryKey: ['test-case-by-code'] });
+      qc.invalidateQueries({ queryKey: ['test-cases'] });
+      qc.invalidateQueries({ queryKey: ['reports'] });
+      qc.invalidateQueries({ queryKey: ['report-overview'] });
+      qc.invalidateQueries({ queryKey: ['report-project'] });
+      notifications.show({ title: 'Success', message: 'Execution history reset successfully', color: 'green' });
+    },
+    onError: () => notifications.show({ title: 'Error', message: 'Failed to reset execution history', color: 'red' }),
+  });
+}

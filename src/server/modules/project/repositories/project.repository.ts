@@ -20,6 +20,7 @@ export class ProjectRepository {
     slowMo?: number;
     viewportWidth?: number;
     viewportHeight?: number;
+    screenshotTiming?: string;
     debugMode?: boolean;
     authenticationEnabled?: boolean;
     loginUrl?: string | null;

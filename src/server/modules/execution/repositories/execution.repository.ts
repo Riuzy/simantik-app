@@ -32,7 +32,7 @@ export class ExecutionRepository {
     }
 
     const orderBy: Record<string, 'asc' | 'desc'> = {};
-    orderBy[filters.sortBy || 'createdAt'] = filters.sortOrder || 'desc';
+    orderBy[filters.sortBy || 'updatedAt'] = filters.sortOrder || 'desc';
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.execution.findMany({
@@ -44,12 +44,18 @@ export class ExecutionRepository {
           id: true,
           number: true,
           status: true,
+          testCaseId: true,
+          runCount: true,
           durationMs: true,
+          lastDurationMs: true,
+          lastRunAt: true,
+          lastResult: true,
           browser: true,
           environment: true,
           startedAt: true,
           finishedAt: true,
           createdAt: true,
+          updatedAt: true,
           testCase: { select: { id: true, code: true, title: true } },
           project: { select: { id: true, code: true, name: true, slug: true } },
         },
@@ -144,23 +150,31 @@ export class ExecutionRepository {
       throw new AppError(404, 'Test case or project not found');
     }
 
+    const now = new Date();
     await this.prisma.$transaction([
       this.prisma.execution.update({
         where: { id },
         data: {
           status: 'RUNNING',
-          startedAt: new Date(),
+          startedAt: now,
           finishedAt: null,
           durationMs: null,
+          lastDurationMs: null,
           screenshotPath: null,
+          videoPath: null,
+          tracePath: null,
           errorMessage: null,
+          generatedScript: null,
+          lastRunAt: now,
+          lastResult: 'RUNNING',
+          runCount: { increment: 1 },
         },
       }),
       this.prisma.testCase.update({
         where: { id: testCase.id },
         data: {
           lastExecutionStatus: 'RUNNING',
-          lastExecutedAt: new Date(),
+          lastExecutedAt: now,
           lastExecutionId: id,
         },
       }),
@@ -202,8 +216,8 @@ export class ExecutionRepository {
 
       const browser = body.browser ?? project.browser ?? 'CHROMIUM';
       const headless = body.headless ?? project.headless ?? true;
-      const viewportWidth = body.viewportWidth ?? project.viewportWidth ?? 1280;
-      const viewportHeight = body.viewportHeight ?? project.viewportHeight ?? 720;
+      const viewportWidth = body.viewportWidth ?? project.viewportWidth ?? 1600;
+      const viewportHeight = body.viewportHeight ?? project.viewportHeight ?? 900;
       const timeout = project.timeout ?? 30000;
       const baseUrl = project.baseUrl;
 
@@ -248,10 +262,12 @@ export class ExecutionRepository {
           headless,
           viewportWidth,
           viewportHeight,
+          deviceScaleFactor: 2,
           timeout,
           slowMotion: project.slowMo ?? 0,
           baseUrl,
           screenshotPath: storageScreenshotPathForScript,
+          screenshotTiming: project.screenshotTiming ?? 'FINAL_STATE',
         },
         project.framework,
         authEngine,
@@ -268,6 +284,7 @@ export class ExecutionRepository {
       const { result, logs } = await this.runScript(script, runTimeout);
 
       const status = this.mapStatus(result.status);
+      const now = new Date();
 
       // Verify screenshot exists on disk after Playwright execution
       const screenshotExists = fs.existsSync(storageScreenshotPath);
@@ -279,7 +296,10 @@ export class ExecutionRepository {
         data: {
           status,
           durationMs: result.durationMs ?? 0,
-          finishedAt: new Date(),
+          lastDurationMs: result.durationMs ?? 0,
+          finishedAt: now,
+          lastRunAt: now,
+          lastResult: status,
           screenshotPath: screenshotForDb,
           errorMessage: result.error,
         },
@@ -289,12 +309,13 @@ export class ExecutionRepository {
         where: { id: testCase.id },
         data: {
           lastExecutionStatus: status === 'PASSED' ? 'PASSED' : 'FAILED',
-          lastExecutedAt: new Date(),
+          lastExecutedAt: now,
           lastExecutionId: id,
         },
       });
 
       if (logs.length > 0) {
+        await this.prisma.executionLog.deleteMany({ where: { executionId: id } });
         await this.prisma.executionLog.createMany({
           data: logs.map((log) => ({
             executionId: id,
@@ -439,7 +460,11 @@ export class ExecutionRepository {
         id: execution.id,
         number: execution.number,
         status: execution.status,
+        runCount: execution.runCount,
         durationMs: execution.durationMs,
+        lastDurationMs: execution.lastDurationMs,
+        lastRunAt: execution.lastRunAt,
+        lastResult: execution.lastResult,
         startedAt: execution.startedAt,
         finishedAt: execution.finishedAt,
         browser: execution.browser,

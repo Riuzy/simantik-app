@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Container, Paper, Group, Text, SimpleGrid, Stack, Loader, Center, Image, Code, Tabs, ActionIcon, Badge } from '@mantine/core';
-import { IconArrowLeft, IconFileText, IconList, IconFileCode, IconPhoto } from '@tabler/icons-react';
+import { Container, Paper, Group, Text, SimpleGrid, Stack, Loader, Center, Code, Tabs, ActionIcon, Badge, Box, Tooltip } from '@mantine/core';
+import { IconArrowLeft, IconFileText, IconList, IconFileCode, IconPhoto, IconZoomIn, IconDownload } from '@tabler/icons-react';
 import { useExecution, useExecutionLogs, usePollExecution } from '../../../../features/executions/hooks';
+import { ScreenshotViewer } from '../../../../features/executions/components/screenshot-viewer';
 import { PageHeader } from '../../../../components/ui/page-header';
 import { Section } from '../../../../components/ui/section';
 import { ExecutionStatusBadge } from '../../../../components/ui/badges';
@@ -31,6 +32,7 @@ export default function ExecutionDetailPage() {
   usePollExecution(id, isRunning);
   const { data: logs } = useExecutionLogs(id, true);
   const [screenshotFailed, setScreenshotFailed] = useState(false);
+  const [screenshotOpened, setScreenshotOpened] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>('overview');
 
   if (isLoading) return <Center h={400}><Loader /></Center>;
@@ -42,6 +44,8 @@ export default function ExecutionDetailPage() {
 
   const details: { label: string; value: React.ReactNode }[] = [
     { label: 'Status', value: <ExecutionStatusBadge value={execution.status} /> },
+    { label: 'Run Count', value: execution.runCount > 0 ? `${execution.runCount}x` : '\u2014' },
+    { label: 'Last Run', value: execution.lastRunAt ? new Date(execution.lastRunAt).toLocaleString() : '\u2014' },
     { label: 'Project', value: execution.project.name },
     { label: 'Test Case', value: execution.testCase.title },
     { label: 'Environment', value: execution.environment ?? '\u2014' },
@@ -95,16 +99,49 @@ export default function ExecutionDetailPage() {
               </SimpleGrid>
             </Section>
 
-            <Section title="Screenshot">
+            <Section title="Screenshot" description="Click the screenshot to open the fullscreen viewer">
               {hasScreenshot ? (
-                <Image
-                  src={screenshotUrl ?? ''}
-                  alt="Execution screenshot"
-                  radius="sm"
-                  fit="contain"
-                  style={{ maxHeight: 480 }}
-                  onError={() => setScreenshotFailed(true)}
-                />
+                <>
+                  <Tooltip label="Open fullscreen viewer" position="bottom" withArrow>
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => setScreenshotOpened(true)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: 0,
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'zoom-in',
+                      }}
+                      aria-label="Open screenshot in fullscreen viewer"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={screenshotUrl ?? ''}
+                        alt="Execution screenshot"
+                        width={1600}
+                        height={900}
+                        style={{ width: '100%', height: 'auto', objectFit: 'contain', display: 'block', borderRadius: 4 }}
+                        onError={() => setScreenshotFailed(true)}
+                      />
+                    </Box>
+                  </Tooltip>
+                  <Group justify="flex-end" mt="xs">
+                    <Tooltip label="Open fullscreen viewer">
+                      <ActionIcon variant="light" size="md" onClick={() => setScreenshotOpened(true)} aria-label="Open fullscreen viewer">
+                        <IconZoomIn size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Download screenshot">
+                      <ActionIcon component="a" href={screenshotUrl ?? '#'} download variant="light" size="md" aria-label="Download screenshot">
+                        <IconDownload size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                  <ScreenshotViewer src={screenshotUrl ?? ''} alt={`Execution ${execution.number} screenshot`} opened={screenshotOpened} onClose={() => setScreenshotOpened(false)} />
+                </>
               ) : (
                 <EmptyState title="No screenshot available" description="This execution did not capture a screenshot" icon={IconPhoto} compact />
               )}

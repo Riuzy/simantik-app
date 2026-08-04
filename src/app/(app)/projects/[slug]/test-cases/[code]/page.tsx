@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Container, Group, Text, Badge, Paper, Tabs, ActionIcon, Stack, Loader, Center, SimpleGrid, Avatar } from '@mantine/core';
-import { IconArrowLeft, IconList, IconRobot, IconPlayerPlay, IconClock, IconFileText, IconSettings } from '@tabler/icons-react';
+import { Container, Group, Text, Badge, Paper, Tabs, ActionIcon, Stack, Loader, Center, SimpleGrid, Avatar, Button, Box } from '@mantine/core';
+import { IconArrowLeft, IconList, IconRobot, IconPlayerPlay, IconClock, IconFileText, IconSettings, IconHistory } from '@tabler/icons-react';
+import { modals } from '@mantine/modals';
 import { useTestCaseByCode } from '../../../../../../features/test-cases/hooks';
-import { useExecutions } from '../../../../../../features/executions/hooks';
+import { useExecutions, useResetExecutionHistory } from '../../../../../../features/executions/hooks';
 import { TestStepsTab } from '../../../../../../features/test-cases/components/detail/test-steps-tab';
 import { TestCaseAutomationPanel } from '../../../../../../features/automation/components/test-case-automation-panel';
 import { PriorityBadge, TestCaseStatusBadge, TestCaseTypeBadge, LastResultBadge } from '../../../../../../components/ui/badges';
@@ -138,6 +139,23 @@ function OverviewTab({ testCase }: { testCase: TestCase }) {
 
 function ExecutionsTab({ testCase }: { testCase: TestCase }) {
   const { data: executions, isLoading } = useExecutions({ testCaseId: testCase.id, page: 1, limit: 20 });
+  const resetExecutionHistory = useResetExecutionHistory();
+
+  const openResetConfirm = () =>
+    modals.openConfirmModal({
+      title: 'Reset Execution History',
+      centered: true,
+      children: (
+        <Text size="sm">
+          This will permanently delete the execution for &quot;{testCase.code}&quot; including its logs,
+          screenshot, generated script, and error data. The test case will be reset to &quot;Not Run&quot;.
+          This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: 'Reset History', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => resetExecutionHistory.mutate(testCase.id),
+    });
 
   if (isLoading) return <Center py="xl"><Loader /></Center>;
   if (!executions?.data?.length) {
@@ -154,6 +172,21 @@ function ExecutionsTab({ testCase }: { testCase: TestCase }) {
   return (
     <Paper p="md" withBorder>
       <Stack gap="sm">
+        <Box>
+          <Group justify="space-between" align="center">
+            <Text fw={600} size="sm">Execution History</Text>
+            <Button
+              variant="light"
+              color="red"
+              size="xs"
+              leftSection={<IconHistory size={14} />}
+              loading={resetExecutionHistory.isPending}
+              onClick={openResetConfirm}
+            >
+              Reset Execution History
+            </Button>
+          </Group>
+        </Box>
         {executions.data.map((ex) => (
           <Group key={ex.id} justify="space-between" wrap="nowrap">
             <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
@@ -161,7 +194,8 @@ function ExecutionsTab({ testCase }: { testCase: TestCase }) {
                 {ex.status}
               </Badge>
               <Text size="sm" fw={500} ff="monospace">{ex.number}</Text>
-              <Text size="sm" truncate>{new Date(ex.createdAt ?? '').toLocaleString()}</Text>
+              <Text size="sm" c="dimmed">Run: {ex.runCount}x</Text>
+              <Text size="sm" truncate>{new Date(ex.lastRunAt ?? ex.createdAt ?? '').toLocaleString()}</Text>
             </Group>
             <Text size="sm" c="dimmed">
               {ex.durationMs != null ? `${(ex.durationMs / 1000).toFixed(1)}s` : '\u2014'}

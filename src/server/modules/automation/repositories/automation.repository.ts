@@ -1,4 +1,6 @@
 import { PrismaClient, ExecutionStatus, Prisma } from '@prisma/client';
+import { rmSync, existsSync } from 'fs';
+import path from 'path';
 import { AppError } from '../../../middlewares/error-handler';
 
 export class AutomationRepository {
@@ -27,25 +29,69 @@ export class AutomationRepository {
     });
   }
 
-  async createExecution(data: {
+  /**
+   * Returns the single active execution for a test case, or null if the test
+   * case has never been run (or its previous execution was soft-deleted).
+   */
+  async findExecutionByTestCase(testCaseId: string) {
+    return this.prisma.execution.findFirst({
+      where: { testCaseId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        testCase: { select: { id: true, code: true, title: true } },
+      },
+    });
+  }
+
+  /**
+   * Upsert semantics for the "one active execution per test case" model.
+   * When an execution already exists for the test case it is UPDATED and its
+   * runCount is incremented; otherwise a new execution row is CREATED.
+   */
+  async upsertExecutionByTestCase(data: {
     number: string;
     projectId: string;
     testCaseId: string;
     browser?: string;
     environment?: string;
-    generatedScript?: string;
   }) {
+    const existing = await this.findExecutionByTestCase(data.testCaseId);
+    const now = new Date();
+    const runningState = {
+      projectId: data.projectId,
+      testCaseId: data.testCaseId,
+      browser: data.browser,
+      environment: data.environment,
+      status: 'RUNNING' as ExecutionStatus,
+      startedAt: now,
+      finishedAt: null,
+      durationMs: null,
+      lastDurationMs: null,
+      screenshotPath: null,
+      videoPath: null,
+      tracePath: null,
+      errorMessage: null,
+      generatedScript: null,
+      lastRunAt: now,
+      lastResult: 'RUNNING' as ExecutionStatus,
+    };
+
+    if (existing) {
+      return this.prisma.execution.update({
+        where: { id: existing.id },
+        data: {
+          ...runningState,
+          runCount: { increment: 1 },
+        },
+      });
+    }
+
     return this.prisma.execution.create({
       data: {
+        ...runningState,
         number: data.number,
-        project: { connect: { id: data.projectId } },
-        testCase: { connect: { id: data.testCaseId } },
-        browser: data.browser,
-        environment: data.environment,
-        generatedScript: data.generatedScript,
-        status: 'RUNNING',
-        startedAt: new Date(),
-      } as Prisma.ExecutionCreateInput,
+        runCount: 1,
+      },
     });
   }
 
@@ -59,13 +105,17 @@ export class AutomationRepository {
   ) {
     const consoleLog = error ? { error } : null;
     const lastExecutionStatus = this.mapToLastResult(status);
+    const now = new Date();
     const [execution] = await this.prisma.$transaction([
       this.prisma.execution.update({
         where: { id },
         data: {
           status,
           durationMs,
-          finishedAt: new Date(),
+          lastDurationMs: durationMs,
+          finishedAt: now,
+          lastRunAt: now,
+          lastResult: status,
           screenshotPath,
           ...(consoleLog ? { consoleLog: consoleLog as Prisma.InputJsonValue } : {}),
         },
@@ -74,7 +124,7 @@ export class AutomationRepository {
         where: { id: testCaseId },
         data: {
           lastExecutionStatus,
-          lastExecutedAt: new Date(),
+          lastExecutedAt: now,
           lastExecutionId: id,
         },
       }),
@@ -82,15 +132,35 @@ export class AutomationRepository {
     return execution;
   }
 
-  async markTestCaseRunning(testCaseId: string, executionId: string) {
-    return this.prisma.testCase.update({
-      where: { id: testCaseId },
-      data: {
-        lastExecutionStatus: 'RUNNING',
-        lastExecutedAt: new Date(),
-        lastExecutionId: executionId,
-      },
-    });
+async markTestCaseRunning(testCaseId: string, executionId: string) {
+    const now = new Date();
+    return this.prisma.$transaction([
+      this.prisma.testCase.update({
+        where: { id: testCaseId },
+        data: {
+          lastExecutionStatus: 'RUNNING',
+          lastExecutedAt: now,
+          lastExecutionId: executionId,
+        },
+      }),
+      this.prisma.execution.update({
+        where: { id: executionId },
+        data: {
+          status: 'RUNNING',
+          startedAt: now,
+          finishedAt: null,
+          durationMs: null,
+          lastDurationMs: null,
+          screenshotPath: null,
+          videoPath: null,
+          tracePath: null,
+          errorMessage: null,
+          generatedScript: null,
+          lastRunAt: now,
+          lastResult: 'RUNNING',
+        },
+      }),
+    ]);
   }
 
   private mapToLastResult(status: ExecutionStatus): 'NOT_RUN' | 'RUNNING' | 'PASSED' | 'FAILED' {
@@ -136,5 +206,45 @@ export class AutomationRepository {
         message: log.message,
       })),
     });
+  }
+
+  /**
+   * Removes every log row previously recorded for an execution so a re-run
+   * only keeps the latest logs instead of accumulating history.
+   */
+  async clearExecutionLogs(executionId: string) {
+    await this.prisma.executionLog.deleteMany({ where: { executionId } });
+  }
+
+  /**
+   * Resets the execution history of a single test case:
+   * - Hard-deletes its execution row (logs cascade via FK).
+   * - Removes the stored screenshot file from disk.
+   * - Resets the test case last-result fields to Not Run.
+   * The next run creates a brand-new execution with a fresh number.
+   */
+  async resetExecutionHistory(testCaseId: string) {
+    const execution = await this.findExecutionByTestCase(testCaseId);
+
+    if (execution) {
+      if (execution.screenshotPath) {
+        const fullPath = path.resolve(process.cwd(), execution.screenshotPath);
+        if (existsSync(fullPath)) {
+          rmSync(fullPath, { force: true });
+        }
+      }
+      await this.prisma.execution.delete({ where: { id: execution.id } });
+    }
+
+    await this.prisma.testCase.update({
+      where: { id: testCaseId },
+      data: {
+        lastExecutionStatus: 'NOT_RUN',
+        lastExecutedAt: null,
+        lastExecutionId: null,
+      },
+    });
+
+    return { reset: true };
   }
 }

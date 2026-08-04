@@ -31,12 +31,14 @@ interface ProjectRunConfig {
   headless: boolean;
   viewportWidth: number;
   viewportHeight: number;
+  deviceScaleFactor: number;
   timeout: number;
   slowMo: number;
   baseUrl: string | null;
   environment: string | null;
   debugMode: boolean;
   framework: Framework;
+  screenshotTiming: 'BEFORE_ACTION' | 'AFTER_ACTION' | 'FINAL_STATE';
   auth: AuthConfig;
 }
 
@@ -71,14 +73,16 @@ export class AutomationService {
     const config: ProjectRunConfig = {
       browser: project.browser ?? 'CHROMIUM',
       headless: override?.headless ?? project.headless ?? true,
-      viewportWidth: project.viewportWidth ?? 1280,
-      viewportHeight: project.viewportHeight ?? 720,
+      viewportWidth: project.viewportWidth ?? 1600,
+      viewportHeight: project.viewportHeight ?? 900,
+      deviceScaleFactor: 2,
       timeout: project.timeout ?? 30000,
       slowMo: project.slowMo ?? 0,
       baseUrl: project.baseUrl,
       environment: project.environment,
       debugMode: project.debugMode ?? false,
       framework: project.framework,
+      screenshotTiming: project.screenshotTiming ?? 'FINAL_STATE',
       auth,
     };
 
@@ -97,10 +101,12 @@ export class AutomationService {
         headless: config.headless,
         viewportWidth: config.viewportWidth,
         viewportHeight: config.viewportHeight,
+        deviceScaleFactor: config.deviceScaleFactor,
         timeout: config.timeout,
         slowMotion: config.slowMo,
         baseUrl: config.baseUrl,
         screenshotPath: '',
+        screenshotTiming: config.screenshotTiming,
       },
       config.framework,
       authEngine,
@@ -119,8 +125,13 @@ export class AutomationService {
     const { testCase, config } = await this.loadRunConfig(testCaseId, dto);
     const project = testCase.project;
 
-    const execution = await this.repository.createExecution({
-      number: await this.generateNextExecutionNumber(),
+    // Reuse the existing execution number when re-running a test case, so the
+    // same execution row is updated instead of creating a new one.
+    const existing = await this.repository.findExecutionByTestCase(testCaseId);
+    const number = existing?.number ?? await this.generateNextExecutionNumber();
+
+    const execution = await this.repository.upsertExecutionByTestCase({
+      number,
       projectId: project.id,
       testCaseId,
       browser: config.browser,
@@ -139,6 +150,11 @@ export class AutomationService {
       status: 'RUNNING',
       message: 'Execution started',
     };
+  }
+
+  async resetExecutionHistory(testCaseId: string) {
+    await this.repository.resetExecutionHistory(testCaseId);
+    return { message: 'Execution history reset successfully' };
   }
 
   private async executeInBackground(
@@ -164,10 +180,12 @@ export class AutomationService {
         headless: config.headless,
         viewportWidth: config.viewportWidth,
         viewportHeight: config.viewportHeight,
+        deviceScaleFactor: config.deviceScaleFactor,
         timeout: config.timeout,
         slowMotion: config.slowMo,
         baseUrl: config.baseUrl,
         screenshotPath: path.join(cleanupEngine.ensureStorageDir(), `${execution.number}.png`),
+        screenshotTiming: config.screenshotTiming,
       };
 
       const script = generatePlaywrightScript(
@@ -204,6 +222,7 @@ export class AutomationService {
         result.error,
       );
 
+      await this.repository.clearExecutionLogs(executionId);
       await this.repository.createExecutionLogs(executionId, logs);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Execution failed unexpectedly';

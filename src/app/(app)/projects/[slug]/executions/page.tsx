@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Text, TextInput, Select, Pagination, Menu, ActionIcon, Table, Stack } from '@mantine/core';
-import { IconSearch, IconDots, IconPlayerPlay, IconTrash, IconRefresh, IconFilter } from '@tabler/icons-react';
+import { IconSearch, IconDots, IconPlayerPlay, IconTrash, IconRefresh, IconFilter, IconHistory } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
 import { useProjectStore } from '../../../../../stores/project-store';
-import { useExecutions, useDeleteExecution, useRetryExecution } from '../../../../../features/executions/hooks';
+import { useExecutions, useDeleteExecution, useRetryExecution, useResetExecutionHistory } from '../../../../../features/executions/hooks';
 import { PageHeader } from '../../../../../components/ui/page-header';
 import { FilterBar } from '../../../../../components/ui/filter-bar';
 import { DataTable, EmptyTableRow } from '../../../../../components/ui/data-table';
@@ -31,6 +31,11 @@ function formatDuration(ms: number | null): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+function formatLastRun(dateStr: string | null): string {
+  if (!dateStr) return '\u2014';
+  return new Date(dateStr).toLocaleString();
+}
+
 export default function ProjectExecutionsPage() {
   const router = useRouter();
   const selectedProject = useProjectStore((s) => s.selectedProject);
@@ -49,6 +54,7 @@ export default function ProjectExecutionsPage() {
 
   const deleteExecution = useDeleteExecution();
   const retryExecution = useRetryExecution();
+  const resetExecutionHistory = useResetExecutionHistory();
   const executions = data?.data ?? [];
   const pagination = data?.pagination;
 
@@ -63,6 +69,24 @@ export default function ProjectExecutionsPage() {
       confirmProps: { color: 'red' },
       onConfirm: () => deleteExecution.mutate(ex.id),
     });
+
+  const openResetConfirm = (ex: { testCaseId?: string; number: string }) => {
+    if (!ex.testCaseId) return;
+    modals.openConfirmModal({
+      title: 'Reset Execution History',
+      centered: true,
+      children: (
+        <Text size="sm">
+          This will permanently delete execution &quot;{ex.number}&quot; including its logs, screenshot,
+          generated script, and error data. The test case will be reset to &quot;Not Run&quot;.
+          This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: 'Reset History', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => resetExecutionHistory.mutate(ex.testCaseId as string),
+    });
+  };
 
   return (
     <div>
@@ -96,13 +120,13 @@ export default function ProjectExecutionsPage() {
       <DataTable
         loading={isLoading}
         columns={[
-          { key: 'number', label: 'Number' },
-          { key: 'status', label: 'Status' },
+          { key: 'number', label: 'Execution' },
           { key: 'testCase', label: 'Test Case' },
-          { key: 'browser', label: 'Browser' },
-          { key: 'environment', label: 'Environment' },
+          { key: 'status', label: 'Status' },
+          { key: 'runCount', label: 'Run Count' },
+          { key: 'lastRun', label: 'Last Run' },
           { key: 'duration', label: 'Duration' },
-          { key: 'created', label: 'Created' },
+          { key: 'browser', label: 'Browser' },
           { key: 'actions', label: '', width: 60 },
         ]}
         rows={
@@ -115,22 +139,22 @@ export default function ProjectExecutionsPage() {
                   <Text size="sm" fw={600} ff="monospace">{ex.number}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <ExecutionStatusBadge value={ex.status} size="sm" />
-                </Table.Td>
-                <Table.Td>
                   <Text size="sm" lineClamp={1}>{ex.testCase?.title ?? '\u2014'}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{ex.browser ?? '\u2014'}</Text>
+                  <ExecutionStatusBadge value={ex.status} size="sm" />
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{ex.environment ?? '\u2014'}</Text>
+                  <Text size="sm">Run: {ex.runCount}x</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs" c="dimmed">{formatLastRun(ex.lastRunAt)}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" c="dimmed">{formatDuration(ex.durationMs)}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="xs" c="dimmed">{new Date(ex.createdAt).toLocaleString()}</Text>
+                  <Text size="sm">{ex.browser ?? '\u2014'}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Menu shadow="md" width={160} withinPortal>
@@ -160,6 +184,17 @@ export default function ProjectExecutionsPage() {
                         }}
                       >
                         Retry
+                      </Menu.Item>
+                      <Menu.Item
+                        color="red"
+                        leftSection={<IconHistory size={14} />}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openResetConfirm(ex);
+                        }}
+                      >
+                        Reset Execution History
                       </Menu.Item>
                       <Menu.Item
                         color="red"

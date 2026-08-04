@@ -31,3 +31,10 @@ export async function retryExecution(executionId: string, body: Record<string, u
 export async function deleteExecution(id: string): Promise<void> {
   await apiClient.delete(API.EXECUTIONS.DETAIL(id));
 }
+
+export async function resetExecutionHistory(testCaseId: string): Promise<void> {
+  const res = await apiClient.post(API.AUTOMATION.RESET_EXECUTION(testCaseId));
+  if (!res.data?.success) {
+    throw new Error(res.data?.message ?? 'Failed to reset execution history');
+  }
+}

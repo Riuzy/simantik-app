@@ -14,8 +14,9 @@ export const createProjectSchema = z.object({
   headless: z.boolean().default(true),
   timeout: z.number().int().min(1000).max(600000).default(30000),
   slowMo: z.number().int().min(0).max(10000).default(0),
-  viewportWidth: z.number().int().positive().max(7680).default(1280),
-  viewportHeight: z.number().int().positive().max(4320).default(720),
+  viewportWidth: z.number().int().positive().max(7680).default(1600),
+  viewportHeight: z.number().int().positive().max(4320).default(900),
+  screenshotTiming: z.enum(['BEFORE_ACTION', 'AFTER_ACTION', 'FINAL_STATE']).default('FINAL_STATE'),
   debugMode: z.boolean().default(false),
   // Authentication
   authenticationEnabled: z.boolean().default(false),
@@ -42,6 +43,7 @@ export const updateProjectSchema = z
     slowMo: z.number().int().min(0).max(10000).optional(),
     viewportWidth: z.number().int().positive().max(7680).optional(),
     viewportHeight: z.number().int().positive().max(4320).optional(),
+    screenshotTiming: z.enum(['BEFORE_ACTION', 'AFTER_ACTION', 'FINAL_STATE']).optional(),
     debugMode: z.boolean().optional(),
     // Authentication
     authenticationEnabled: z.boolean().optional(),

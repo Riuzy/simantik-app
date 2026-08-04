@@ -14,7 +14,7 @@ export function PageHeader({ title, description, actions, children }: PageHeader
   return (
     <Group justify="space-between" align="flex-end" mb="lg" wrap="wrap" gap="sm">
       <div>
-        <Text fz={22} fw={700} lh={1.3} component="div">{title}</Text>
+        <Text fz={22} fw={700} lh={1.3} component="h1" data-page-title>{title}</Text>
         {description && <Text c="dimmed" size="sm" mt={2}>{description}</Text>}
         {children}
       </div>

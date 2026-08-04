@@ -51,8 +51,9 @@ export default function ProjectReportsPage() {
       days.push({ label, value: 0, key });
     }
     for (const ex of executions) {
-      if (!ex.createdAt) continue;
-      const key = new Date(ex.createdAt).toLocaleDateString('en-CA');
+      const runAt = ex.lastRunAt ?? ex.createdAt;
+      if (!runAt) continue;
+      const key = new Date(runAt).toLocaleDateString('en-CA');
       const day = days.find((d) => d.key === key);
       if (day) day.value += 1;
     }

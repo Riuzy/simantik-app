@@ -4,7 +4,7 @@ import {
   updateProjectBodySchema,
   listProjectsQuerySchema,
 } from '../validators/project.validators';
-import { Browser, Framework, LoginMethod, ProjectStatus, SessionStrategy } from '@prisma/client';
+import { Browser, Framework, LoginMethod, ProjectStatus, ScreenshotTiming, SessionStrategy } from '@prisma/client';
 
 export type CreateProjectDTO = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectDTO = z.infer<typeof updateProjectBodySchema>;
@@ -32,6 +32,7 @@ export interface ProjectResponseDTO {
   slowMo: number;
   viewportWidth: number;
   viewportHeight: number;
+  screenshotTiming: ScreenshotTiming;
   debugMode: boolean;
   // Authentication
   authenticationEnabled: boolean;

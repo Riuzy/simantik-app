@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Browser, Framework, LoginMethod, SessionStrategy } from '@prisma/client';
+import { Browser, Framework, LoginMethod, ScreenshotTiming, SessionStrategy } from '@prisma/client';
 import { commonQuerySchema, idParamSchema } from '../../../validators/common.validators';
 
 export const projectParamSchema = idParamSchema;
@@ -24,6 +24,7 @@ const automationFields = {
   slowMo: z.number().int().min(0).max(10000).optional(),
   viewportWidth: z.number().int().positive().max(7680).optional(),
   viewportHeight: z.number().int().positive().max(4320).optional(),
+  screenshotTiming: z.nativeEnum(ScreenshotTiming).optional(),
   debugMode: z.boolean().optional(),
 };
 

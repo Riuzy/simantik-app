@@ -19,15 +19,19 @@ export interface ScriptStep {
   target: string | null;
 }
 
+export type ScreenshotTiming = 'BEFORE_ACTION' | 'AFTER_ACTION' | 'FINAL_STATE';
+
 export interface ScriptOptions {
   browser: string;
   headless: boolean;
   viewportWidth: number;
   viewportHeight: number;
+  deviceScaleFactor: number;
   timeout: number;
   slowMotion: number;
   baseUrl: string | null;
   screenshotPath: string;
+  screenshotTiming: ScreenshotTiming;
 }
 
 /**
@@ -40,18 +44,16 @@ export interface ScriptOptions {
  * data-testid, with a guarded CSS fallback.
  */
 const FIELD_STRATEGIES = [
-  'LABEL',
-  'PLACEHOLDER',
-  'ROLE',
-  'NAME',
-  'ID',
-  'ARIA_LABEL',
-  'ARIA_LABELLEDBY',
-  'LABEL_HAS_TEXT',
-  'DOM_LABEL',
   'TEST_ID',
+  'ID',
+  'NAME',
+  'PLACEHOLDER',
+  'ARIA_LABEL',
+  'ROLE',
+  'LABEL',
   'CSS',
   'XPATH',
+  'TEXT',
 ] as const;
 
 /**
@@ -62,7 +64,7 @@ const FIELD_STRATEGIES = [
  * as-is. ROLE is only expanded further when it targets a field role.
  */
 const FIELD_SEMANTIC_STRATEGIES = new Set<string>(
-  FIELD_STRATEGIES.filter((s) => s !== 'CSS' && s !== 'XPATH'),
+  FIELD_STRATEGIES.filter((s) => s !== 'CSS' && s !== 'XPATH' && s !== 'TEXT'),
 );
 
 const FIELD_ROLES = new Set([
@@ -128,16 +130,13 @@ function expandFieldCandidates(cands: ScriptLocator[]): ScriptLocator[] {
       continue;
     }
     if (FIELD_SEMANTIC_STRATEGIES.has(c.strategy)) {
-      push('LABEL', c.value);
-      push('PLACEHOLDER', c.value);
-      push('ROLE', `textbox:${c.value}`);
-      push('NAME', c.value);
-      push('ID', c.value);
-      push('ARIA_LABEL', c.value);
-      push('ARIA_LABELLEDBY', c.value);
-      push('LABEL_HAS_TEXT', c.value);
-      push('DOM_LABEL', c.value);
       push('TEST_ID', c.value);
+      push('ID', c.value);
+      push('NAME', c.value);
+      push('PLACEHOLDER', c.value);
+      push('ARIA_LABEL', c.value);
+      push('ROLE', `textbox:${c.value}`);
+      push('LABEL', c.value);
       push(c.strategy, c.value);
       push('CSS', c.value);
     } else {
@@ -150,13 +149,15 @@ function expandFieldCandidates(cands: ScriptLocator[]): ScriptLocator[] {
 /**
  * Text-resolution cascade for VERIFY_* actions that check for visible
  * framework-agnostic text content. Prefers semantic landmarks (heading, h1,
- * h2, main, section) before falling back to a plain getByText so we never rely
- * on a brittle tag guess.
- */
+  * h2, main, section) before falling back to a plain getByText so we never rely
+  * on a brittle tag guess.
+  * Added Mantine Text component support for framework-agnostic text lookup.
+  */
 function textLandmarks(value: string): ScriptLocator[] {
   const q = JSON.stringify(value);
   return [
     { strategy: 'ROLE', value: `heading:${value}` },
+    { strategy: 'CSS', value: `.mantine-Text-root:has-text(${q})` },
     { strategy: 'CSS', value: `h1:has-text(${q})` },
     { strategy: 'CSS', value: `h2:has-text(${q})` },
     { strategy: 'CSS', value: `main:has-text(${q})` },
@@ -424,6 +425,95 @@ const locatorEngineHelpers = `
     await __prepare(page, loc, options);
     await loc.first().setInputFiles(files);
   };
+
+  const __SETTLE_SELECTORS = [
+    '[role="progressbar"]',
+    '.mantine-Loader-root',
+    '.ant-spin',
+    '.ant-spin-spinning',
+    '.MuiCircularProgress-root',
+    '.MuiLinearProgress-root',
+    '.spinner',
+    '.loading',
+    '.animate-spin',
+    '[data-loading="true"]',
+    '[aria-busy="true"]'
+  ];
+
+  const __settle = async (page, timeout) => {
+    const t = timeout || 5000;
+    const deadline = Date.now() + t;
+    try { await page.waitForLoadState('networkidle', { timeout: Math.min(2000, t) }); } catch (_) {}
+    for (const sel of __SETTLE_SELECTORS) {
+      try {
+        const loc = page.locator(sel).first();
+        await loc.waitFor({ state: 'hidden', timeout: Math.max(300, deadline - Date.now()) });
+      } catch (_) {}
+    }
+    // Wait for 2 animation frames so any CSS/JS transitions complete.
+    try { await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))); } catch (_) {}
+  };
+
+  const __capture = async (page, filePath) => {
+    await page.screenshot({ path: filePath, fullPage: true, animations: 'disabled' });
+    __log('INFO', 'Screenshot saved to ' + filePath);
+  };
+
+  const __TOAST_SELECTORS = '.mantine-Notification-root, [role="status"], [role="alert"], [data-notification], .ant-message, .ant-notification-notice, .MuiSnackbar-root, [data-toast]';
+
+  const __postActionVerify = async (page, opts) => {
+    const o = Object.assign({ timeout: 3000, fromUrl: page.url() }, opts || {});
+    const deadline = Date.now() + o.timeout;
+    let detected = false;
+    while (Date.now() < deadline) {
+      const urlChanged = page.url() !== o.fromUrl;
+      const toastVisible = await page.locator(__TOAST_SELECTORS).first().isVisible().catch(() => false);
+      if (urlChanged || toastVisible) {
+        detected = true;
+        break;
+      }
+      try { await page.waitForFunction(() => document.readyState === 'complete', { timeout: 150 }); } catch (_) {}
+    }
+    if (detected) await __settle(page, 2000);
+    else await __settle(page, 800);
+    __log('INFO', detected ? 'Post-action verified (navigation or feedback detected)' : 'Post-action verified (no navigation detected)');
+  };
+
+  const __waitForFinalState = async (page, opts) => {
+    const o = Object.assign({ timeout: 10000, expectedText: '', locators: [], signature: 'final-state', htmlPath: '' }, opts || {});
+    try { await page.waitForURL((url) => url.toString().includes(window.location.origin), { timeout: 250 }).catch(() => {}); } catch (_) {}
+    let lastUrl = page.url();
+    const urlDeadline = Date.now() + 2500;
+    while (Date.now() < urlDeadline) {
+      const cur = page.url();
+      if (cur === lastUrl) break;
+      lastUrl = cur;
+      try { await page.waitForLoadState('networkidle', { timeout: 250 }).catch(() => {}); } catch (_) {}
+    }
+    await __settle(page, Math.max(1500, Math.min(4000, o.timeout)));
+    if (o.expectedText && Array.isArray(o.locators) && o.locators.length > 0) {
+      try {
+        await __verifyText(page, o.locators, o.signature, o.expectedText, { timeout: Math.max(1000, deadline - Date.now()), htmlPath: o.htmlPath });
+        __log('INFO', 'Final state confirmed: ' + o.expectedText);
+      } catch (_) {}
+    }
+  };
+
+  const __goto = async (page, url, timeout) => {
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+        await __settle(page, Math.min(3000, timeout));
+        return;
+      } catch (err) {
+        lastErr = err;
+        __log('WARN', 'Navigation attempt ' + attempt + ' failed: ' + (err && err.message ? err.message : String(err)));
+        try { await page.waitForLoadState('load', { timeout: 400 }).catch(() => {}); } catch (_) {}
+      }
+    }
+    throw lastErr || new Error('Navigation failed: ' + url);
+  };
 `;
 
 export function generatePlaywrightScript(
@@ -447,7 +537,19 @@ export function generatePlaywrightScript(
     const label = step.description || TEST_STEP_ACTION_LABELS[step.action as TestStepAction] || step.action;
     const logs = `  __log('INFO', 'Step ${step.stepNumber}: ${label}');\n`;
 
-    const stepFn = (body: string): string => `  await __step(${step.stepNumber}, async () => { ${body} });\n`;
+    const stepFn = (body: string): string => {
+      const skipShot = step.action === 'OPEN_BROWSER' || step.action === 'CLOSE_BROWSER';
+      const stepShot = `${options.screenshotPath}-step-${step.stepNumber}.png`;
+      const before =
+        options.screenshotTiming === 'BEFORE_ACTION' && !skipShot
+          ? `await __capture(page, ${str(stepShot)}); `
+          : '';
+      const after =
+        options.screenshotTiming === 'AFTER_ACTION' && !skipShot
+          ? ` await __capture(page, ${str(stepShot)});`
+          : '';
+      return `  await __step(${step.stepNumber}, async () => { ${before}${body}${after} });\n`;
+    };
     const sig = (): string => str(stepSignature(step));
     const fieldLoc = (): string => locatorsLiteral(expandFieldCandidates(stepLocatorCandidates(step)));
 
@@ -475,11 +577,11 @@ export function generatePlaywrightScript(
           throw new Error(`Step ${step.stepNumber}: NAVIGATE requires a target URL or a project base URL`);
         }
         const url = step.target || step.inputValue || options.baseUrl || '';
-        return logs + stepFn(`await page.goto(${str(resolveNavigateUrl(url, options.baseUrl))});`);
+        return logs + stepFn(`await __goto(page, ${str(resolveNavigateUrl(url, options.baseUrl))}, ${options.timeout});`);
       }
 
       case 'RELOAD':
-        return logs + stepFn('await page.reload();');
+        return logs + stepFn('await page.reload({ waitUntil: \'domcontentloaded\' }); await __settle(page, 2000);');
 
       case 'BACK':
         return logs + stepFn('await page.goBack();');
@@ -489,17 +591,29 @@ export function generatePlaywrightScript(
 
       case 'CLICK': {
         needLocator();
-        return logs + stepFn(`await __clickElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `await __clickElement(page, ${fieldLoc()}, ${sig()}, __findOpts); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'DOUBLE_CLICK': {
         needLocator();
-        return logs + stepFn(`await __dblClickElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `await __dblClickElement(page, ${fieldLoc()}, ${sig()}, __findOpts); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'RIGHT_CLICK': {
         needLocator();
-        return logs + stepFn(`await __rightClickElement(page, ${fieldLoc()}, ${sig()}, __findOpts);`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `await __rightClickElement(page, ${fieldLoc()}, ${sig()}, __findOpts); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'HOVER': {
@@ -519,25 +633,45 @@ export function generatePlaywrightScript(
 
       case 'SELECT': {
         needLocator();
-        return logs + stepFn(`await __selectOption(page, ${fieldLoc()}, ${sig()}, ${str(step.inputValue)}, __findOpts);`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `await __selectOption(page, ${fieldLoc()}, ${sig()}, ${str(step.inputValue)}, __findOpts); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'CHECK': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, __findOpts); await __el.first().check();`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, __findOpts); await __el.first().check(); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'UNCHECK': {
         needLocator();
-        return logs + stepFn(`const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, __findOpts); await __el.first().uncheck();`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `const __el = await __findElement(page, ${fieldLoc()}, ${sig()}, __findOpts); await __el.first().uncheck(); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'PRESS_KEY': {
         const cands = stepLocatorCandidates(step);
         if (cands.length > 0) {
-          return logs + stepFn(`const __el = await __findElement(page, ${locatorsLiteral(expandFieldCandidates(cands))}, ${sig()}, __findOpts); await __el.first().press(${str(step.inputValue)});`);
+          return logs + stepFn(
+            `const __preUrl = page.url(); ` +
+            `const __el = await __findElement(page, ${locatorsLiteral(expandFieldCandidates(cands))}, ${sig()}, __findOpts); await __el.first().press(${str(step.inputValue)}); ` +
+            `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+          );
         }
-        return logs + stepFn(`await page.keyboard.press(${str(step.inputValue)});`);
+        return logs + stepFn(
+          `const __preUrl = page.url(); ` +
+          `await page.keyboard.press(${str(step.inputValue)}); ` +
+          `await __postActionVerify(page, { fromUrl: __preUrl, timeout: ${options.timeout} });`,
+        );
       }
 
       case 'UPLOAD_FILE': {
@@ -577,7 +711,7 @@ export function generatePlaywrightScript(
       }
 
       case 'TAKE_SCREENSHOT':
-        return logs + stepFn(`await page.screenshot({ path: ${str(`${options.screenshotPath}-step-${step.stepNumber}.png`)} });`);
+        return logs + stepFn(`await __capture(page, ${str(`${options.screenshotPath}-step-${step.stepNumber}.png`)});`);
 
       case 'CLOSE_BROWSER':
         return logs + stepFn('await browser.close();');
@@ -665,6 +799,13 @@ export function generatePlaywrightScript(
 
   const htmlDumpPath = options.screenshotPath.replace(/\.png$/i, '.html');
 
+  const finalStep = steps[steps.length - 1];
+  const finalVerifyExpected = finalStep ? finalStep.inputValue ?? finalStep.expectedResult ?? '' : '';
+  const finalVerifyCands =
+    finalStep && (finalStep.action.startsWith('VERIFY') || finalVerifyExpected)
+      ? [...stepLocatorCandidates(finalStep), ...textLandmarks(finalVerifyExpected)]
+      : [];
+
   return [
     `const { ${browserName} } = require('playwright');`,
     '',
@@ -672,7 +813,7 @@ export function generatePlaywrightScript(
     `  const __title = ${str(title)};`,
     `  const startedAt = Date.now();`,
     `  const browser = await ${browserName}.launch({ headless: ${options.headless}, slowMo: ${options.slowMotion} });`,
-    `  const context = await browser.newContext({ viewport: { width: ${options.viewportWidth}, height: ${options.viewportHeight} } });`,
+    `  const context = await browser.newContext({ viewport: { width: ${options.viewportWidth}, height: ${options.viewportHeight} }, deviceScaleFactor: ${options.deviceScaleFactor} });`,
     `  const page = await context.newPage();`,
     `  page.setDefaultTimeout(${options.timeout});`,
     '',
@@ -686,11 +827,12 @@ export function generatePlaywrightScript(
     `    const __findOpts = { timeout: ${options.timeout}, htmlPath: ${str(htmlDumpPath)} };`,
     authEngine ? authEngine.loginCode('page') : '',
     renderedSteps,
-    `    await page.screenshot({ path: ${str(options.screenshotPath)}, fullPage: true });`,
+    `    await __waitForFinalState(page, { timeout: ${options.timeout}, expectedText: ${str(finalVerifyExpected)}, locators: ${locatorsLiteral(finalVerifyCands)}, signature: ${str('final-state')}, htmlPath: ${str(htmlDumpPath)} });`,
+    `    await __capture(page, ${str(options.screenshotPath)});`,
     `    __log('INFO', 'Execution finished: PASSED');`,
     `    process.stdout.write('RESULT:' + JSON.stringify({ status: 'PASSED', durationMs: Date.now() - startedAt }) + '\\n');`,
     '  } catch (err) {',
-    `    try { await page.screenshot({ path: ${str(options.screenshotPath)}, fullPage: true }); } catch (_) {}`,
+    `    try { await __capture(page, ${str(options.screenshotPath)}); } catch (_) {}`,
     `    __log('ERROR', 'Execution finished: FAILED - ' + (err && err.message ? err.message : String(err)));`,
     `    process.stdout.write('RESULT:' + JSON.stringify({ status: 'FAILED', durationMs: Date.now() - startedAt, error: (err && err.message ? err.message : String(err)) }) + '\\n');`,
     '  } finally {',

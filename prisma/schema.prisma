@@ -67,6 +67,16 @@ enum SessionStrategy {
   NEW_SESSION
 }
 
+/// When the automation engine captures screenshots relative to the flow.
+enum ScreenshotTiming {
+  /// Capture before each action runs.
+  BEFORE_ACTION
+  /// Capture right after each action completes.
+  AFTER_ACTION
+  /// Capture only when the app reaches its final state (default).
+  FINAL_STATE
+}
+
 /// Project represents an automation testing project.
 /// It is the single source of truth for every setting consumed by the
 /// automation engine (browser, environment, authentication, ...).
@@ -86,8 +96,9 @@ model Project {
   headless       Boolean  @default(true)
   timeout        Int      @default(30000)
   slowMo         Int      @default(0) @map("slow_mo")
-  viewportWidth  Int      @default(1280) @map("viewport_width")
-  viewportHeight Int      @default(720) @map("viewport_height")
+  viewportWidth  Int      @default(1600) @map("viewport_width")
+  viewportHeight Int      @default(900) @map("viewport_height")
+  screenshotTiming ScreenshotTiming @default(FINAL_STATE) @map("screenshot_timing")
   debugMode      Boolean  @default(false) @map("debug_mode")
 
   // ===== Authentication =====
@@ -212,13 +223,19 @@ enum ExecutionStatus {
 }
 
 /// Execution represents the result of running one test case with Playwright.
+/// A test case has exactly one active execution row: re-running the same test
+/// case UPDATES this row (increments run_count) instead of creating a new one.
 model Execution {
   id              String          @id @default(uuid()) @db.Char(36)
   number          String          @unique @db.VarChar(50)
   projectId       String          @map("project_id") @db.Char(36)
   testCaseId      String          @map("test_case_id") @db.Char(36)
   status          ExecutionStatus @default(RUNNING)
+  runCount        Int             @default(1) @map("run_count")
   durationMs      Int?            @map("duration_ms")
+  lastDurationMs  Int?            @map("last_duration_ms")
+  lastRunAt       DateTime?       @map("last_run_at")
+  lastResult      ExecutionStatus? @map("last_result")
   startedAt       DateTime?       @map("started_at")
   finishedAt      DateTime?       @map("finished_at")
   browser         String?         @db.VarChar(50)

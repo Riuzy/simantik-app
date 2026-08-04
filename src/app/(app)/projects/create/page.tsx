@@ -16,6 +16,12 @@ const BROWSER_OPTIONS = [
   { value: 'WEBKIT', label: 'WebKit' },
 ];
 
+const SCREENSHOT_TIMING_OPTIONS = [
+  { value: 'FINAL_STATE', label: 'Final State (default)' },
+  { value: 'AFTER_ACTION', label: 'After Each Action' },
+  { value: 'BEFORE_ACTION', label: 'Before Each Action' },
+];
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -40,8 +46,10 @@ export default function CreateProjectPage() {
       headless: true,
       timeout: 30000,
       slowMo: 0,
-      viewportWidth: 1280,
-      viewportHeight: 720,
+      viewportWidth: 1600,
+      viewportHeight: 900,
+      screenshotTiming: 'FINAL_STATE',
+      debugMode: false,
       // Authentication
       authenticationEnabled: false,
       loginUrl: '/login',
@@ -70,6 +78,8 @@ export default function CreateProjectPage() {
       slowMo: values.slowMo,
       viewportWidth: values.viewportWidth,
       viewportHeight: values.viewportHeight,
+      screenshotTiming: values.screenshotTiming,
+      debugMode: values.debugMode,
       authenticationEnabled: values.authenticationEnabled,
       loginUrl: values.authenticationEnabled ? values.loginUrl || undefined : undefined,
       loginEmail: values.authenticationEnabled ? values.loginEmail || undefined : undefined,
@@ -134,7 +144,10 @@ export default function CreateProjectPage() {
                 <TextInput label="Viewport Height" type="number" {...form.getInputProps('viewportHeight')} />
               </Group>
               <Group grow mb="sm">
+                <Select label="Screenshot Timing" data={SCREENSHOT_TIMING_OPTIONS} {...form.getInputProps('screenshotTiming')} />
                 <TextInput label="Timeout (ms)" type="number" {...form.getInputProps('timeout')} />
+              </Group>
+              <Group grow mb="sm">
                 <TextInput label="Slow Motion (ms)" type="number" {...form.getInputProps('slowMo')} />
               </Group>
             </div>
