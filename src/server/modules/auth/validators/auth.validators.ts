@@ -17,6 +17,12 @@ export const changePasswordBodySchema = z.object({
     .regex(/[0-9]/, 'Must contain at least one number'),
 });
 
+export const updateProfileBodySchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  email: z.string().email('Invalid email format').optional(),
+  avatar: z.string().url('Invalid avatar URL').optional().nullable(),
+});
+
 export const idParamSchema = z.object({
   id: z.string().uuid('Invalid ID format'),
 });

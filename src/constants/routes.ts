@@ -11,8 +11,5 @@ export const ROUTES = {
   PROJECT_EXECUTIONS: (slug: string) => `/projects/${slug}/executions`,
   PROJECT_REPORTS: (slug: string) => `/projects/${slug}/reports`,
   EXECUTION_DETAIL: (id: string) => `/executions/${id}`,
-  PROFILE: '/profile',
   SETTINGS: '/settings',
-  SETTINGS_AI_INTEGRATION: '/settings/ai-integration',
-  SETTINGS_AI_PROMPT_TEMPLATES: '/settings/ai-prompt-templates',
 };

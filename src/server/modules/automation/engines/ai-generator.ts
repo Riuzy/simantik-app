@@ -93,6 +93,8 @@ export class AIGenerator implements AutomationGenerator {
       baseUrl: null,
       model: null,
       host: null,
+      temperature: null,
+      maxTokens: null,
     };
 
     const content = await this.callModel(config, system, prompt);
@@ -158,6 +160,12 @@ export class AIGenerator implements AutomationGenerator {
 
   private buildGenerateCall(config: AIConnectionConfig, system: string, prompt: string): ProviderCall {
     const messages = [{ role: 'system', content: system }, { role: 'user', content: prompt }];
+    const completionBody = {
+      model: config.model,
+      messages,
+      ...(config.temperature != null ? { temperature: config.temperature } : {}),
+      ...(config.maxTokens != null ? { max_tokens: config.maxTokens } : {}),
+    };
 
     switch (config.provider) {
       case AI_PROVIDER_GEMINI:
@@ -168,7 +176,7 @@ export class AIGenerator implements AutomationGenerator {
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-            body: JSON.stringify({ model: config.model, messages }),
+            body: JSON.stringify(completionBody),
           },
           parseText: (data) => this.pick(data, ['choices', 0, 'message', 'content']) ?? '',
         };
@@ -178,7 +186,7 @@ export class AIGenerator implements AutomationGenerator {
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-            body: JSON.stringify({ model: config.model, messages }),
+            body: JSON.stringify(completionBody),
           },
           parseText: (data) => this.pick(data, ['choices', 0, 'message', 'content']) ?? '',
         };
@@ -188,7 +196,15 @@ export class AIGenerator implements AutomationGenerator {
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: config.model, messages, stream: false }),
+            body: JSON.stringify({
+              model: config.model,
+              messages,
+              stream: false,
+              options: {
+                ...(config.temperature != null ? { temperature: config.temperature } : {}),
+                ...(config.maxTokens != null ? { num_predict: config.maxTokens } : {}),
+              },
+            }),
           },
           parseText: (data) => this.pick(data, ['message', 'content']) ?? '',
         };
@@ -201,7 +217,7 @@ export class AIGenerator implements AutomationGenerator {
               'Content-Type': 'application/json',
               ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
             },
-            body: JSON.stringify({ model: config.model, messages }),
+            body: JSON.stringify(completionBody),
           },
           parseText: (data) => this.pick(data, ['choices', 0, 'message', 'content']) ?? '',
         };
@@ -218,7 +234,13 @@ export class AIGenerator implements AutomationGenerator {
       options: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            ...(config.temperature != null ? { temperature: config.temperature } : {}),
+            ...(config.maxTokens != null ? { maxOutputTokens: config.maxTokens } : {}),
+          },
+        }),
       },
       parseText: (data) => this.pick(data, ['candidates', 0, 'content', 'parts', 0, 'text']) ?? '',
     };

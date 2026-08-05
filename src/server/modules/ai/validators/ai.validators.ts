@@ -9,6 +9,8 @@ export const saveAISettingSchema = z.object({
   baseUrl: z.string().optional().nullable(),
   model: z.string().optional().nullable(),
   host: z.string().optional().nullable(),
+  temperature: z.number().min(0).max(2).optional().nullable(),
+  maxTokens: z.number().int().positive().optional().nullable(),
 });
 
 export const testConnectionSchema = z.object({
@@ -17,6 +19,8 @@ export const testConnectionSchema = z.object({
   baseUrl: z.string().optional().nullable(),
   model: z.string().optional().nullable(),
   host: z.string().optional().nullable(),
+  temperature: z.number().min(0).max(2).optional().nullable(),
+  maxTokens: z.number().int().positive().optional().nullable(),
 });
 
 export const PROMPT_TEMPLATE_KEYS = [

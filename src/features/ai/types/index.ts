@@ -9,6 +9,8 @@ export interface AISettings {
   baseUrl: string | null;
   model: string | null;
   host: string | null;
+  temperature: number | null;
+  maxTokens: number | null;
   updatedAt: string | null;
 }
 
@@ -19,6 +21,8 @@ export interface SaveAISettingsForm {
   baseUrl?: string | null;
   model?: string | null;
   host?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
 }
 
 export interface TestConnectionForm {
@@ -27,6 +31,8 @@ export interface TestConnectionForm {
   baseUrl?: string | null;
   model?: string | null;
   host?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
 }
 
 export interface TestConnectionResult {

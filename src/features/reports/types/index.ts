@@ -40,3 +40,21 @@ export interface ProjectReport {
   executionStatus: ExecutionStatusCount;
   recentExecutions: RecentExecution[];
 }
+
+export type ReportFormat = 'pdf' | 'xlsx';
+
+export interface ReportDownloadOptions {
+  includeSummary: boolean;
+  includeTestCase: boolean;
+  includeExpectedResult: boolean;
+  includeActualResult: boolean;
+  includeStatus: boolean;
+}
+
+export const DEFAULT_REPORT_DOWNLOAD_OPTIONS: ReportDownloadOptions = {
+  includeSummary: true,
+  includeTestCase: true,
+  includeExpectedResult: true,
+  includeActualResult: true,
+  includeStatus: true,
+};

@@ -26,6 +26,12 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+export interface UpdateProfileRequest {
+  name?: string;
+  email?: string;
+  avatar?: string | null;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;

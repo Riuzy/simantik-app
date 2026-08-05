@@ -24,6 +24,8 @@ export class AIService {
         baseUrl: null,
         model: null,
         host: null,
+        temperature: null,
+        maxTokens: null,
         updatedAt: null,
       };
     }
@@ -36,6 +38,8 @@ export class AIService {
       baseUrl: setting.baseUrl,
       model: setting.model,
       host: setting.host,
+      temperature: setting.temperature,
+      maxTokens: setting.maxTokens,
       updatedAt: setting.updatedAt,
     };
   }
@@ -47,6 +51,8 @@ export class AIService {
     baseUrl?: string | null;
     model?: string | null;
     host?: string | null;
+    temperature?: number | null;
+    maxTokens?: number | null;
   }) {
     const existing = await this.repository.getSetting();
 
@@ -64,6 +70,8 @@ export class AIService {
       baseUrl: dto.baseUrl ?? existing?.baseUrl ?? null,
       model: dto.model ?? existing?.model ?? null,
       host: dto.host ?? existing?.host ?? null,
+      temperature: dto.temperature ?? existing?.temperature ?? null,
+      maxTokens: dto.maxTokens ?? existing?.maxTokens ?? null,
     });
 
     return {
@@ -75,6 +83,8 @@ export class AIService {
       baseUrl: saved.baseUrl,
       model: saved.model,
       host: saved.host,
+      temperature: saved.temperature,
+      maxTokens: saved.maxTokens,
       updatedAt: saved.updatedAt,
     };
   }
@@ -85,6 +95,8 @@ export class AIService {
     baseUrl?: string | null;
     model?: string | null;
     host?: string | null;
+    temperature?: number | null;
+    maxTokens?: number | null;
   }) {
     const existing = await this.repository.getSetting();
     const config: AIConnectionConfig = {
@@ -93,6 +105,8 @@ export class AIService {
       baseUrl: dto.baseUrl ?? existing?.baseUrl ?? null,
       model: dto.model ?? existing?.model ?? null,
       host: dto.host ?? existing?.host ?? null,
+      temperature: dto.temperature ?? existing?.temperature ?? null,
+      maxTokens: dto.maxTokens ?? existing?.maxTokens ?? null,
     };
 
     const generator = getGenerator(config.provider);

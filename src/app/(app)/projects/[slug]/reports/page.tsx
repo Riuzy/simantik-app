@@ -1,11 +1,13 @@
 'use client';
 
 import { useMemo } from 'react';
-import { SimpleGrid, Group, Text, Stack, Loader, Center, Paper, Badge, Table } from '@mantine/core';
-import { IconTestPipe, IconPlayerPlay, IconCircleCheck, IconAlertTriangle, IconChartBar, IconRobot } from '@tabler/icons-react';
+import { SimpleGrid, Group, Text, Stack, Loader, Center, Paper, Badge, Table, Button } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconTestPipe, IconPlayerPlay, IconCircleCheck, IconAlertTriangle, IconChartBar, IconRobot, IconDownload } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useProjectStore } from '../../../../../stores/project-store';
-import { useProjectReport } from '../../../../../features/reports/hooks';
+import { useProjectReport, useTestCaseReportDownload } from '../../../../../features/reports/hooks';
+import { DownloadReportModal } from '../../../../../features/reports/components/download-report-modal';
 import { useExecutions } from '../../../../../features/executions/hooks';
 import { useTestCases } from '../../../../../features/test-cases/hooks';
 import { PageHeader } from '../../../../../components/ui/page-header';
@@ -28,6 +30,8 @@ export default function ProjectReportsPage() {
   const projectId = selectedProject?.id ?? '';
 
   const { data: report, isLoading } = useProjectReport(projectId);
+  const { download, isPending } = useTestCaseReportDownload();
+  const [downloadOpen, { open: openDownload, close: closeDownload }] = useDisclosure(false);
   const { data: executionsData } = useExecutions({ projectId, page: 1, limit: 100 });
   const { data: totalData } = useTestCases(projectId, { page: 1, limit: 1 });
   const { data: automationData } = useTestCases(projectId, { type: 'AUTOMATION', page: 1, limit: 1 });
@@ -90,6 +94,22 @@ export default function ProjectReportsPage() {
       <PageHeader
         title="Reports"
         description={`${selectedProject?.name ?? ''} · quality analytics and trends`}
+        actions={
+          <Button
+            leftSection={<IconDownload size={16} />}
+            onClick={openDownload}
+            disabled={!projectId}
+          >
+            Download Test Case Report
+          </Button>
+        }
+      />
+
+      <DownloadReportModal
+        opened={downloadOpen}
+        onClose={closeDownload}
+        isPending={isPending}
+        onDownload={(format, options, filename) => void download(projectId, format, options, filename)}
       />
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mb="md">

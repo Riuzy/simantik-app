@@ -22,4 +22,6 @@ export const generateScriptBodySchema = z.object({
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
   host: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().positive().optional(),
 });

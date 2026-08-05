@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Stack, Paper, Group, Text, Select, TextInput, PasswordInput, Switch, Button, Badge, Box, Loader, Center, Anchor,
+  Stack, Paper, Group, Text, Select, TextInput, PasswordInput, Switch, Button, Badge, Box, Loader, Center, Anchor, NumberInput,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconPlugConnected, IconDeviceFloppy, IconRobot } from '@tabler/icons-react';
@@ -28,7 +28,6 @@ const MODEL_LABELS: Record<string, Record<string, string>> = {
     'gpt-5': 'GPT-5',
     'gpt-4.1': 'GPT-4.1',
   },
-  CUSTOM: {},
 };
 
 export function AIIntegrationForm() {
@@ -42,7 +41,10 @@ export function AIIntegrationForm() {
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
   const [host, setHost] = useState(OLLAMA_DEFAULT_HOST);
+  const [temperature, setTemperature] = useState<number | null>(null);
+  const [maxTokens, setMaxTokens] = useState<number | null>(null);
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'failed'>('idle');
 
   useEffect(() => {
     if (!settings) return;
@@ -53,6 +55,9 @@ export function AIIntegrationForm() {
     setBaseUrl(settings.baseUrl ?? '');
     setModel(settings.model ?? '');
     setHost(settings.host ?? OLLAMA_DEFAULT_HOST);
+    setTemperature(settings.temperature);
+    setMaxTokens(settings.maxTokens);
+    setConnectionStatus('idle');
   }, [settings]);
 
   if (isLoading) {
@@ -69,9 +74,12 @@ export function AIIntegrationForm() {
         baseUrl: baseUrl || undefined,
         model: model || undefined,
         host: host || undefined,
+        temperature: temperature ?? undefined,
+        maxTokens: maxTokens ?? undefined,
       },
       {
         onSuccess: (result) => {
+          setConnectionStatus(result.success ? 'success' : 'failed');
           notifications.show({
             title: result.success ? 'Connection Success' : 'Connection Failed',
             message: result.message,
@@ -79,6 +87,7 @@ export function AIIntegrationForm() {
           });
         },
         onError: () => {
+          setConnectionStatus('failed');
           notifications.show({ title: 'Connection Failed', message: 'Tidak dapat menghubungi provider.', color: 'red' });
         },
       },
@@ -93,6 +102,8 @@ export function AIIntegrationForm() {
       baseUrl: baseUrl || null,
       model: model || null,
       host: host || null,
+      temperature,
+      maxTokens,
     });
   };
 
@@ -112,7 +123,15 @@ export function AIIntegrationForm() {
               <Text size="sm" c="dimmed">AI bersifat opsional. SIMANTIK tetap berjalan tanpa AI.</Text>
             </Box>
           </Group>
-          <Switch label="Enabled" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} />
+          <Group gap="sm" wrap="nowrap">
+            <Badge
+              color={connectionStatus === 'success' ? 'green' : connectionStatus === 'failed' ? 'red' : 'gray'}
+              variant="light"
+            >
+              {connectionStatus === 'success' ? 'Connected' : connectionStatus === 'failed' ? 'Disconnected' : 'Not Tested'}
+            </Badge>
+            <Switch label="Enabled" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} />
+          </Group>
         </Group>
       </Paper>
 
@@ -126,6 +145,7 @@ export function AIIntegrationForm() {
             const next = (v as AIProvider) || 'RULE_ENGINE';
             setProvider(next);
             setModel((PROVIDER_MODEL_OPTIONS[next as Exclude<AIProvider, 'RULE_ENGINE'>] ?? [])[0] ?? '');
+            setConnectionStatus('idle');
           }}
           mb="md"
         />
@@ -156,15 +176,32 @@ export function AIIntegrationForm() {
               />
             )}
 
-            {provider === 'CUSTOM' && (
-              <TextInput label="Base URL" value={baseUrl} onChange={(e) => setBaseUrl(e.currentTarget.value)} placeholder="https://api.example.com/v1/chat/completions" />
-            )}
-
             {modelOptions.length > 0 ? (
               <Select label="Model" data={modelOptions} value={model} onChange={(v) => setModel(v ?? '')} searchable />
             ) : (
               <TextInput label="Model" value={model} onChange={(e) => setModel(e.currentTarget.value)} placeholder="Nama model" />
             )}
+
+            <Group gap="md" align="flex-start">
+              <NumberInput
+                label="Temperature"
+                value={temperature ?? 0}
+                onChange={(v) => setTemperature(typeof v === 'number' ? v : null)}
+                min={0}
+                max={2}
+                step={0.1}
+                decimalScale={1}
+                style={{ flex: 1 }}
+              />
+              <NumberInput
+                label="Max Tokens"
+                value={maxTokens ?? 0}
+                onChange={(v) => setMaxTokens(typeof v === 'number' && v > 0 ? v : null)}
+                min={1}
+                step={64}
+                style={{ flex: 1 }}
+              />
+            </Group>
 
             {apiKeyConfigured && !apiKey && (
               <Badge variant="light" color="blue" size="sm">API Key tersimpan &amp; terenkripsi</Badge>

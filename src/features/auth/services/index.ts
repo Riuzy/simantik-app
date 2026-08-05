@@ -1,6 +1,6 @@
 import { apiClient } from '../../../services/api-client';
 import { API } from '../../../constants/api';
-import type { LoginRequest, LoginResponse, ChangePasswordRequest, User } from '../types';
+import type { LoginRequest, LoginResponse, ChangePasswordRequest, UpdateProfileRequest, User } from '../types';
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
   const res = await apiClient.post(API.AUTH.LOGIN, data);
@@ -23,4 +23,9 @@ export async function getCurrentUser(): Promise<User> {
 
 export async function changePassword(data: ChangePasswordRequest): Promise<void> {
   await apiClient.patch(API.AUTH.CHANGE_PASSWORD, data);
+}
+
+export async function updateProfile(data: UpdateProfileRequest): Promise<User> {
+  const res = await apiClient.patch(API.AUTH.UPDATE_PROFILE, data);
+  return res.data.data as User;
 }

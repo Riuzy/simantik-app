@@ -1,12 +1,11 @@
 import { AIProvider } from '../types';
 
 export const AI_PROVIDER_OPTIONS: { value: AIProvider; label: string; description: string }[] = [
-  { value: 'RULE_ENGINE', label: 'Rule Engine', description: 'Default. Generator internal tanpa API Key.' },
+  { value: 'RULE_ENGINE', label: 'Built-in Template', description: 'Default. Generator internal tanpa API Key.' },
   { value: 'GEMINI', label: 'Google Gemini', description: 'https://aistudio.google.com/apikey' },
   { value: 'OPENROUTER', label: 'OpenRouter', description: 'https://openrouter.ai/' },
-  { value: 'OLLAMA', label: 'Ollama', description: 'Lokal, tanpa API Key.' },
   { value: 'OPENAI', label: 'OpenAI', description: 'https://platform.openai.com/api-keys' },
-  { value: 'CUSTOM', label: 'Custom API', description: 'Endpoint OpenAI-compatible.' },
+  { value: 'OLLAMA', label: 'Ollama', description: 'Lokal, tanpa API Key.' },
 ];
 
 export const PROVIDER_MODEL_OPTIONS: Record<Exclude<AIProvider, 'RULE_ENGINE'>, string[]> = {

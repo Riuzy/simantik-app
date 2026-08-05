@@ -70,6 +70,23 @@ export class AuthService {
     await this.repository.updatePassword(userId, hashed, false);
   }
 
+  async updateProfile(userId: string, dto: { name?: string; email?: string; avatar?: string | null }): Promise<UserResponseDTO> {
+    const user = await this.repository.findById(userId);
+    if (!user) throw new HttpError(404, 'User not found');
+
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.repository.findByEmail(dto.email);
+      if (existing && existing.id !== userId) throw new HttpError(409, 'Email is already in use');
+    }
+
+    const updated = await this.repository.updateProfile(userId, {
+      name: dto.name,
+      email: dto.email,
+      avatar: dto.avatar,
+    });
+    return this.mapUser(updated);
+  }
+
   private mapUser(user: {
     id: string;
     name: string;

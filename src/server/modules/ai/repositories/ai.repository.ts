@@ -23,6 +23,8 @@ export class AIRepository {
     baseUrl: string | null;
     model: string | null;
     host: string | null;
+    temperature: number | null;
+    maxTokens: number | null;
   }) {
     const existing = await this.getSetting();
     if (!existing) {
@@ -34,6 +36,8 @@ export class AIRepository {
           baseUrl: data.baseUrl,
           model: data.model,
           host: data.host,
+          temperature: data.temperature,
+          maxTokens: data.maxTokens,
           apiKeyEncrypted: true,
         },
       });
@@ -47,6 +51,8 @@ export class AIRepository {
         baseUrl: data.baseUrl,
         model: data.model,
         host: data.host,
+        temperature: data.temperature,
+        maxTokens: data.maxTokens,
         apiKeyEncrypted: true,
       },
     });

@@ -5,7 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { AuthController } from '../controllers/auth.controller';
 import { requireAuth } from '../../../middlewares/auth';
 import { validate } from '../../../middlewares/validate';
-import { loginBodySchema, refreshTokenBodySchema, changePasswordBodySchema } from '../validators/auth.validators';
+import { loginBodySchema, refreshTokenBodySchema, changePasswordBodySchema, updateProfileBodySchema } from '../validators/auth.validators';
 
 const repository = new AuthRepository(prisma);
 const service = new AuthService(repository);
@@ -18,3 +18,4 @@ authRouter.post('/logout', requireAuth, controller.logout);
 authRouter.post('/refresh', validate({ body: refreshTokenBodySchema }), controller.refreshToken);
 authRouter.get('/me', requireAuth, controller.getCurrentUser);
 authRouter.patch('/change-password', requireAuth, validate({ body: changePasswordBodySchema }), controller.changePassword);
+authRouter.patch('/me', requireAuth, validate({ body: updateProfileBodySchema }), controller.updateProfile);

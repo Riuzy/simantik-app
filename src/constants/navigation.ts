@@ -5,44 +5,55 @@ import {
   IconPlayerPlay,
   IconCheckbox,
   IconChartBar,
-  IconUserCircle,
   IconSettings,
-  IconRadar,
-  IconRobot,
-  IconPrompt,
 } from '@tabler/icons-react';
 import { ROUTES } from './routes';
 
+export type NavKey = 'dashboard' | 'projects' | 'test-cases' | 'automation' | 'executions' | 'reports' | 'settings';
+
 export interface NavItem {
+  key: NavKey;
   label: string;
   icon: React.ComponentType<{ size?: number; stroke?: number }>;
   route: string;
 }
 
 export const MAIN_NAVIGATION: NavItem[] = [
-  { label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD },
-  { label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS },
+  { key: 'dashboard', label: 'Dashboard', icon: IconLayoutDashboard, route: ROUTES.DASHBOARD },
+  { key: 'projects', label: 'Projects', icon: IconFolder, route: ROUTES.PROJECTS },
 ];
 
 export const ACCOUNT_NAVIGATION: NavItem[] = [
-  { label: 'Profile', icon: IconUserCircle, route: ROUTES.PROFILE },
-  { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
-  { label: 'AI Integration', icon: IconRobot, route: ROUTES.SETTINGS_AI_INTEGRATION },
-  { label: 'AI Prompt Templates', icon: IconPrompt, route: ROUTES.SETTINGS_AI_PROMPT_TEMPLATES },
+  { key: 'settings', label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
 ];
 
 export function getProjectNavigation(slug: string): NavItem[] {
   return [
-    { label: 'Overview', icon: IconRadar, route: ROUTES.PROJECT_OVERVIEW(slug) },
-    { label: 'Test Cases', icon: IconClipboardList, route: ROUTES.PROJECT_TEST_CASES(slug) },
-    { label: 'Automation', icon: IconPlayerPlay, route: ROUTES.PROJECT_AUTOMATION(slug) },
-    { label: 'Executions', icon: IconCheckbox, route: ROUTES.PROJECT_EXECUTIONS(slug) },
-    { label: 'Reports', icon: IconChartBar, route: ROUTES.PROJECT_REPORTS(slug) },
+    { key: 'test-cases', label: 'Test Cases', icon: IconClipboardList, route: ROUTES.PROJECT_TEST_CASES(slug) },
+    { key: 'automation', label: 'Automation', icon: IconPlayerPlay, route: ROUTES.PROJECT_AUTOMATION(slug) },
+    { key: 'executions', label: 'Executions', icon: IconCheckbox, route: ROUTES.PROJECT_EXECUTIONS(slug) },
+    { key: 'reports', label: 'Reports', icon: IconChartBar, route: ROUTES.PROJECT_REPORTS(slug) },
   ];
 }
 
-export function isProjectRoute(pathname: string): boolean {
-  return /^\/projects\/[^/]+(\/(overview|test-cases|automation|executions|reports))?$/.test(pathname);
+export function getActiveNavKey(pathname: string): NavKey | null {
+  const path = pathname.split('?')[0].replace(/\/$/, '');
+
+  if (path === ROUTES.DASHBOARD || path.startsWith(ROUTES.DASHBOARD + '/')) return 'dashboard';
+  if (path === ROUTES.SETTINGS || path.startsWith(ROUTES.SETTINGS + '/')) return 'settings';
+  if (path === ROUTES.PROJECTS || path === ROUTES.PROJECT_CREATE) return 'projects';
+
+  const projectMatch = path.match(/^\/projects\/[^/]+/);
+  if (projectMatch) {
+    const rest = path.slice(projectMatch[0].length);
+    if (rest.startsWith('/test-cases')) return 'test-cases';
+    if (rest.startsWith('/automation')) return 'automation';
+    if (rest.startsWith('/executions')) return 'executions';
+    if (rest.startsWith('/reports')) return 'reports';
+    return 'projects';
+  }
+
+  return null;
 }
 
 export function getRouteLabel(path: string): string {
@@ -65,10 +76,7 @@ export function getRouteLabel(path: string): string {
   const map: Record<string, string> = {
     [ROUTES.DASHBOARD]: 'Dashboard',
     [ROUTES.PROJECTS]: 'Projects',
-    [ROUTES.PROFILE]: 'Profile',
     [ROUTES.SETTINGS]: 'Settings',
-    [ROUTES.SETTINGS_AI_INTEGRATION]: 'AI Integration',
-    [ROUTES.SETTINGS_AI_PROMPT_TEMPLATES]: 'AI Prompt Templates',
   };
   if (map[cleanPath]) return map[cleanPath];
 

@@ -4,7 +4,7 @@ import {
   Group, Avatar, Text, Menu, UnstyledButton,
 } from '@mantine/core';
 import {
-  IconUserCircle, IconSettings, IconLogout, IconChevronDown,
+  IconSettings, IconLogout, IconChevronDown,
 } from '@tabler/icons-react';
 import { useAuthStore } from '../../stores/auth-store';
 import { useLogout } from '../../features/auth/hooks/use-auth';
@@ -39,9 +39,6 @@ export function UserMenu() {
           <Text size="xs" c="dimmed">{user.email}</Text>
         </Menu.Label>
         <Menu.Divider />
-        <Menu.Item leftSection={<IconUserCircle size={16} />} onClick={() => router.push(ROUTES.PROFILE)}>
-          Profile
-        </Menu.Item>
         <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => router.push(ROUTES.SETTINGS)}>
           Settings
         </Menu.Item>

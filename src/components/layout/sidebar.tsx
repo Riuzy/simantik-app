@@ -3,7 +3,7 @@
 import { ScrollArea, NavLink, Box, Text, Select, Divider, Group, ThemeIcon } from '@mantine/core';
 import { useRouter, usePathname } from 'next/navigation';
 import { IconFlame } from '@tabler/icons-react';
-import { MAIN_NAVIGATION, ACCOUNT_NAVIGATION, getProjectNavigation } from '../../constants/navigation';
+import { MAIN_NAVIGATION, ACCOUNT_NAVIGATION, getProjectNavigation, getActiveNavKey } from '../../constants/navigation';
 import { useProjects } from '../../features/projects/hooks';
 import { useProjectStore } from '../../stores/project-store';
 
@@ -34,6 +34,8 @@ export function Sidebar() {
   const { data: projectsData } = useProjects({ page: 1, limit: 100 });
   const { selectedProject, setSelectedProject } = useProjectStore();
 
+  const activeKey = getActiveNavKey(pathname);
+
   const projectList = projectsData?.data ?? [];
   const projectOptions = projectList.map((p) => ({ value: p.slug, label: p.name }));
 
@@ -62,9 +64,11 @@ export function Sidebar() {
         <SectionLabel>Main</SectionLabel>
         {MAIN_NAVIGATION.map((item) => (
           <NavItemEl
-            key={item.route}
-            {...item}
-            active={pathname === item.route || pathname.startsWith(item.route + '/')}
+            key={item.key}
+            label={item.label}
+            icon={item.icon}
+            route={item.route}
+            active={activeKey === item.key}
           />
         ))}
 
@@ -85,9 +89,11 @@ export function Sidebar() {
           <>
             {projectNav.map((item) => (
               <NavItemEl
-                key={item.route}
-                {...item}
-                active={pathname === item.route || pathname.startsWith(item.route + '/')}
+                key={item.key}
+                label={item.label}
+                icon={item.icon}
+                route={item.route}
+                active={activeKey === item.key}
               />
             ))}
           </>
@@ -98,9 +104,11 @@ export function Sidebar() {
         <SectionLabel>Account</SectionLabel>
         {ACCOUNT_NAVIGATION.map((item) => (
           <NavItemEl
-            key={item.route}
-            {...item}
-            active={pathname === item.route || pathname.startsWith(item.route + '/')}
+            key={item.key}
+            label={item.label}
+            icon={item.icon}
+            route={item.route}
+            active={activeKey === item.key}
           />
         ))}
       </Box>

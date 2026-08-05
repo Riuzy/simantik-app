@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { notifications } from '@mantine/notifications';
 import { useAuthStore } from '../../../stores/auth-store';
 import * as authService from '../services';
-import type { LoginRequest, ChangePasswordRequest } from '../types';
+import type { LoginRequest, ChangePasswordRequest, UpdateProfileRequest } from '../types';
 import { ROUTES } from '../../../constants/routes';
 
 export function useLogin() {
@@ -95,6 +95,31 @@ export function useChangePassword() {
       notifications.show({
         title: 'Error',
         message: 'Failed to change password. Check your current password.',
+        color: 'red',
+      });
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateProfileRequest) => authService.updateProfile(data),
+    onSuccess: (user) => {
+      setUser(user);
+      queryClient.setQueryData(['current-user'], user);
+      notifications.show({
+        title: 'Success',
+        message: 'Profile updated successfully',
+        color: 'green',
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to update profile',
         color: 'red',
       });
     },

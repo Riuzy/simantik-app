@@ -5,6 +5,7 @@ export const API = {
     REFRESH: '/auth/refresh',
     ME: '/auth/me',
     CHANGE_PASSWORD: '/auth/change-password',
+    UPDATE_PROFILE: '/auth/me',
   },
   PROJECTS: {
     BASE: '/projects',
@@ -42,6 +43,8 @@ export const API = {
   REPORTS: {
     OVERVIEW: '/reports/overview',
     PROJECT: (projectId: string) => `/reports/projects/${projectId}`,
+    TEST_CASE_REPORT_PDF: (projectId: string) => `/reports/projects/${projectId}/test-cases/pdf`,
+    TEST_CASE_REPORT_XLSX: (projectId: string) => `/reports/projects/${projectId}/test-cases/excel`,
   },
   SETTINGS: {
     BASE: '/settings',

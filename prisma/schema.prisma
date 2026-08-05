@@ -299,6 +299,8 @@ model AISetting {
   baseUrl     String?  @map("base_url") @db.Text
   model       String?  @db.VarChar(100)
   host        String?  @db.VarChar(100)
+  temperature Float?   @db.Double
+  maxTokens   Int?     @map("max_tokens")
   apiKeyEncrypted Boolean @default(true) @map("api_key_encrypted")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

@@ -29,6 +29,8 @@ export interface AIConnectionConfig {
   baseUrl: string | null;
   model: string | null;
   host: string | null;
+  temperature: number | null;
+  maxTokens: number | null;
 }
 
 export interface TestConnectionResult {

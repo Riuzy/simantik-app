@@ -39,4 +39,12 @@ export class AuthController {
       ApiResponse.success(res, { message: 'Password changed successfully' });
     } catch (error) { next(error); }
   };
+
+  updateProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) { res.status(401).json({ success: false, message: 'Authentication required', errors: [] }); return; }
+      const user = await this.authService.updateProfile(req.user.id, req.body);
+      ApiResponse.success(res, user);
+    } catch (error) { next(error); }
+  };
 }

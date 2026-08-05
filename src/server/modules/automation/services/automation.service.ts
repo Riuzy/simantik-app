@@ -152,6 +152,8 @@ export class AutomationService {
           baseUrl: dto.baseUrl ?? aiSetting?.baseUrl ?? null,
           model: dto.model ?? aiSetting?.model ?? null,
           host: dto.host ?? aiSetting?.host ?? null,
+          temperature: dto.temperature ?? aiSetting?.temperature ?? null,
+          maxTokens: dto.maxTokens ?? aiSetting?.maxTokens ?? null,
         }
       : null;
 
