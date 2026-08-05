@@ -4,11 +4,13 @@ import path from 'path';
 import { ExecutionStatus, Framework } from '@prisma/client';
 import { AutomationRepository } from '../repositories/automation.repository';
 import { AppError } from '../../../middlewares/error-handler';
-import { generatePlaywrightScript, ScriptLocator } from './playwright-script.service';
+import { ScriptLocator, ScriptOptions } from './playwright-script.service';
 import { AuthEngine, AuthConfig } from './auth-engine.service';
 import { CleanupEngine } from './cleanup-engine.service';
-import { RunTestDTO } from '../types/automation.dto';
+import { RunTestDTO, GenerateScriptDTO } from '../types/automation.dto';
 import { decryptSecret } from '../../../utils/encryption';
+import { getGenerator, isAIProvider, AIConnectionConfig } from '../engines';
+import { GeneratorContext } from '../engines/automation-generator';
 
 interface ExecutionResult {
   status: 'PASSED' | 'FAILED' | 'ERROR';
@@ -89,35 +91,125 @@ export class AutomationService {
     return { testCase, config };
   }
 
-  async generateScript(testCaseId: string) {
-    const { testCase, config } = await this.loadRunConfig(testCaseId);
-    const authEngine = new AuthEngine(config.auth);
+  /**
+   * Builds an AuthEngine, disabling project auto-login for test cases that
+   * themselves exercise the login flow (navigate to /login or fill the email
+   * field). Otherwise the engine's auto-login would log the session in first
+   * and the login form would never appear.
+   */
+  private buildAuthEngine(testCase: Awaited<ReturnType<AutomationRepository['getTestCaseForRun']>>, config: ProjectRunConfig): AuthEngine {
+    const isLoginFlow = testCase.steps.some((step) => {
+      const target = `${step.target ?? ''} ${step.locatorValue ?? ''}`.toLowerCase();
+      const action = step.action.toLowerCase();
+      const navigatesToLogin = target.includes('login') || target.includes('signin');
+      const fillsCredentials = action.includes('fill') && (target.includes('email') || target.includes('password'));
+      return navigatesToLogin || fillsCredentials;
+    });
 
-    const script = generatePlaywrightScript(
-      testCase.title,
-      this.mapSteps(testCase.steps),
-      {
-        browser: config.browser,
-        headless: config.headless,
-        viewportWidth: config.viewportWidth,
-        viewportHeight: config.viewportHeight,
-        deviceScaleFactor: config.deviceScaleFactor,
-        timeout: config.timeout,
-        slowMotion: config.slowMo,
-        baseUrl: config.baseUrl,
-        screenshotPath: '',
-        screenshotTiming: config.screenshotTiming,
-      },
-      config.framework,
+    return new AuthEngine({ ...config.auth, enabled: config.auth.enabled && !isLoginFlow });
+  }
+
+  async generateScript(testCaseId: string, dto: GenerateScriptDTO = {}) {
+    const { testCase, config } = await this.loadRunConfig(testCaseId);
+    const authEngine = this.buildAuthEngine(testCase, config);
+
+    const scriptOptions: ScriptOptions = {
+      browser: config.browser,
+      headless: config.headless,
+      viewportWidth: config.viewportWidth,
+      viewportHeight: config.viewportHeight,
+      deviceScaleFactor: config.deviceScaleFactor,
+      timeout: config.timeout,
+      slowMotion: config.slowMo,
+      baseUrl: config.baseUrl,
+      screenshotPath: '',
+      screenshotTiming: config.screenshotTiming,
+    };
+
+    const aiSetting = await this.repository.getAISetting();
+    const promptTemplates = await this.repository.getPromptTemplates();
+
+    // Resolve which generator to use:
+    // 1. Explicit override from the request (method + provider).
+    // 2. Fall back to the configured AI provider when AI is enabled.
+    // 3. Otherwise use the Rule Engine (default).
+    const requestProvider = (dto.provider || '').toUpperCase();
+    const configuredProvider = (aiSetting?.provider || 'RULE_ENGINE').toUpperCase();
+    const useAi = dto.method === 'AI' || (!dto.method && aiSetting?.enabled && configuredProvider !== 'RULE_ENGINE');
+
+    const provider = dto.method === 'AI'
+      ? requestProvider || configuredProvider
+      : useAi
+        ? configuredProvider
+        : 'RULE_ENGINE';
+
+    const generator = getGenerator(provider);
+
+    const aiConfig: AIConnectionConfig | null = isAIProvider(provider)
+      ? {
+          provider,
+          apiKey: dto.apiKey ?? decryptSecret(aiSetting?.apiKey),
+          baseUrl: dto.baseUrl ?? aiSetting?.baseUrl ?? null,
+          model: dto.model ?? aiSetting?.model ?? null,
+          host: dto.host ?? aiSetting?.host ?? null,
+        }
+      : null;
+
+    const context: GeneratorContext = {
+      title: testCase.title,
+      code: testCase.code,
+      steps: this.mapSteps(testCase.steps),
+      options: scriptOptions,
+      framework: config.framework,
       authEngine,
-    );
+      systemPrompt: promptTemplates.system,
+      scriptPromptTemplate: promptTemplates.scriptGenerator,
+      aiConfig,
+    };
+
+    const generated = await generator.generate(context);
+
+    // Persist a redacted copy so the plain-text login password never appears
+    // in the database. The executed script is regenerated at run time.
+    await this.repository.upsertStoredScript({
+      testCaseId,
+      generatorType: generated.generatorType,
+      provider: generated.provider,
+      model: generated.model,
+      script: this.redactSecrets(generated.script, config.auth.password),
+      framework: config.framework,
+    });
 
     return {
       testCaseId,
       code: testCase.code,
       title: testCase.title,
       framework: config.framework,
-      script,
+      generatorType: generated.generatorType,
+      provider: generated.provider,
+      model: generated.model,
+      script: generated.script,
+    };
+  }
+
+  async getScript(testCaseId: string) {
+    const script = await this.repository.getStoredScript(testCaseId);
+    if (!script) throw new AppError(404, 'Automation script belum dibuat.');
+    const testCase = await this.repository.getTestCaseForRun(testCaseId);
+    return {
+      testCaseId,
+      code: testCase.code,
+      title: testCase.title,
+      framework: script.framework,
+      generatorType: script.generatorType,
+      provider: script.provider,
+      model: script.model,
+      language: script.language,
+      version: script.version,
+      lastRunAt: script.lastRunAt,
+      createdAt: script.createdAt,
+      updatedAt: script.updatedAt,
+      script: script.script,
     };
   }
 
@@ -164,7 +256,6 @@ export class AutomationService {
     config: ProjectRunConfig,
   ) {
     const cleanupEngine = new CleanupEngine(process.cwd(), config.debugMode);
-    const authEngine = new AuthEngine(config.auth);
     let executionNumber: string | null = null;
 
     try {
@@ -175,7 +266,7 @@ export class AutomationService {
       const tempDir = cleanupEngine.createExecutionTempDir(execution.number);
       cleanupEngine.ensureStorageDir();
 
-      const scriptOptions = {
+      const scriptOptions: ScriptOptions = {
         browser: config.browser,
         headless: config.headless,
         viewportWidth: config.viewportWidth,
@@ -188,13 +279,7 @@ export class AutomationService {
         screenshotTiming: config.screenshotTiming,
       };
 
-      const script = generatePlaywrightScript(
-        testCase.title,
-        this.mapSteps(testCase.steps),
-        scriptOptions,
-        config.framework,
-        authEngine,
-      );
+      const script = await this.resolveScript(testCaseId, testCase, config, scriptOptions);
 
       const scriptPath = path.join(tempDir, 'script.cjs');
       writeFileSync(scriptPath, script);
@@ -224,6 +309,7 @@ export class AutomationService {
 
       await this.repository.clearExecutionLogs(executionId);
       await this.repository.createExecutionLogs(executionId, logs);
+      await this.repository.markScriptLastRun(testCaseId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Execution failed unexpectedly';
       await this.repository.finishExecution(executionId, testCaseId, 'ERROR', 0, null, message);
@@ -233,6 +319,39 @@ export class AutomationService {
         cleanupEngine.cleanupExecution(executionNumber);
       }
     }
+  }
+
+  /**
+   * Resolves the script that will be executed for a test case:
+   * - AI-generated scripts run verbatim from the stored copy (they cannot be
+   *   reproduced by the Rule Engine).
+   * - Template scripts are regenerated from the live steps with real runtime
+   *   options (screenshot path + credentials), keeping secrets out of the DB.
+   */
+  private async resolveScript(
+    testCaseId: string,
+    testCase: Awaited<ReturnType<AutomationRepository['getTestCaseForRun']>>,
+    config: ProjectRunConfig,
+    scriptOptions: ScriptOptions,
+  ): Promise<string> {
+    const stored = await this.repository.getStoredScript(testCaseId);
+    if (stored && stored.generatorType === 'AI') return stored.script;
+
+    const authEngine = this.buildAuthEngine(testCase, config);
+    const generator = getGenerator('RULE_ENGINE');
+    const generated = await generator.generate({
+      title: testCase.title,
+      code: testCase.code,
+      steps: this.mapSteps(testCase.steps),
+      options: scriptOptions,
+      framework: config.framework,
+      authEngine,
+      systemPrompt: null,
+      scriptPromptTemplate: null,
+      aiConfig: null,
+    });
+
+    return generated.script;
   }
 
   private runScript(scriptPath: string, timeoutMs: number): Promise<RunOutcome> {

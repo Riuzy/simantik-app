@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { runTestBodySchema } from '../validators/automation.validators';
+import { runTestBodySchema, generateScriptBodySchema } from '../validators/automation.validators';
 import { ExecutionStatus, Framework } from '@prisma/client';
 
 export type RunTestDTO = z.infer<typeof runTestBodySchema>;
+export type GenerateScriptDTO = z.infer<typeof generateScriptBodySchema>;
 
 export interface GeneratedScriptDTO {
   testCaseId: string;

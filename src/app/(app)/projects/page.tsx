@@ -55,7 +55,7 @@ function ProjectCard({ project }: { project: ProjectList }) {
         </Group>
         <Menu shadow="md" width={160} position="bottom-end">
           <Menu.Target>
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Project menu" onClick={(e) => e.stopPropagation()}>
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Project menu for ${project.name}`} onClick={(e) => e.stopPropagation()}>
               <IconDots size={16} />
             </ActionIcon>
           </Menu.Target>

@@ -11,6 +11,7 @@ interface Props {
   projectId: string;
   testCase: {
     id: string;
+    code: string;
     title: string;
     description: string | null;
     module: string | null;
@@ -28,6 +29,7 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
   const form = useForm<UpdateTestCaseForm>({
     validate: schemaResolver(updateTestCaseSchema),
     initialValues: {
+      code: '',
       title: '',
       description: '',
       module: '',
@@ -38,8 +40,9 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
   });
 
   useEffect(() => {
-    if (testCase) {
+    if (opened && testCase) {
       form.setValues({
+        code: testCase.code,
         title: testCase.title,
         description: testCase.description ?? '',
         module: testCase.module ?? '',
@@ -48,7 +51,8 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
         type: testCase.type,
       });
     }
-  }, [testCase, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
 
   const handleSubmit = (values: UpdateTestCaseForm) => {
     if (!testCase) return;
@@ -64,6 +68,14 @@ export function EditTestCaseModal({ projectId, testCase, opened, onClose }: Prop
     <Modal opened={opened} onClose={onClose} title="Edit Test Case" size="lg">
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
+          <TextInput
+            label="Code"
+            placeholder="TC-LOGIN-001, TC-001, AUTH-001"
+            description="Format: 2-10 huruf besar (opsional: dash + 2-20 huruf besar) + dash + 3 digit"
+            required
+            {...form.getInputProps('code')}
+          />
+
           <TextInput
             label="Title"
             placeholder="Enter test case title"

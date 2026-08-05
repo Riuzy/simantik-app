@@ -168,9 +168,8 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
     reorderSteps.mutate({ stepIds: reordered.map((s) => s.id) });
   };
 
-  const handleSave = useCallback((stepNumber: number) => {
-    // Refresh will happen via React Query invalidation in hooks
-    console.log('Step saved:', stepNumber);
+  const handleSave = useCallback((_stepNumber: number) => {
+    // Refresh happens via React Query invalidation in the hooks.
   }, []);
 
   if (steps.length === 0) {
@@ -272,19 +271,19 @@ export function TestStepsTab({ testCase, canManage }: TestStepsTabProps) {
 
               {canManage && (
                 <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => moveStep(index, 'up')} disabled={index === 0}>
+                  <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Move step ${step.stepNumber} up`} onClick={() => moveStep(index, 'up')} disabled={index === 0}>
                     <IconArrowUp size={14} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => moveStep(index, 'down')} disabled={index === sortedSteps.length - 1}>
+                  <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Move step ${step.stepNumber} down`} onClick={() => moveStep(index, 'down')} disabled={index === sortedSteps.length - 1}>
                     <IconArrowDown size={14} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => openModal('edit', { ...step, action: step.action as TestStepAction, locators: step.locators ?? null })}>
+                  <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Edit step ${step.stepNumber}`} onClick={() => openModal('edit', { ...step, action: step.action as TestStepAction, locators: step.locators ?? null })}>
                     <IconPencil size={14} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => openModal('duplicate', { ...step, action: step.action as TestStepAction, locators: step.locators ?? null })}>
+                  <ActionIcon variant="subtle" color="blue" size="sm" aria-label={`Duplicate step ${step.stepNumber}`} onClick={() => openModal('duplicate', { ...step, action: step.action as TestStepAction, locators: step.locators ?? null })}>
                     <IconCopy size={14} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => openDeleteConfirm(step.stepNumber)}>
+                  <ActionIcon variant="subtle" color="red" size="sm" aria-label={`Delete step ${step.stepNumber}`} onClick={() => openDeleteConfirm(step.stepNumber)}>
                     <IconTrash size={14} />
                   </ActionIcon>
                 </Group>

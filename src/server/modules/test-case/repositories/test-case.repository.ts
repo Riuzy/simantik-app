@@ -23,6 +23,45 @@ interface UpdateStepData {
   expectedResult?: string;
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  CLICK: 'Klik',
+  TYPE: 'Ketik',
+  FILL: 'Isi',
+  SELECT: 'Pilih',
+  NAVIGATE: 'Navigasi',
+  WAIT: 'Tunggu',
+  VERIFY: 'Verifikasi',
+  VERIFY_TEXT: 'Verifikasi Teks',
+  SUBMIT: 'Kirim',
+  UPLOAD: 'Unggah',
+  DOWNLOAD: 'Unduh',
+  SWITCH: 'Beralih',
+  CLEAR: 'Bersihkan',
+  HOVER: 'Arahkan',
+  RIGHT_CLICK: 'Klik Kanan',
+  DOUBLE_CLICK: 'Klik Ganda',
+  CHECK: 'Centang',
+  UNCHECK: 'Batal Centang',
+  DRAG: 'Tarik',
+  DROP: 'Lepas',
+  RESIZE: 'Ubah Ukuran',
+  SCROLL: 'Gulir',
+  TAKE_SCREENSHOT: 'Ambil Screenshot',
+  OPEN_BROWSER: 'Buka Browser',
+  CLOSE_BROWSER: 'Tutup Browser',
+};
+
+function generateExpectedResult(stepNumber: number, action: string, locator?: string | null, input?: string | null): string {
+  const actionLabel = ACTION_LABELS[action.toUpperCase()] || action;
+  
+  let result = `Step ${stepNumber}: ${actionLabel}`;
+  if (input) result += ` "${input}"`;
+  if (locator && !input) result += ` pada elemen ${locator}`;
+  result += ` berhasil`;
+  
+  return result;
+}
+
 const testCaseInclude = {
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
   project: { select: { id: true, code: true, name: true } },
@@ -151,14 +190,6 @@ export class TestCaseRepository {
     return this.prisma.testCase.findFirst({
       where: { code, deletedAt: null },
       include: testCaseInclude,
-    });
-  }
-
-  async findLatestCode() {
-    return this.prisma.testCase.findFirst({
-      where: { deletedAt: null },
-      orderBy: { createdAt: 'desc' },
-      select: { code: true },
     });
   }
 
@@ -315,7 +346,7 @@ export class TestCaseRepository {
           locatorValue: data.locatorValue ?? null,
           locators: (data.locators && data.locators.length > 0 ? data.locators : null) as Prisma.InputJsonValue | undefined,
           inputValue: data.inputValue ?? null,
-          expectedResult: data.expectedResult ?? null,
+              expectedResult: data.expectedResult ?? generateExpectedResult(stepNumber, data.action, data.locatorValue, data.inputValue),
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -341,7 +372,19 @@ export class TestCaseRepository {
       updateData.locators = data.locators.length > 0 ? data.locators : null;
     }
     if (data.inputValue !== undefined) updateData.inputValue = data.inputValue;
-    if (data.expectedResult !== undefined) updateData.expectedResult = data.expectedResult;
+
+    if (data.expectedResult !== undefined) {
+      updateData.expectedResult = data.expectedResult;
+    } else if (
+      data.action !== undefined ||
+      data.locatorValue !== undefined ||
+      data.inputValue !== undefined
+    ) {
+      const action = data.action ?? existing.action;
+      const locator = data.locatorValue ?? existing.locatorValue;
+      const input = data.inputValue ?? existing.inputValue;
+      updateData.expectedResult = generateExpectedResult(stepNumber, action, locator, input);
+    }
 
     return this.prisma.testStep.update({
       where: { testCaseId_stepNumber: { testCaseId, stepNumber } },

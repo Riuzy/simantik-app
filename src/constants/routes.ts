@@ -13,4 +13,6 @@ export const ROUTES = {
   EXECUTION_DETAIL: (id: string) => `/executions/${id}`,
   PROFILE: '/profile',
   SETTINGS: '/settings',
+  SETTINGS_AI_INTEGRATION: '/settings/ai-integration',
+  SETTINGS_AI_PROMPT_TEMPLATES: '/settings/ai-prompt-templates',
 };

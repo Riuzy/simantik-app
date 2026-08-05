@@ -1,14 +1,28 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import * as automationService from '../services';
 import { ROUTES } from '../../../constants/routes';
+import type { GenerateScriptOptions } from '../types';
+
+export function useStoredScript(testCaseId: string) {
+  return useQuery({
+    queryKey: ['automation-script', testCaseId],
+    queryFn: () => automationService.getStoredScript(testCaseId),
+    retry: false,
+    enabled: !!testCaseId,
+  });
+}
 
 export function useGenerateScript(testCaseId: string) {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => automationService.generateScript(testCaseId),
+    mutationFn: (options?: GenerateScriptOptions) => automationService.generateScript(testCaseId, options ?? {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['automation-script', testCaseId] });
+    },
     onError: () => notifications.show({ title: 'Error', message: 'Failed to generate script', color: 'red' }),
   });
 }

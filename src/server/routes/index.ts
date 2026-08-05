@@ -6,6 +6,7 @@ import { automationRouter } from '../modules/automation/routes';
 import { executionRouter } from '../modules/execution/routes';
 import { reportRouter } from '../modules/report/routes';
 import { settingRouter } from '../modules/setting/routes';
+import { aiRouter } from '../modules/ai/routes';
 
 export const setupRoutes = (app: Application): void => {
   app.use('/api', automationRouter);
@@ -15,4 +16,5 @@ export const setupRoutes = (app: Application): void => {
   app.use('/api/executions', executionRouter);
   app.use('/api/reports', reportRouter);
   app.use('/api/settings', settingRouter);
+  app.use('/api', aiRouter);
 };

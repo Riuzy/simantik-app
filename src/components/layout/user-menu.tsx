@@ -23,7 +23,7 @@ export function UserMenu() {
   return (
     <Menu shadow="md" width={200} position="bottom-end">
       <Menu.Target>
-        <UnstyledButton>
+        <UnstyledButton aria-label="User menu">
           <Group gap="xs">
             <Avatar src={user.avatar} alt={user.name} radius="xl" size="sm" color="blue">
               {initials}

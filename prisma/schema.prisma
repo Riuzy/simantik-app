@@ -176,6 +176,7 @@ model TestCase {
   createdBy   User         @relation("TestCaseCreator", fields: [createdById], references: [id])
   steps       TestStep[]
   executions  Execution[]
+  scripts     AutomationScript[]
 
   @@index([projectId])
   @@index([createdById])
@@ -287,4 +288,44 @@ model Setting {
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+/// AI Settings stores configuration for AI integration (optional).
+model AISetting {
+  id          String   @id @default(uuid()) @db.Char(36)
+  enabled     Boolean  @default(false)
+  provider    String   @db.VarChar(50)
+  apiKey      String?  @db.Text
+  baseUrl     String?  @map("base_url") @db.Text
+  model       String?  @db.VarChar(100)
+  host        String?  @db.VarChar(100)
+  apiKeyEncrypted Boolean @default(true) @map("api_key_encrypted")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("ai_settings")
+}
+
+/// AutomationScript stores generated automation scripts in the database.
+/// This enables script versioning and re-execution without re-generating.
+model AutomationScript {
+  id           String   @id @default(uuid()) @db.Char(36)
+  testCaseId   String   @map("test_case_id") @db.Char(36)
+  generatorType String  @map("generator_type") @db.VarChar(20)
+  provider     String?  @db.VarChar(50)
+  model        String?  @db.VarChar(100)
+  script       String   @db.Text
+  language     String   @db.VarChar(50) @default("TypeScript")
+  framework    String   @db.VarChar(50) @default("Playwright")
+  version      String   @db.VarChar(20) @default("1.0.0")
+  lastRunAt    DateTime? @map("last_run_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  testCase TestCase @relation(fields: [testCaseId], references: [id])
+
+  @@unique([testCaseId])
+  @@index([testCaseId])
+  @@index([generatorType])
+  @@map("automation_scripts")
 }

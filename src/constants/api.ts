@@ -26,6 +26,12 @@ export const API = {
     GENERATE_SCRIPT: (testCaseId: string) => `/test-cases/${testCaseId}/generate-script`,
     RUN: (testCaseId: string) => `/test-cases/${testCaseId}/run`,
     RESET_EXECUTION: (testCaseId: string) => `/test-cases/${testCaseId}/reset-execution`,
+    SCRIPT: (testCaseId: string) => `/test-cases/${testCaseId}/script`,
+  },
+  AI: {
+    SETTINGS: '/ai/settings',
+    TEST_CONNECTION: '/ai/test-connection',
+    PROMPT_TEMPLATES: '/ai/prompt-templates',
   },
   EXECUTIONS: {
     BASE: '/executions',

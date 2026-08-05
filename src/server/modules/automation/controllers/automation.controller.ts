@@ -6,6 +6,7 @@ import { ApiResponse } from '../../../utils/api-response';
 import {
   testCaseIdParamSchema,
   runTestBodySchema,
+  generateScriptBodySchema,
 } from '../validators/automation.validators';
 
 export class AutomationController {
@@ -14,7 +15,16 @@ export class AutomationController {
   generateScript = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const params = testCaseIdParamSchema.parse(req.params);
-      const result = await this.automationService.generateScript(params.testCaseId);
+      const body = generateScriptBodySchema.parse(req.body ?? {});
+      const result = await this.automationService.generateScript(params.testCaseId, body);
+      ApiResponse.success(res, result);
+    } catch (error) { next(error); }
+  };
+
+  getScript = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const params = testCaseIdParamSchema.parse(req.params);
+      const result = await this.automationService.getScript(params.testCaseId);
       ApiResponse.success(res, result);
     } catch (error) { next(error); }
   };

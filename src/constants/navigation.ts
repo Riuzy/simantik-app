@@ -8,6 +8,8 @@ import {
   IconUserCircle,
   IconSettings,
   IconRadar,
+  IconRobot,
+  IconPrompt,
 } from '@tabler/icons-react';
 import { ROUTES } from './routes';
 
@@ -25,6 +27,8 @@ export const MAIN_NAVIGATION: NavItem[] = [
 export const ACCOUNT_NAVIGATION: NavItem[] = [
   { label: 'Profile', icon: IconUserCircle, route: ROUTES.PROFILE },
   { label: 'Settings', icon: IconSettings, route: ROUTES.SETTINGS },
+  { label: 'AI Integration', icon: IconRobot, route: ROUTES.SETTINGS_AI_INTEGRATION },
+  { label: 'AI Prompt Templates', icon: IconPrompt, route: ROUTES.SETTINGS_AI_PROMPT_TEMPLATES },
 ];
 
 export function getProjectNavigation(slug: string): NavItem[] {
@@ -63,6 +67,8 @@ export function getRouteLabel(path: string): string {
     [ROUTES.PROJECTS]: 'Projects',
     [ROUTES.PROFILE]: 'Profile',
     [ROUTES.SETTINGS]: 'Settings',
+    [ROUTES.SETTINGS_AI_INTEGRATION]: 'AI Integration',
+    [ROUTES.SETTINGS_AI_PROMPT_TEMPLATES]: 'AI Prompt Templates',
   };
   if (map[cleanPath]) return map[cleanPath];
 

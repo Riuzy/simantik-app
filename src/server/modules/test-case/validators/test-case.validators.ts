@@ -60,6 +60,12 @@ export const cloneBodySchema = z.object({
 });
 
 export const createTestCaseBodySchema = z.object({
+  code: z
+    .string()
+    .min(1, 'Kode Test Case wajib diisi')
+    .max(30, 'Kode Test Case maksimal 30 karakter')
+    .regex(/^[A-Z]{2,10}(?:-[A-Z]{2,20})?-\d{3}$/, { message: 'Format kode tidak valid. Contoh: TC-LOGIN-001, TC-001, AUTH-001' })
+    .transform((val) => val.toUpperCase()),
   title: z.string().min(2).max(255),
   description: z.string().max(1000).optional(),
   module: z.string().max(255).optional(),
@@ -71,6 +77,12 @@ export const createTestCaseBodySchema = z.object({
 });
 
 export const updateTestCaseBodySchema = z.object({
+  code: z
+    .string()
+    .max(30, 'Kode Test Case maksimal 30 karakter')
+    .regex(/^[A-Z]{2,10}(?:-[A-Z]{2,20})?-\d{3}$/, { message: 'Format kode tidak valid. Contoh: TC-LOGIN-001, TC-001, AUTH-001' })
+    .transform((val) => val.toUpperCase())
+    .optional(),
   title: z.string().min(2).max(255).optional(),
   description: z.string().max(1000).optional(),
   module: z.string().max(255).optional(),

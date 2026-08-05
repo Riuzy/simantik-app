@@ -249,7 +249,8 @@ export class ProjectService {
 
   private async generateNextCode(): Promise<string> {
     const latest = await this.repository.findLatestCode();
-    const nextNumber = latest ? parseInt(latest.code.replace('PROJ-', ''), 10) + 1 : 1;
+    const match = latest?.code.match(/(\d+)\s*$/) ?? null;
+    const nextNumber = match ? parseInt(match[1], 10) + 1 : 1;
     return `PROJ-${String(nextNumber).padStart(4, '0')}`;
   }
 }

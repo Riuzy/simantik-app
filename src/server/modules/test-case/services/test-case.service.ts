@@ -15,10 +15,14 @@ export class TestCaseService {
   constructor(private repository: TestCaseRepository) {}
 
   async create(dto: CreateTestCaseDTO, createdById: string) {
-    const code = await this.generateNextCode();
+    // Validate code uniqueness
+    const existingByCode = await this.repository.findByCode(dto.code);
+    if (existingByCode) {
+      throw new AppError(409, 'Kode Test Case sudah digunakan');
+    }
 
     return this.repository.create({
-      code,
+      code: dto.code,
       title: dto.title,
       description: dto.description,
       module: dto.module,
@@ -45,6 +49,14 @@ export class TestCaseService {
 
   async update(id: string, dto: UpdateTestCaseDTO) {
     const updateData: Record<string, unknown> = {};
+    if (dto.code !== undefined) {
+      // Validate code uniqueness if changing code
+      const existingByCode = await this.repository.findByCode(dto.code);
+      if (existingByCode && existingByCode.id !== id) {
+        throw new AppError(409, 'Kode Test Case sudah digunakan');
+      }
+      updateData.code = dto.code;
+    }
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.module !== undefined) updateData.module = dto.module;
@@ -156,11 +168,5 @@ export class TestCaseService {
     }
 
     return this.repository.reorderSteps(testCaseId, dto.stepIds);
-  }
-
-  private async generateNextCode(): Promise<string> {
-    const latest = await this.repository.findLatestCode();
-    const nextNumber = latest ? parseInt(latest.code.replace('TC-', ''), 10) + 1 : 1;
-    return `TC-${String(nextNumber).padStart(4, '0')}`;
   }
 }

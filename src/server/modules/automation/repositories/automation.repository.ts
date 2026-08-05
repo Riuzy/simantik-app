@@ -247,4 +247,81 @@ async markTestCaseRunning(testCaseId: string, executionId: string) {
 
     return { reset: true };
   }
+
+  async getStoredScript(testCaseId: string) {
+    return this.prisma.automationScript.findUnique({
+      where: { testCaseId },
+    });
+  }
+
+  async upsertStoredScript(data: {
+    testCaseId: string;
+    generatorType: string;
+    provider: string | null;
+    model: string | null;
+    script: string;
+    framework: string;
+  }) {
+    return this.prisma.automationScript.upsert({
+      where: { testCaseId: data.testCaseId },
+      create: {
+        testCaseId: data.testCaseId,
+        generatorType: data.generatorType,
+        provider: data.provider,
+        model: data.model,
+        script: data.script,
+        language: 'JavaScript',
+        framework: data.framework,
+        version: '1.0.0',
+      },
+      update: {
+        generatorType: data.generatorType,
+        provider: data.provider,
+        model: data.model,
+        script: data.script,
+        framework: data.framework,
+      },
+    });
+  }
+
+  async markScriptLastRun(testCaseId: string) {
+    return this.prisma.automationScript.updateMany({
+      where: { testCaseId },
+      data: { lastRunAt: new Date() },
+    });
+  }
+
+  async getAISetting() {
+    return this.prisma.aISetting.findFirst({ orderBy: { updatedAt: 'desc' } });
+  }
+
+  async getPromptTemplates() {
+    const keys = [
+      'ai.prompt.system',
+      'ai.prompt.scriptGenerator',
+      'ai.prompt.expectedResult',
+      'ai.prompt.testCase',
+      'ai.prompt.locatorGenerator',
+      'ai.prompt.executionAnalysis',
+    ];
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { in: keys } },
+    });
+    const map = new Map(rows.map((row) => [row.key, row.value]));
+    return {
+      system: typeof map.get('ai.prompt.system') === 'string' ? map.get('ai.prompt.system') : null,
+      scriptGenerator: typeof map.get('ai.prompt.scriptGenerator') === 'string' ? map.get('ai.prompt.scriptGenerator') : null,
+      expectedResult: typeof map.get('ai.prompt.expectedResult') === 'string' ? map.get('ai.prompt.expectedResult') : null,
+      testCase: typeof map.get('ai.prompt.testCase') === 'string' ? map.get('ai.prompt.testCase') : null,
+      locatorGenerator: typeof map.get('ai.prompt.locatorGenerator') === 'string' ? map.get('ai.prompt.locatorGenerator') : null,
+      executionAnalysis: typeof map.get('ai.prompt.executionAnalysis') === 'string' ? map.get('ai.prompt.executionAnalysis') : null,
+    } as {
+      system: string | null;
+      scriptGenerator: string | null;
+      expectedResult: string | null;
+      testCase: string | null;
+      locatorGenerator: string | null;
+      executionAnalysis: string | null;
+    };
+  }
 }

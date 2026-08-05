@@ -8,6 +8,7 @@ import { modals } from '@mantine/modals';
 import { useTestCaseByCode } from '../../../../../../features/test-cases/hooks';
 import { useExecutions, useResetExecutionHistory } from '../../../../../../features/executions/hooks';
 import { TestStepsTab } from '../../../../../../features/test-cases/components/detail/test-steps-tab';
+import { ExpectedResultTab } from '../../../../../../features/test-cases/components/detail/expected-result-tab';
 import { TestCaseAutomationPanel } from '../../../../../../features/automation/components/test-case-automation-panel';
 import { PriorityBadge, TestCaseStatusBadge, TestCaseTypeBadge, LastResultBadge } from '../../../../../../components/ui/badges';
 import { Section } from '../../../../../../components/ui/section';
@@ -70,7 +71,7 @@ export default function TestCaseDetailPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="expected-result" pt="md">
-            <PlaceholderTab icon={IconSettings} message="Expected Result tab - under development" />
+            <ExpectedResultTab testCase={testCase} />
           </Tabs.Panel>
 
           <Tabs.Panel value="automation" pt="md">

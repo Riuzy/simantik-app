@@ -27,6 +27,11 @@ package-lock.json
 /apps/
 /storage/
 .artifacts/
+/.backup/
+
+# local harness / probe scripts
+.run-all.tmp.mjs
+.probe*.tmp.ts
 
 # misc
 .DS_Store
@@ -37,6 +42,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
 # env files (can opt-in for committing if needed)
 .env*

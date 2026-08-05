@@ -8,6 +8,7 @@ import { validate } from '../../../middlewares/validate';
 import {
   testCaseIdParamSchema,
   runTestBodySchema,
+  generateScriptBodySchema,
 } from '../validators/automation.validators';
 
 const automationRepository = new AutomationRepository(prisma);
@@ -19,8 +20,15 @@ export const automationRouter = Router();
 automationRouter.post(
   '/test-cases/:testCaseId/generate-script',
   requireAuth,
-  validate({ params: testCaseIdParamSchema }),
+  validate({ params: testCaseIdParamSchema, body: generateScriptBodySchema }),
   automationController.generateScript
+);
+
+automationRouter.get(
+  '/test-cases/:testCaseId/script',
+  requireAuth,
+  validate({ params: testCaseIdParamSchema }),
+  automationController.getScript
 );
 
 automationRouter.post(

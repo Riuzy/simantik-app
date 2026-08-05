@@ -59,7 +59,7 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [createOpened, setCreateOpened] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus; type: TestCaseType } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ id: string; code: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus; type: TestCaseType } | null>(null);
   const [editOpened, setEditOpened] = useState(false);
 
   const { data, isLoading } = useTestCases(projectId, { search: search || undefined, page, limit: 20 });
@@ -78,7 +78,7 @@ export function TestCasesTab({ projectId, projectSlug, canManage }: Props) {
       onConfirm: () => deleteTestCase.mutate(tc.id),
     });
 
-  const openEdit = (tc: { id: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus; type: TestCaseType }) => {
+  const openEdit = (tc: { id: string; code: string; title: string; description: string | null; module: string | null; priority: TestPriority; status: TestCaseStatus; type: TestCaseType }) => {
     setEditTarget(tc);
     setEditOpened(true);
   };

@@ -34,7 +34,15 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
+    const isLoginRequest =
+      typeof originalRequest?.url === 'string' && originalRequest.url.includes(API.AUTH.LOGIN);
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      typeof window !== 'undefined' &&
+      !isLoginRequest
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({

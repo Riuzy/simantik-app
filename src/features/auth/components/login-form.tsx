@@ -43,6 +43,11 @@ export function LoginForm() {
             <Button type="submit" fullWidth loading={loginMutation.isPending}>
               Sign in
             </Button>
+            {loginMutation.isError && (
+              <Text c="red" size="sm" ta="center" role="alert">
+                Invalid email or password
+              </Text>
+            )}
           </Stack>
         </form>
       </Stack>

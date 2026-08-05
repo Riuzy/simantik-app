@@ -102,7 +102,12 @@ function isFieldRole(value: string): boolean {
 function looksLikeCssSelector(value: string): boolean {
   const v = (value ?? '').trim();
   if (!v) return false;
-  if (v.includes(' ')) return false;
+  if (v.includes(' ')) {
+    // Multi-word values are only CSS when they contain selector syntax
+    // (descendant combinators, :has-text, attribute selectors, ...).
+    // Plain text like "Project Name" must never become a raw locator.
+    return /[#.\[\]>,+~=:()]/i.test(v);
+  }
   return true;
 }
 
@@ -243,6 +248,13 @@ const locatorEngineHelpers = `
     }
   };
 
+  const __roleExact = (page, value) => {
+    const s = String(value);
+    const sep = s.indexOf(':');
+    if (sep <= 0) return null;
+    return page.getByRole(s.slice(0, sep).trim(), { name: s.slice(sep + 1).trim(), exact: true });
+  };
+
   const __dumpDiagnostics = async (page, htmlPath) => {
     if (!htmlPath) return '';
     try {
@@ -281,6 +293,32 @@ const locatorEngineHelpers = `
         const count = await loc.count();
         if (count === 0) throw new Error('no element matched');
         if (count > 1 && opts.multiMatch === 'skip') {
+          if (cand.strategy === 'ROLE') {
+            try {
+              const exact = __roleExact(page, cand.value);
+              if (exact) {
+                await exact.first().waitFor({ state: 'attached', timeout: probeTimeout });
+                const exactCount = await exact.count();
+                if (exactCount === 1) {
+                  __log('INFO', cand.strategy + ' matched via exact name, using it');
+                  __healed[signature] = { strategy: cand.strategy, value: cand.value };
+                  return exact;
+                }
+              }
+            } catch (_) {}
+          }
+          if (cand.strategy === 'TEXT') {
+            try {
+              const exact = page.getByText(String(cand.value), { exact: true });
+              await exact.first().waitFor({ state: 'attached', timeout: probeTimeout });
+              const exactCount = await exact.count();
+              if (exactCount === 1) {
+                __log('INFO', cand.strategy + ' matched via exact text, using it');
+                __healed[signature] = { strategy: cand.strategy, value: cand.value };
+                return exact;
+              }
+            } catch (_) {}
+          }
           attempted.push(cand.strategy + ' "' + cand.value + '" matched ' + count + ' elements (ambiguous), trying a more specific selector');
           __log('INFO', cand.strategy + ' matched ' + count + ' elements, trying a more specific selector');
           continue;
@@ -516,6 +554,74 @@ const locatorEngineHelpers = `
   };
 `;
 
+/**
+ * Normalizes a step action to the canonical enum value used by the renderer.
+ * Accepts human-readable aliases (e.g. "Navigate", "Click on", "Fill") so the
+ * engine stays resilient to seed data and manual input.
+ */
+const ACTION_ALIASES: Record<string, string> = {
+  CLICK: 'CLICK',
+  CLICK_ON: 'CLICK',
+  TAP: 'CLICK',
+  KLIK: 'CLICK',
+  NAVIGATE: 'NAVIGATE',
+  GOTO: 'NAVIGATE',
+  GO_TO: 'NAVIGATE',
+  OPEN_URL: 'NAVIGATE',
+  TYPE: 'TYPE',
+  FILL: 'TYPE',
+  INPUT: 'TYPE',
+  ENTER: 'TYPE',
+  ISIKAN: 'TYPE',
+  KETIK: 'TYPE',
+  CLEAR: 'CLEAR',
+  BERSIHKAN: 'CLEAR',
+  SELECT: 'SELECT',
+  SELECT_OPTION: 'SELECT',
+  PILIH: 'SELECT',
+  CHECK: 'CHECK',
+  CENTANG: 'CHECK',
+  UNCHECK: 'UNCHECK',
+  PRESS_KEY: 'PRESS_KEY',
+  PRESS: 'PRESS_KEY',
+  WAIT: 'WAIT',
+  WAIT_FOR: 'WAIT',
+  WAIT_FOR_ELEMENT: 'WAIT_FOR_ELEMENT',
+  VERIFY: 'VERIFY_TEXT',
+  VERIFY_TEXT: 'VERIFY_TEXT',
+  VERIFY_URL: 'VERIFY_URL',
+  VERIFY_TITLE: 'VERIFY_TITLE',
+  VERIFY_ELEMENT: 'VERIFY_ELEMENT',
+  VERIFY_VISIBLE: 'VERIFY_VISIBLE',
+  VERIFY_HIDDEN: 'VERIFY_HIDDEN',
+  VERIFY_ENABLED: 'VERIFY_ENABLED',
+  VERIFY_DISABLED: 'VERIFY_DISABLED',
+  VERIFY_ATTRIBUTE: 'VERIFY_ATTRIBUTE',
+  VERIFY_COUNT: 'VERIFY_COUNT',
+  UPLOAD: 'UPLOAD_FILE',
+  UPLOAD_FILE: 'UPLOAD_FILE',
+  SCREENSHOT: 'TAKE_SCREENSHOT',
+  TAKE_SCREENSHOT: 'TAKE_SCREENSHOT',
+  SCROLL: 'SCROLL',
+  HOVER: 'HOVER',
+  ARAHKAN: 'HOVER',
+  DRAG: 'DRAG_AND_DROP',
+  DRAG_AND_DROP: 'DRAG_AND_DROP',
+  DOUBLE_CLICK: 'DOUBLE_CLICK',
+  RIGHT_CLICK: 'RIGHT_CLICK',
+  OPEN_BROWSER: 'OPEN_BROWSER',
+  CLOSE_BROWSER: 'CLOSE_BROWSER',
+  RELOAD: 'RELOAD',
+  REFRESH: 'RELOAD',
+  BACK: 'BACK',
+  FORWARD: 'FORWARD',
+};
+
+function normalizeAction(action: string): string {
+  const key = action.toUpperCase().replace(/\s+/g, '_').replace(/-/g, '_');
+  return ACTION_ALIASES[key] ?? key;
+}
+
 export function generatePlaywrightScript(
   title: string,
   steps: ScriptStep[],
@@ -534,11 +640,12 @@ export function generatePlaywrightScript(
   const __step = async (n, fn) => { try { await fn(); __log('STEP', 'Step ' + n + ' passed'); } catch (err) { __log('ERROR', 'Step ' + n + ' failed: ' + (err && err.message ? err.message : String(err))); throw err; } };`;
 
   const renderStep = (step: ScriptStep): string => {
+    const action = normalizeAction(step.action);
     const label = step.description || TEST_STEP_ACTION_LABELS[step.action as TestStepAction] || step.action;
     const logs = `  __log('INFO', 'Step ${step.stepNumber}: ${label}');\n`;
 
     const stepFn = (body: string): string => {
-      const skipShot = step.action === 'OPEN_BROWSER' || step.action === 'CLOSE_BROWSER';
+      const skipShot = action === 'OPEN_BROWSER' || action === 'CLOSE_BROWSER';
       const stepShot = `${options.screenshotPath}-step-${step.stepNumber}.png`;
       const before =
         options.screenshotTiming === 'BEFORE_ACTION' && !skipShot
@@ -568,7 +675,7 @@ export function generatePlaywrightScript(
       throw new Error(`Step ${step.stepNumber}: ${step.action} requires a locator or an expected value`);
     };
 
-    switch (step.action) {
+    switch (action) {
       case 'OPEN_BROWSER':
         return logs + `  __log('INFO', 'Browser context already initialized by engine');\n`;
 

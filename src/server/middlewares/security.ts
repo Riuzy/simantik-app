@@ -17,9 +17,11 @@ export const generalLimiter = rateLimit({
   message: { success: false, message: 'Too many requests, please try again later', errors: [] },
 });
 
+// The automation engine drives real browser logins for every executed test
+// case, so a full suite can produce dozens of auth requests in one window.
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many authentication attempts', errors: [] },

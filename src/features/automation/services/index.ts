@@ -1,9 +1,14 @@
 import { apiClient } from '../../../services/api-client';
 import { API } from '../../../constants/api';
-import type { GeneratedScript, RunExecutionResponse } from '../types';
+import type { GeneratedScript, GenerateScriptOptions, RunExecutionResponse, StoredScript } from '../types';
 
-export async function generateScript(testCaseId: string): Promise<GeneratedScript> {
-  const res = await apiClient.post(API.AUTOMATION.GENERATE_SCRIPT(testCaseId));
+export async function generateScript(testCaseId: string, options: GenerateScriptOptions = {}): Promise<GeneratedScript> {
+  const res = await apiClient.post(API.AUTOMATION.GENERATE_SCRIPT(testCaseId), options);
+  return res.data.data;
+}
+
+export async function getStoredScript(testCaseId: string): Promise<StoredScript> {
+  const res = await apiClient.get(API.AUTOMATION.SCRIPT(testCaseId));
   return res.data.data;
 }
 

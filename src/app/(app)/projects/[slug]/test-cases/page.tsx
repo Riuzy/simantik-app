@@ -37,6 +37,7 @@ export default function ProjectTestCasesPage() {
   const [createOpened, setCreateOpened] = useState(false);
   const [editTarget, setEditTarget] = useState<{
     id: string;
+    code: string;
     title: string;
     description: string | null;
     module: string | null;
@@ -188,7 +189,7 @@ export default function ProjectTestCasesPage() {
                 <Table.Td>
                   <Menu shadow="md" width={160} withinPortal>
                     <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={(e) => e.stopPropagation()}>
+                      <ActionIcon variant="subtle" color="gray" size="sm" aria-label={`Actions for ${tc.code}`} onClick={(e) => e.stopPropagation()}>
                         <IconDots size={16} />
                       </ActionIcon>
                     </Menu.Target>
@@ -210,6 +211,7 @@ export default function ProjectTestCasesPage() {
                           e.stopPropagation();
                           setEditTarget({
                             id: tc.id,
+                            code: tc.code,
                             title: tc.title,
                             description: tc.description,
                             module: tc.module,

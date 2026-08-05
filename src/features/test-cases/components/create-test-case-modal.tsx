@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Modal, TextInput, Textarea, Select, Group, Button, Stack } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useRouter } from 'next/navigation';
@@ -27,6 +27,7 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
   const form = useForm<CreateTestCaseForm>({
     validate: schemaResolver(createTestCaseSchema),
     initialValues: {
+      code: '',
       title: '',
       description: '',
       module: '',
@@ -36,6 +37,13 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
       projectId: projectId ?? '',
     },
   });
+
+  useEffect(() => {
+    if (projectId && !isGlobal && form.getValues().projectId !== projectId) {
+      form.setFieldValue('projectId', projectId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, isGlobal]);
 
   const handleSubmit = useCallback((values: CreateTestCaseForm) => {
     create.mutate(values, {
@@ -68,6 +76,14 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
               {...form.getInputProps('projectId')}
             />
           )}
+
+          <TextInput
+            label="Code"
+            placeholder="TC-LOGIN-001, TC-001, AUTH-001"
+            description="Format: 2-10 huruf besar (opsional: dash + 2-20 huruf besar) + dash + 3 digit"
+            required
+            {...form.getInputProps('code')}
+          />
 
           <TextInput
             label="Title"

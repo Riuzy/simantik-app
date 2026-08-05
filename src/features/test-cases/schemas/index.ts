@@ -1,7 +1,20 @@
 import { z } from 'zod';
 import { TEST_STEP_ACTIONS, LOCATOR_STRATEGIES } from '../../../constants/test-step-actions';
 
+// Format kode: 2-10 huruf besar (opsional dash + 2-20 huruf besar) + dash + 3 digit.
+// Contoh valid: TC-LOGIN-001, TC-001, AUTH-001, PM-001.
+// Menolak: 001, AAAA, ###, dan spasi.
+const codeRegex = /^[A-Z]{2,10}(?:-[A-Z]{2,20})?-\d{3}$/;
+const codePattern = 'Format kode tidak valid. Contoh: TC-LOGIN-001, TC-001, AUTH-001, PM-001';
+
 export const createTestCaseSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, 'Kode Test Case wajib diisi')
+    .max(30, 'Kode Test Case maksimal 30 karakter')
+    .regex(codeRegex, { message: codePattern })
+    .transform((val) => val.toUpperCase()),
   title: z.string().min(2, 'Title must be at least 2 characters').max(255),
   description: z.string().max(1000).optional(),
   module: z.string().max(255).optional(),
@@ -13,6 +26,13 @@ export const createTestCaseSchema = z.object({
 });
 
 export const updateTestCaseSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .max(30, 'Kode Test Case maksimal 30 karakter')
+    .regex(codeRegex, { message: codePattern })
+    .transform((val) => val.toUpperCase())
+    .optional(),
   title: z.string().min(2).max(255).optional(),
   description: z.string().max(1000).optional(),
   module: z.string().max(255).optional(),

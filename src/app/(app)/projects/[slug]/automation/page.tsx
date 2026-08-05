@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Group, Text, Stack, Paper, TextInput, Select, Switch, Code, Loader, Center, Box, SimpleGrid } from '@mantine/core';
+import { Button, Group, Text, Stack, Paper, TextInput, Select, Switch, Code, Loader, Center, Box, SimpleGrid, Badge } from '@mantine/core';
 import { IconRobot, IconPlayerPlay, IconFileCode, IconSearch } from '@tabler/icons-react';
 import { useProjectStore } from '../../../../../stores/project-store';
 import { useTestCases } from '../../../../../features/test-cases/hooks';
-import { useGenerateScript, useRunTest } from '../../../../../features/automation/hooks';
+import { useGenerateScript, useRunTest, useStoredScript } from '../../../../../features/automation/hooks';
 import { PageHeader } from '../../../../../components/ui/page-header';
 import { FilterBar } from '../../../../../components/ui/filter-bar';
 import { Section } from '../../../../../components/ui/section';
@@ -35,6 +35,9 @@ export default function ProjectAutomationPage() {
 
   const generate = useGenerateScript(selectedId ?? '');
   const run = useRunTest();
+  const { data: storedScript } = useStoredScript(selectedId ?? '');
+
+  const hasScript = !!storedScript?.script || !!generate.data;
 
   return (
     <div>
@@ -121,7 +124,7 @@ export default function ProjectAutomationPage() {
                   leftSection={<IconFileCode size={16} />}
                   variant="light"
                   loading={generate.isPending}
-                  onClick={() => generate.mutate()}
+                  onClick={() => generate.mutate({})}
                 >
                   Generate Script
                 </Button>
@@ -129,7 +132,7 @@ export default function ProjectAutomationPage() {
                   leftSection={<IconPlayerPlay size={16} />}
                   color="green"
                   loading={run.isPending}
-                  disabled={!generate.data}
+                  disabled={!hasScript}
                   onClick={() => run.mutate({ testCaseId: selected.id, data: { headless } })}
                 >
                   Run Test
@@ -142,14 +145,21 @@ export default function ProjectAutomationPage() {
                 </Paper>
               )}
 
-              {generate.data && (
+              {(generate.data || storedScript) && (
                 <Paper p="md" withBorder>
                   <Group justify="space-between" mb="sm">
-                    <Text fw={600} size="sm">Generated Script</Text>
-                    <Text size="xs" c="dimmed" ff="monospace">{generate.data.framework}</Text>
+                    <Group gap="sm">
+                      <Text fw={600} size="sm">Generated Script</Text>
+                      {(storedScript || generate.data)?.provider && (
+                        <Badge variant="light" color={(storedScript?.generatorType ?? generate.data?.generatorType) === 'AI' ? 'violet' : 'blue'}>
+                          {(storedScript || generate.data)?.provider}
+                        </Badge>
+                      )}
+                    </Group>
+                    <Text size="xs" c="dimmed" ff="monospace">{(storedScript ?? generate.data)?.framework}</Text>
                   </Group>
                   <Code block style={{ maxHeight: 420, overflow: 'auto', fontSize: 12 }}>
-                    {generate.data.script}
+                    {(storedScript?.script ?? generate.data?.script) ?? ''}
                   </Code>
                 </Paper>
               )}

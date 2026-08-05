@@ -7,6 +7,32 @@ export interface GeneratedScript {
   code: string;
   title: string;
   framework: Framework;
+  generatorType: 'TEMPLATE' | 'AI';
+  provider: string;
+  model: string | null;
+  script: string;
+}
+
+export interface GenerateScriptOptions {
+  method?: 'TEMPLATE' | 'AI';
+  provider?: string;
+  model?: string;
+  apiKey?: string;
+}
+
+export interface StoredScript {
+  testCaseId: string;
+  code: string;
+  title: string;
+  framework: string;
+  generatorType: string;
+  provider: string | null;
+  model: string | null;
+  language: string;
+  version: string;
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
   script: string;
 }
 

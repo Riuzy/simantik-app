@@ -13,6 +13,7 @@ export function useCreateTestStep(testCaseId: string) {
       testStepService.createTestStep(testCaseId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['test-case', testCaseId] });
+      qc.invalidateQueries({ queryKey: ['test-case-by-code'] });
       notifications.show({ title: 'Success', message: 'Test step added', color: 'green' });
     },
     onError: () =>
@@ -28,6 +29,7 @@ export function useUpdateTestStep(testCaseId: string) {
       testStepService.updateTestStep(testCaseId, stepNumber, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['test-case', testCaseId] });
+      qc.invalidateQueries({ queryKey: ['test-case-by-code'] });
       notifications.show({ title: 'Success', message: 'Test step updated', color: 'green' });
     },
     onError: () =>
@@ -43,6 +45,7 @@ export function useDeleteTestStep(testCaseId: string) {
       testStepService.deleteTestStep(testCaseId, stepNumber),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['test-case', testCaseId] });
+      qc.invalidateQueries({ queryKey: ['test-case-by-code'] });
       qc.invalidateQueries({ queryKey: ['test-cases'] });
       notifications.show({ title: 'Success', message: 'Test step deleted', color: 'green' });
     },
@@ -59,6 +62,7 @@ export function useReorderTestSteps(testCaseId: string) {
       testStepService.reorderTestSteps(testCaseId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['test-case', testCaseId] });
+      qc.invalidateQueries({ queryKey: ['test-case-by-code'] });
     },
     onError: () =>
       notifications.show({ title: 'Error', message: 'Failed to reorder steps', color: 'red' }),
