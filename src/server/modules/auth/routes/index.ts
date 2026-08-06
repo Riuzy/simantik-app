@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import { prisma } from '../../../lib/prisma';
 import { AuthRepository } from '../repositories/auth.repository';
 import { AuthService } from '../services/auth.service';
@@ -19,3 +19,9 @@ authRouter.post('/refresh', validate({ body: refreshTokenBodySchema }), controll
 authRouter.get('/me', requireAuth, controller.getCurrentUser);
 authRouter.patch('/change-password', requireAuth, validate({ body: changePasswordBodySchema }), controller.changePassword);
 authRouter.patch('/me', requireAuth, validate({ body: updateProfileBodySchema }), controller.updateProfile);
+authRouter.post(
+  '/avatar',
+  requireAuth,
+  raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '6mb' }),
+  controller.uploadAvatar,
+);

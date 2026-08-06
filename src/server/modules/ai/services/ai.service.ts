@@ -14,6 +14,7 @@ export class AIService {
 
   async getSettings() {
     const setting = await this.repository.getSetting();
+    const connection = await this.repository.getConnectionStatus();
     if (!setting) {
       return {
         id: null,
@@ -26,6 +27,9 @@ export class AIService {
         host: null,
         temperature: null,
         maxTokens: null,
+        connectionStatus: connection.status,
+        connectionMessage: connection.message,
+        connectionTestedAt: connection.testedAt,
         updatedAt: null,
       };
     }
@@ -40,6 +44,9 @@ export class AIService {
       host: setting.host,
       temperature: setting.temperature,
       maxTokens: setting.maxTokens,
+      connectionStatus: connection.status,
+      connectionMessage: connection.message,
+      connectionTestedAt: connection.testedAt,
       updatedAt: setting.updatedAt,
     };
   }
@@ -110,7 +117,12 @@ export class AIService {
     };
 
     const generator = getGenerator(config.provider);
-    return generator.testConnection(config);
+    const result = await generator.testConnection(config);
+    await this.repository.saveConnectionStatus(
+      result.success ? 'connected' : 'failed',
+      result.message,
+    );
+    return result;
   }
 
   async getPromptTemplates() {

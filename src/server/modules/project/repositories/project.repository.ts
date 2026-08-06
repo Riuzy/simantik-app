@@ -173,7 +173,6 @@ export class ProjectRepository {
 
   async findLatestCode() {
     return this.prisma.project.findFirst({
-      where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       select: { code: true },
     });

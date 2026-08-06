@@ -14,6 +14,10 @@ export interface GeneratorContext {
   systemPrompt: string | null;
   scriptPromptTemplate: string | null;
   aiConfig: AIConnectionConfig | null;
+  projectName?: string;
+  projectBaseUrl?: string;
+  projectLoginUrl?: string;
+  projectEnvironment?: string;
 }
 
 export interface GeneratedScript {

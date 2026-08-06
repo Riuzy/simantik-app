@@ -49,7 +49,7 @@ export function DownloadReportModal({ opened, onClose, isPending, onDownload }: 
         <Radio.Group
           value={format}
           onChange={(value) => setFormat(value as ReportFormat)}
-          label="Format Laporan"
+          label="Report Format"
         >
           <Stack mt={8} gap="sm">
             <Radio value="pdf" label="PDF" description="Portable Document Format" />
@@ -60,10 +60,10 @@ export function DownloadReportModal({ opened, onClose, isPending, onDownload }: 
         <Divider />
 
         <TextInput
-          label="Nama File"
+          label="File Name"
           value={filename}
           onChange={(e) => setFilename(e.currentTarget.value)}
-          description={`File akan diunduh sebagai ${filename.trim() || defaultFilename()}.${format}`}
+          description={`File will be downloaded as ${filename.trim() || defaultFilename()}.${format}`}
         />
 
         <Divider />

@@ -26,8 +26,8 @@ export default function ProjectOverviewPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: project, isLoading: projectLoading } = useProjectBySlug(slug as string);
   const { data: report } = useProjectReport(project?.id ?? '');
-  const { data: totalData } = useTestCases(project?.id ?? '', { page: 1, limit: 1 });
-  const { data: automationData } = useTestCases(project?.id ?? '', { type: 'AUTOMATION', page: 1, limit: 1 });
+  const { data: totalData } = useTestCases(project?.id ?? '', { page: 1, limit: 1, enabled: Boolean(project?.id) });
+  const { data: automationData } = useTestCases(project?.id ?? '', { type: 'AUTOMATION', page: 1, limit: 1, enabled: Boolean(project?.id) });
 
   if (projectLoading) return <Center h={400}><Loader /></Center>;
   if (!project) return <Center h={400}><Text c="dimmed">Project not found</Text></Center>;

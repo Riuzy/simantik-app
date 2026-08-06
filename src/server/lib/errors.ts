@@ -38,3 +38,20 @@ export class ConflictError extends HttpError {
     super(409, message);
   }
 }
+
+/**
+ * Error raised when an external AI provider (Gemini, OpenAI, etc.) rejects
+ * a request. Carries the provider-facing message, the HTTP status code from
+ * the upstream API, and optional structured details for debugging.
+ */
+export class AIProviderError extends HttpError {
+  constructor(
+    statusCode: number,
+    message: string,
+    public providerMessage?: string,
+    public details?: string,
+  ) {
+    super(statusCode, message);
+    Object.setPrototypeOf(this, AIProviderError.prototype);
+  }
+}

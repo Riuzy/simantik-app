@@ -60,7 +60,7 @@ apiClient.interceptors.response.use(
 
       const refreshTokenValue = localStorage.getItem(appConfig.auth.refreshTokenKey);
       if (!refreshTokenValue) {
-        processQueue(null, null);
+        processQueue(new Error('No refresh token available'), null);
         localStorage.removeItem(appConfig.auth.tokenKey);
         window.location.href = '/login';
         return Promise.reject(error);

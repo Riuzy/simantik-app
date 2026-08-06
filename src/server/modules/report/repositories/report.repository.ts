@@ -57,7 +57,7 @@ export class ReportRepository {
   }
 
   async getProjectReport(projectId: string) {
-    const [project, totalTestCases, totalExecutions, passedExecutions, failedExecutions, errorExecutions, skippedExecutions, recentExecutions] =
+    const [project, totalTestCases, totalExecutions, passedExecutions, failedExecutions, errorExecutions, skippedExecutions, runningExecutions, recentExecutions] =
       await this.prisma.$transaction([
         this.prisma.project.findFirst({
           where: { id: projectId, deletedAt: null },
@@ -69,6 +69,7 @@ export class ReportRepository {
         this.prisma.execution.count({ where: { projectId, deletedAt: null, status: 'FAILED' } }),
         this.prisma.execution.count({ where: { projectId, deletedAt: null, status: 'ERROR' } }),
         this.prisma.execution.count({ where: { projectId, deletedAt: null, status: 'SKIPPED' } }),
+        this.prisma.execution.count({ where: { projectId, deletedAt: null, status: 'RUNNING' } }),
         this.prisma.execution.findMany({
           where: { projectId, deletedAt: null },
           orderBy: { updatedAt: 'desc' },
@@ -82,7 +83,7 @@ export class ReportRepository {
             browser: true,
             lastRunAt: true,
             createdAt: true,
-            testCase: { select: { id: true, code: true, title: true } },
+            testCase: { select: { id: true, code: true, title: true, module: true } },
           },
         }),
       ]);
@@ -96,7 +97,7 @@ export class ReportRepository {
         FAILED: failedExecutions,
         ERROR: errorExecutions,
         SKIPPED: skippedExecutions,
-        RUNNING: 0,
+        RUNNING: runningExecutions,
       },
       recentExecutions,
     };

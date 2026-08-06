@@ -16,11 +16,11 @@ const STATUS_STYLE: Record<ReportStatus, { fill: string; font: string }> = {
 const BASE_COLUMNS: Array<{ label: string; width: number }> = [
   { label: 'No', width: 8 },
   { label: 'Test Case ID', width: 22 },
-  { label: 'Judul Test Case', width: 36 },
-  { label: 'Modul', width: 20 },
-  { label: 'Prioritas', width: 12 },
-  { label: 'Jenis', width: 12 },
-  { label: 'Langkah Pengujian', width: 50 },
+  { label: 'Title', width: 36 },
+  { label: 'Module', width: 20 },
+  { label: 'Priority', width: 12 },
+  { label: 'Type', width: 12 },
+  { label: 'Test Steps', width: 50 },
   { label: 'Expected Result', width: 44 },
   { label: 'Actual Result', width: 44 },
   { label: 'Status', width: 18 },
@@ -33,6 +33,7 @@ const SUMMARY_PAIRS: Array<[string, keyof TestCaseReportData['summary']]> = [
   ['Failed', 'failed'],
   ['Skipped', 'skipped'],
   ['Running', 'running'],
+  ['Not Yet Executed', 'notRun'],
   ['Pass Rate', 'passRate'],
 ];
 
@@ -186,7 +187,7 @@ export class ReportXlsxService {
       const summaryRowStart = nextRow + 2;
       worksheet.mergeCells(summaryRowStart, 1, summaryRowStart, columnCount);
       const summaryTitle = worksheet.getCell(summaryRowStart, 1);
-      summaryTitle.value = 'RINGKASAN';
+      summaryTitle.value = 'SUMMARY';
       summaryTitle.font = { bold: true, size: 13, color: { argb: BLUE } };
 
       SUMMARY_PAIRS.forEach(([label, key], index) => {
@@ -196,7 +197,7 @@ export class ReportXlsxService {
         labelCell.font = { bold: true };
         labelCell.fill = solidFill(LIGHT_BLUE);
         labelCell.border = borderBox();
-        worksheet.mergeCells(row, 2, row, 5);
+        worksheet.mergeCells(row, 2, row, columnCount);
         const valueCell = worksheet.getCell(row, 2);
         valueCell.value = String(data.summary[key]);
         valueCell.border = borderBox();

@@ -9,6 +9,10 @@ const PROMPT_SETTING_KEYS = {
   executionAnalysis: 'ai.prompt.executionAnalysis',
 } as const;
 
+const CONNECTION_STATUS_KEY = 'ai.connection.status';
+const CONNECTION_MESSAGE_KEY = 'ai.connection.message';
+const CONNECTION_TESTED_AT_KEY = 'ai.connection.testedAt';
+
 export class AIRepository {
   constructor(private prisma: PrismaClient) {}
 
@@ -70,6 +74,36 @@ export class AIRepository {
       locatorGenerator: typeof map.get(PROMPT_SETTING_KEYS.locatorGenerator) === 'string' ? map.get(PROMPT_SETTING_KEYS.locatorGenerator) : '',
       executionAnalysis: typeof map.get(PROMPT_SETTING_KEYS.executionAnalysis) === 'string' ? map.get(PROMPT_SETTING_KEYS.executionAnalysis) : '',
     } as Record<string, string>;
+  }
+
+  async getConnectionStatus() {
+    const keys = [CONNECTION_STATUS_KEY, CONNECTION_MESSAGE_KEY, CONNECTION_TESTED_AT_KEY];
+    const rows = await this.prisma.setting.findMany({ where: { key: { in: keys } } });
+    const map = new Map(rows.map((row) => [row.key, row.value]));
+    return {
+      status: (typeof map.get(CONNECTION_STATUS_KEY) === 'string' ? map.get(CONNECTION_STATUS_KEY) : null) as string | null,
+      message: (typeof map.get(CONNECTION_MESSAGE_KEY) === 'string' ? map.get(CONNECTION_MESSAGE_KEY) : null) as string | null,
+      testedAt: (typeof map.get(CONNECTION_TESTED_AT_KEY) === 'string' ? map.get(CONNECTION_TESTED_AT_KEY) : null) as string | null,
+    };
+  }
+
+  async saveConnectionStatus(status: 'connected' | 'failed', message: string) {
+    const now = new Date().toISOString();
+    await this.prisma.setting.upsert({
+      where: { key: CONNECTION_STATUS_KEY },
+      create: { key: CONNECTION_STATUS_KEY, value: status as Prisma.InputJsonValue },
+      update: { value: status as Prisma.InputJsonValue },
+    });
+    await this.prisma.setting.upsert({
+      where: { key: CONNECTION_MESSAGE_KEY },
+      create: { key: CONNECTION_MESSAGE_KEY, value: message as Prisma.InputJsonValue },
+      update: { value: message as Prisma.InputJsonValue },
+    });
+    await this.prisma.setting.upsert({
+      where: { key: CONNECTION_TESTED_AT_KEY },
+      create: { key: CONNECTION_TESTED_AT_KEY, value: now as Prisma.InputJsonValue },
+      update: { value: now as Prisma.InputJsonValue },
+    });
   }
 
   async upsertPromptTemplate(key: string, content: string) {

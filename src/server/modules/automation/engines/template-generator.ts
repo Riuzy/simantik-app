@@ -24,6 +24,6 @@ export class TemplateGenerator implements AutomationGenerator {
   }
 
   async testConnection(): Promise<TestConnectionResult> {
-    return { success: true, message: 'Rule Engine selalu tersedia tanpa API Key.' };
+    return { success: true, message: 'Rule Engine is always available without an API Key.' };
   }
 }

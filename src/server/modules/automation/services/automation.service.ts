@@ -167,6 +167,10 @@ export class AutomationService {
       systemPrompt: promptTemplates.system,
       scriptPromptTemplate: promptTemplates.scriptGenerator,
       aiConfig,
+      projectName: testCase.project.name,
+      projectBaseUrl: config.baseUrl ?? undefined,
+      projectLoginUrl: config.auth.loginUrl ?? undefined,
+      projectEnvironment: config.environment ?? undefined,
     };
 
     const generated = await generator.generate(context);

@@ -6,10 +6,12 @@ import * as testCaseService from '../services';
 import type { CreateTestCaseForm, UpdateTestCaseForm } from '../schemas';
 
 export function useTestCases(projectId: string, params?: Record<string, unknown>) {
+  const search = (params as { search?: string } | undefined)?.search;
+  const explicitEnabled = (params as { enabled?: boolean } | undefined)?.enabled;
   return useQuery({
     queryKey: ['test-cases', projectId, params],
     queryFn: () => testCaseService.listTestCases(projectId, params),
-    enabled: true,
+    enabled: explicitEnabled ?? (Boolean(projectId) || Boolean(search)),
   });
 }
 

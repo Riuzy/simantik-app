@@ -3,95 +3,74 @@
 import { useState } from 'react';
 import {
   Paper, Group, Text, Button, Stack, Code, Switch, Box, Loader, Center, Modal,
-  Radio, Select, PasswordInput, Badge, Divider, ActionIcon, ScrollArea, Tooltip,
+  Badge, ActionIcon, ScrollArea, Tooltip, Menu, ThemeIcon,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
+import { useRouter } from 'next/navigation';
 import {
-  IconRobot, IconPlayerPlay, IconFileCode, IconEye, IconRotate, IconPlugConnected,
-  IconPrompt, IconBraces, IconBrain,
+  IconRobot, IconPlayerPlay, IconFileCode, IconEye, IconRotate, IconBrain,
+  IconSettings, IconPlugConnected, IconPlugConnectedX, IconBraces,
 } from '@tabler/icons-react';
 import { useGenerateScript, useRunTest, useStoredScript } from '../hooks';
-import { useAISettings, useTestConnection } from '../../ai/hooks';
-import { AI_PROVIDER_OPTIONS, PROVIDER_MODEL_OPTIONS, OLLAMA_DEFAULT_HOST } from '../../ai/constants';
-import type { AIProvider } from '../../ai/types';
+import { useAISettings } from '../../ai/hooks';
+import { AI_PROVIDER_OPTIONS } from '../../ai/constants';
+import { ROUTES } from '../../../constants/routes';
+import type { AIConnectionStatus } from '../../ai/types';
 
 interface Props {
   testCaseId: string;
 }
 
+function providerLabel(provider: string | null | undefined): string {
+  if (!provider) return '\u2014';
+  const option = AI_PROVIDER_OPTIONS.find((o) => o.value === provider);
+  return option?.label ?? provider;
+}
+
+function statusBadge(status: AIConnectionStatus, tested: boolean) {
+  if (!tested) {
+    return { label: 'Not Tested', color: 'gray' as const };
+  }
+  if (status === 'connected') {
+    return { label: 'Connected', color: 'green' as const };
+  }
+  return { label: 'Disconnected', color: 'red' as const };
+}
+
 export function TestCaseAutomationPanel({ testCaseId }: Props) {
+  const router = useRouter();
   const { data: stored, isLoading: scriptLoading, refetch } = useStoredScript(testCaseId);
   const generate = useGenerateScript(testCaseId);
   const run = useRunTest();
   const { data: aiSettings } = useAISettings();
-  const testConn = useTestConnection();
 
-  const [opened, { open, close }] = useDisclosure(false);
-  const [method, setMethod] = useState<'TEMPLATE' | 'AI'>('TEMPLATE');
-  const [provider, setProvider] = useState<AIProvider>('GEMINI');
-  const [model, setModel] = useState('');
-  const [apiKey, setApiKey] = useState('');
+  const [method, setMethod] = useState<'AI' | 'TEMPLATE'>('AI');
   const [headless, setHeadless] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [methodMenuOpen, { open: openMethodMenu, close: closeMethodMenu }] = useDisclosure(false);
 
-  const openDialog = () => {
-    const p = (aiSettings?.provider as AIProvider) ?? 'GEMINI';
-    setProvider(p);
-    setModel((PROVIDER_MODEL_OPTIONS[p as Exclude<AIProvider, 'RULE_ENGINE'>] ?? [])[0] ?? '');
-    setApiKey('');
-    setMethod('TEMPLATE');
-    open();
-  };
-
-  const handleGenerate = () => {
-    generate.mutate(
-      {
-        method,
-        provider: method === 'AI' ? provider : undefined,
-        model: method === 'AI' ? model || undefined : undefined,
-        apiKey: method === 'AI' ? apiKey || undefined : undefined,
-      },
-      {
-        onSuccess: () => {
-          close();
-          refetch();
-        },
-      },
-    );
-  };
-
-  const handleTestConnection = () => {
-    testConn.mutate(
-      {
-        provider,
-        apiKey: apiKey || undefined,
-        model: model || undefined,
-        host: provider === 'OLLAMA' ? OLLAMA_DEFAULT_HOST : undefined,
-      },
-      {
-        onSuccess: (result) => {
-          notifications.show({
-            title: result.success ? 'Connection Success' : 'Connection Failed',
-            message: result.message,
-            color: result.success ? 'green' : 'red',
-          });
-        },
-        onError: () => {
-           notifications.show({ title: 'Connection Failed', message: 'Cannot contact provider.', color: 'red' });
-        },
-      },
-    );
-  };
+  const aiConfigured = Boolean(
+    aiSettings?.enabled &&
+    aiSettings.provider !== 'RULE_ENGINE' &&
+    aiSettings.apiKeyConfigured &&
+    aiSettings.model,
+  );
+  const connectionTested = Boolean(aiSettings?.connectionTestedAt);
+  const statusInfo = statusBadge(aiSettings?.connectionStatus ?? null, connectionTested);
+  const activeProvider = aiSettings?.provider === 'RULE_ENGINE' ? null : (aiSettings?.provider ?? null);
 
   const script = stored?.script ?? null;
   const generatedBy = stored?.provider ?? stored?.generatorType ?? null;
-  const aiEnabled = aiSettings?.enabled && aiSettings.provider !== 'RULE_ENGINE';
 
-  const modelOptions = (PROVIDER_MODEL_OPTIONS[provider as Exclude<AIProvider, 'RULE_ENGINE'>] ?? []).map((m) => ({
-    value: m,
-    label: m,
-  }));
+  const handleGenerate = (m: 'AI' | 'TEMPLATE') => {
+    setMethod(m);
+    generate.mutate({ method: m }, { onSuccess: () => refetch() });
+  };
+
+  const openSettingsPage = () => {
+    closeMethodMenu();
+    router.push(ROUTES.SETTINGS);
+  };
 
   return (
     <Stack gap="md">
@@ -107,13 +86,37 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
             </Text>
           </Box>
           <Group gap="sm">
-            <Button
-              leftSection={<IconFileCode size={16} />}
-              variant="light"
-              onClick={openDialog}
+            <Menu
+              position="bottom-end"
+              opened={methodMenuOpen}
+              onOpen={openMethodMenu}
+              onClose={closeMethodMenu}
             >
-              Generate Script
-            </Button>
+              <Menu.Target>
+                <Button
+                  leftSection={<IconFileCode size={16} />}
+                  loading={generate.isPending}
+                  disabled={!aiConfigured}
+                >
+                  Generate Script
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>Generate Method</Menu.Label>
+                <Menu.Item
+                  leftSection={<IconBrain size={14} />}
+                  onClick={() => handleGenerate('AI')}
+                >
+                  AI Generator
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconBraces size={14} />}
+                  onClick={() => handleGenerate('TEMPLATE')}
+                >
+                  Template Engine
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
             <Button
               leftSection={<IconPlayerPlay size={16} />}
               color="green"
@@ -127,12 +130,67 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
 
         <Group mt="md" justify="space-between">
           <Switch label="Headless" checked={headless} onChange={(e) => setHeadless(e.currentTarget.checked)} />
-          {aiEnabled && (
+          {aiConfigured && (
             <Badge variant="light" color="violet" leftSection={<IconBrain size={12} />}>
-               AI Assistant active · {aiSettings.provider}
+              AI Assistant active
             </Badge>
           )}
         </Group>
+      </Paper>
+
+      <Paper p="md" withBorder>
+        {aiConfigured ? (
+          <Group justify="space-between" wrap="wrap" align="center" gap="md">
+            <Group gap="sm" align="center">
+              <ThemeIcon variant="light" color="violet" size="lg" radius="md">
+                <IconBrain size={18} />
+              </ThemeIcon>
+              <Box>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>AI Assistant</Text>
+                <Group gap="xs" mt={2}>
+                  <Text size="sm" fw={600}>{providerLabel(activeProvider)}</Text>
+                  <Badge variant="outline" size="sm">{aiSettings?.model}</Badge>
+                  <Badge
+                    variant="light"
+                    color={statusInfo.color}
+                    leftSection={
+                      statusInfo.label === 'Connected'
+                        ? <IconPlugConnected size={11} />
+                        : statusInfo.label === 'Disconnected'
+                          ? <IconPlugConnectedX size={11} />
+                          : undefined
+                    }
+                  >
+                    {statusInfo.label}
+                  </Badge>
+                </Group>
+              </Box>
+            </Group>
+            <Group gap="xs">
+              <Button size="xs" variant="light" leftSection={<IconSettings size={14} />} onClick={openSettingsPage}>
+                Manage AI Settings
+              </Button>
+            </Group>
+          </Group>
+        ) : (
+          <Stack align="center" gap="xs" py="lg" ta="center">
+            <ThemeIcon variant="light" color="gray" size="lg" radius="md">
+              <IconBrain size={18} />
+            </ThemeIcon>
+            <Text size="sm" fw={600}>AI Provider is not configured.</Text>
+            <Text size="xs" c="dimmed" maw={420}>
+              Please configure your AI provider in Settings before generating scripts.
+            </Text>
+            <Button size="xs" variant="light" leftSection={<IconSettings size={14} />} onClick={openSettingsPage} mt="xs">
+              Open AI Settings
+            </Button>
+          </Stack>
+        )}
+        {aiConfigured && aiSettings?.connectionStatus === 'failed' && (
+          <Text size="xs" c="red" mt="xs">
+            {aiSettings.connectionMessage || 'Please reconnect from Settings.'}
+          </Text>
+        )}
       </Paper>
 
       {scriptLoading && (
@@ -161,7 +219,7 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
                   color={stored?.generatorType === 'AI' ? 'violet' : 'blue'}
                   leftSection={stored?.generatorType === 'AI' ? <IconBrain size={12} /> : <IconBraces size={12} />}
                 >
-                  Generated by {generatedBy}
+                  Generated by {providerLabel(generatedBy)}
                 </Badge>
               )}
               {stored?.model && <Badge variant="outline" size="sm">{stored.model}</Badge>}
@@ -173,7 +231,7 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
                 </ActionIcon>
               </Tooltip>
               <Tooltip label="Regenerate">
-                <ActionIcon variant="light" onClick={openDialog} aria-label="Regenerate script">
+                <ActionIcon variant="light" onClick={() => handleGenerate(method)} aria-label="Regenerate script">
                   <IconRotate size={16} />
                 </ActionIcon>
               </Tooltip>
@@ -187,93 +245,6 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
           )}
         </Paper>
       )}
-
-      <Modal
-        opened={opened}
-        onClose={close}
-        title="Generate Automation Script"
-        size="lg"
-        centered
-      >
-        <Stack gap="md">
-          <Radio.Group
-            value={method}
-            onChange={(v) => setMethod(v as 'TEMPLATE' | 'AI')}
-            label="Metode Generate"
-          >
-            <Stack mt={8} gap="sm">
-               <Radio value="TEMPLATE" label="Template Engine (Recommended)" description="Internal Rule Engine. Doesn't need API Key." />
-               <Radio value="AI" label="AI Generator" description="AI helps generate Playwright script." />
-            </Stack>
-          </Radio.Group>
-
-          <Divider />
-
-          {method === 'AI' ? (
-            <>
-              <Select
-                label="Provider"
-                data={AI_PROVIDER_OPTIONS.filter((o) => o.value !== 'RULE_ENGINE').map((o) => ({ value: o.value, label: o.label }))}
-                value={provider}
-                onChange={(v) => {
-                  const next = (v as AIProvider) || 'GEMINI';
-                  setProvider(next);
-                  setModel((PROVIDER_MODEL_OPTIONS[next as Exclude<AIProvider, 'RULE_ENGINE'>] ?? [])[0] ?? '');
-                }}
-              />
-              {modelOptions.length > 0 ? (
-                <Select label="Model" data={modelOptions} value={model} onChange={(v) => setModel(v ?? '')} searchable />
-              ) : (
-                <Select
-                  label="Model"
-                  data={model ? [{ value: model, label: model }] : []}
-                  value={model || null}
-                  searchable
-                  onChange={(v) => setModel(v ?? '')}
-                  placeholder="Type model name"
-                />
-              )}
-              <PasswordInput
-                label="API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.currentTarget.value)}
-                 placeholder={aiSettings?.apiKeyConfigured ? 'Use saved API Key' : 'Enter API Key'}
-              />
-              <Group>
-                <Button
-                  variant="light"
-                  leftSection={<IconPlugConnected size={16} />}
-                  loading={testConn.isPending}
-                  onClick={handleTestConnection}
-                >
-                  Test Connection
-                </Button>
-                {!aiEnabled && (
-                   <Text size="xs" c="dimmed">Tip: enable AI Integration in Settings &gt; AI Integration.</Text>
-                )}
-              </Group>
-            </>
-          ) : (
-            <Group gap="sm">
-              <IconPrompt size={18} style={{ color: 'var(--mantine-color-blue-6)' }} />
-              <Text size="sm" c="dimmed">
-                 Rule Engine translates each Test Step into Playwright code automatically.
-              </Text>
-            </Group>
-          )}
-
-          <Group justify="flex-end">
-            <Button variant="default" onClick={close}>Cancel</Button>
-            <Button
-              leftSection={<IconFileCode size={16} />}
-              loading={generate.isPending}
-              onClick={handleGenerate}
-            >
-              Generate
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
 
       <Modal
         opened={previewOpen}

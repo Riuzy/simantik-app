@@ -1,5 +1,7 @@
 export type AIProvider = 'RULE_ENGINE' | 'GEMINI' | 'OPENROUTER' | 'OLLAMA' | 'OPENAI' | 'CUSTOM';
 
+export type AIConnectionStatus = 'connected' | 'failed' | null;
+
 export interface AISettings {
   id: string | null;
   enabled: boolean;
@@ -11,6 +13,9 @@ export interface AISettings {
   host: string | null;
   temperature: number | null;
   maxTokens: number | null;
+  connectionStatus: AIConnectionStatus;
+  connectionMessage: string | null;
+  connectionTestedAt: string | null;
   updatedAt: string | null;
 }
 

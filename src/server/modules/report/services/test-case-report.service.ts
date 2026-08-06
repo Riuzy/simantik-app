@@ -1,7 +1,6 @@
 import { PrismaClient, ExecutionStatus, TestPriority, TestCaseType } from '@prisma/client';
 import { AppError } from '../../../middlewares/error-handler';
 import type { TestCaseReportData, TestCaseReportRow, TestCaseReportSummary, ReportStatus } from './test-case-report.types';
-
 const PRIORITY_LABEL: Record<TestPriority, string> = {
   LOW: 'Low',
   MEDIUM: 'Medium',
@@ -14,8 +13,6 @@ const TYPE_LABEL: Record<TestCaseType, string> = {
   AUTOMATION: 'Automation',
 };
 
-const MAX_ACTUAL_RESULT_LENGTH = 320;
-
 function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
@@ -24,10 +21,8 @@ export function formatDateTime(date: Date): string {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-function truncate(text: string, maxLength: number): string {
-  const trimmed = text.replace(/\s+/g, ' ').trim();
-  if (trimmed.length <= maxLength) return trimmed;
-  return `${trimmed.slice(0, maxLength)}...`;
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 function statusFromExecution(status: ExecutionStatus | null): ReportStatus {
@@ -49,11 +44,11 @@ function actualResultFrom(status: ExecutionStatus | null, errorMessage: string |
       return 'All testing steps successfully executed and results match expected result.';
     case 'FAILED':
       return errorMessage
-        ? truncate(errorMessage, MAX_ACTUAL_RESULT_LENGTH)
+        ? collapseWhitespace(errorMessage)
         : 'Execution failed, results don\'t match expected result.';
     case 'ERROR':
       return errorMessage
-        ? truncate(errorMessage, MAX_ACTUAL_RESULT_LENGTH)
+        ? collapseWhitespace(errorMessage)
         : 'Execution experienced error while running testing steps.';
     case 'SKIPPED':
       return 'Execution skipped.';

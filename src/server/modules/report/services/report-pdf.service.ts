@@ -309,6 +309,16 @@ export class ReportPdfService {
       pageMargins: [MARGIN, MARGIN, MARGIN, MARGIN],
       defaultStyle: { font: 'Helvetica', fontSize: 9, color: TEXT_COLOR },
       content,
+      header: (currentPage: number) => {
+        if (currentPage === 1) return {};
+        return {
+          margin: [MARGIN, 14, MARGIN, 0],
+          columns: [
+            { text: 'SIMANTIK', bold: true, fontSize: 8, color: BLUE },
+            { text: 'Software Testing Management System', alignment: 'right', fontSize: 8, color: GRAY },
+          ],
+        };
+      },
       footer: (currentPage: number, pageCount: number) => ({
         margin: [MARGIN, 0, MARGIN, 0],
         stack: [

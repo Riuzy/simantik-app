@@ -20,7 +20,11 @@ export class ExecutionService {
   async getById(id: string) {
     const execution = await this.repository.getById(id);
     if (!execution) throw new AppError(404, 'Execution not found');
-    return execution;
+    return {
+      ...execution,
+      error: execution.errorMessage,
+      errorMessage: undefined,
+    };
   }
 
   async delete(id: string) {

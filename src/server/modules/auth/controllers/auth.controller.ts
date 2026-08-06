@@ -47,4 +47,15 @@ export class AuthController {
       ApiResponse.success(res, user);
     } catch (error) { next(error); }
   };
+
+  uploadAvatar = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) { res.status(401).json({ success: false, message: 'Authentication required', errors: [] }); return; }
+      const user = await this.authService.updateAvatar(req.user.id, {
+        buffer: Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0),
+        mimetype: String(req.headers['content-type'] ?? ''),
+      });
+      ApiResponse.success(res, user);
+    } catch (error) { next(error); }
+  };
 }

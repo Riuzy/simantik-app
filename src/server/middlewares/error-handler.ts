@@ -1,18 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
-import { HttpError } from '../lib/errors';
+import { HttpError, AIProviderError } from '../lib/errors';
 import { logger } from '../lib/logger';
 
 export { HttpError as AppError } from '../lib/errors';
 
 export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof HttpError) {
-    res.status(err.statusCode).json({
+    const body: Record<string, unknown> = {
       success: false,
       message: err.message,
       errors: err.errors || [],
-    });
+    };
+    if (err instanceof AIProviderError) {
+      body.error = err.providerMessage;
+      body.details = err.details;
+    }
+    res.status(err.statusCode).json(body);
     return;
   }
 

@@ -33,8 +33,8 @@ export default function ProjectReportsPage() {
   const { download, isPending } = useTestCaseReportDownload();
   const [downloadOpen, { open: openDownload, close: closeDownload }] = useDisclosure(false);
   const { data: executionsData } = useExecutions({ projectId, page: 1, limit: 100 });
-  const { data: totalData } = useTestCases(projectId, { page: 1, limit: 1 });
-  const { data: automationData } = useTestCases(projectId, { type: 'AUTOMATION', page: 1, limit: 1 });
+  const { data: totalData } = useTestCases(projectId, { page: 1, limit: 1, enabled: Boolean(projectId) });
+  const { data: automationData } = useTestCases(projectId, { type: 'AUTOMATION', page: 1, limit: 1, enabled: Boolean(projectId) });
 
   const executions = useMemo<Execution[]>(() => executionsData?.data ?? [], [executionsData]);
   const stat = report?.executionStatus ?? { PASSED: 0, FAILED: 0, ERROR: 0, SKIPPED: 0, RUNNING: 0 };
@@ -45,23 +45,25 @@ export default function ProjectReportsPage() {
   const automationCount = automationData?.pagination?.total ?? 0;
 
   const trend = useMemo(() => {
-    const days: { label: string; value: number; key: string }[] = [];
-    const now = new Date();
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = d.toLocaleDateString('en-CA');
-      const label = d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
-      days.push({ label, value: 0, key });
-    }
+    const dateMap = new Map<string, number>();
+    
     for (const ex of executions) {
       const runAt = ex.lastRunAt ?? ex.createdAt;
       if (!runAt) continue;
-      const key = new Date(runAt).toLocaleDateString('en-CA');
-      const day = days.find((d) => d.key === key);
-      if (day) day.value += 1;
+      const date = new Date(runAt);
+      const dateStr = date.toISOString().split('T')[0];
+      dateMap.set(dateStr, (dateMap.get(dateStr) ?? 0) + 1);
     }
-    return days.map(({ label, value }) => ({ label, value }));
+
+    const sorted = Array.from(dateMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dateStr, count]) => {
+        const date = new Date(dateStr + 'T00:00:00Z');
+        const label = date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+        return { label, value: count };
+      });
+
+    return sorted.length > 0 ? sorted : [];
   }, [executions]);
 
   const statusSegments = [

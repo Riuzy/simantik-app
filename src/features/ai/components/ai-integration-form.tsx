@@ -12,9 +12,9 @@ import { AIProvider } from '../types';
 
 const MODEL_LABELS: Record<string, Record<string, string>> = {
   GEMINI: {
-    'gemini-2.5-flash': 'Gemini 2.5 Flash',
+    'gemini-3.1-flash-lite': 'Gemini 3.1 Flash Lite',
+    'gemini-3-flash-preview': 'Gemini 3 Flash Preview',
     'gemini-2.5-pro': 'Gemini 2.5 Pro',
-    'gemini-flash-lite': 'Gemini Flash Lite',
   },
   OPENROUTER: {
     'deepseek/deepseek-chat': 'DeepSeek Chat',
@@ -57,7 +57,7 @@ export function AIIntegrationForm() {
     setHost(settings.host ?? OLLAMA_DEFAULT_HOST);
     setTemperature(settings.temperature);
     setMaxTokens(settings.maxTokens);
-    setConnectionStatus('idle');
+    setConnectionStatus(settings.connectionStatus === 'connected' ? 'success' : settings.connectionStatus === 'failed' ? 'failed' : 'idle');
   }, [settings]);
 
   if (isLoading) {
@@ -85,10 +85,6 @@ export function AIIntegrationForm() {
             message: result.message,
             color: result.success ? 'green' : 'red',
           });
-        },
-        onError: () => {
-          setConnectionStatus('failed');
-           notifications.show({ title: 'Connection Failed', message: 'Cannot contact provider.', color: 'red' });
         },
       },
     );

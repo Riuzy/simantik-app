@@ -29,3 +29,12 @@ export async function updateProfile(data: UpdateProfileRequest): Promise<User> {
   const res = await apiClient.patch(API.AUTH.UPDATE_PROFILE, data);
   return res.data.data as User;
 }
+
+export async function uploadAvatar(file: File): Promise<User> {
+  const buffer = await file.arrayBuffer();
+  const res = await apiClient.post(API.AUTH.UPLOAD_AVATAR, buffer, {
+    headers: { 'Content-Type': file.type },
+    timeout: 30000,
+  });
+  return res.data.data as User;
+}

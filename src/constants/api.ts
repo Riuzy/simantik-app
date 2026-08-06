@@ -6,6 +6,7 @@ export const API = {
     ME: '/auth/me',
     CHANGE_PASSWORD: '/auth/change-password',
     UPDATE_PROFILE: '/auth/me',
+    UPLOAD_AVATAR: '/auth/avatar',
   },
   PROJECTS: {
     BASE: '/projects',

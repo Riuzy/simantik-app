@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Center, Loader, Stack, Text } from '@mantine/core';
 import { useAuthStore } from '../../stores/auth-store';
 import { useCurrentUser } from '../../features/auth/hooks/use-auth';
 import { ROUTES } from '../../constants/routes';
 
-function LoadingScreen({ message = 'Memuat...' }: { message?: string }) {
+const CHANGE_PASSWORD = '/change-password';
+
+function LoadingScreen({ message = 'Loading...' }: { message?: string }) {
   return (
     <Center h="100vh">
       <Stack align="center" gap="md">
@@ -21,6 +23,7 @@ function LoadingScreen({ message = 'Memuat...' }: { message?: string }) {
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, user, hydrated } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const { isFetched } = useCurrentUser();
 
   useEffect(() => {
@@ -29,18 +32,18 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       router.push(ROUTES.LOGIN);
       return;
     }
-    if (isFetched && user?.mustChangePassword) {
-      router.push('/change-password?firstLogin=true');
+    if (isFetched && user?.mustChangePassword && pathname !== CHANGE_PASSWORD) {
+      router.push(`${CHANGE_PASSWORD}?firstLogin=true`);
     }
-  }, [hydrated, token, isFetched, user, router]);
+  }, [hydrated, token, isFetched, user, router, pathname]);
 
-  if (!hydrated) return <LoadingScreen message="Memuat sesi..." />;
+  if (!hydrated) return <LoadingScreen message="Loading session..." />;
 
   if (!token) return null;
 
-  if (user?.mustChangePassword) return null;
+  if (user?.mustChangePassword && pathname !== CHANGE_PASSWORD) return null;
 
-  if (!isFetched && token) return <LoadingScreen message="Memulihkan sesi..." />;
+  if (!isFetched && token) return <LoadingScreen message="Restoring session..." />;
 
   return <>{children}</>;
 }

@@ -1,9 +1,20 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
 import { config } from '../../../config';
 import { HttpError } from '../../../lib/errors';
 import { AuthRepository } from '../repositories/auth.repository';
 import type { LoginDTO, AuthResponseDTO, UserResponseDTO, AuthTokens, JWTPayload } from '../types/auth.dto';
+
+const ALLOWED_AVATAR_TYPES: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 
 export class AuthService {
   constructor(private repository: AuthRepository) {}
@@ -84,6 +95,37 @@ export class AuthService {
       email: dto.email,
       avatar: dto.avatar,
     });
+    return this.mapUser(updated);
+  }
+
+  async updateAvatar(userId: string, file: { buffer: Buffer; mimetype: string }): Promise<UserResponseDTO> {
+    const user = await this.repository.findById(userId);
+    if (!user) throw new HttpError(404, 'User not found');
+
+    const extension = ALLOWED_AVATAR_TYPES[file.mimetype];
+    if (!extension) throw new HttpError(400, 'Only JPG, PNG, and WEBP formats are supported');
+    if (file.buffer.length > MAX_AVATAR_SIZE) throw new HttpError(400, 'File size must not exceed 5 MB');
+    if (file.buffer.length === 0) throw new HttpError(400, 'Uploaded file is empty');
+
+    const avatarsDir = path.resolve(process.cwd(), 'storage', 'avatars');
+    fs.mkdirSync(avatarsDir, { recursive: true });
+
+    const filename = `${userId}-${randomUUID()}${extension}`;
+    const relativePath = `storage/avatars/${filename}`;
+    fs.writeFileSync(path.join(avatarsDir, filename), file.buffer);
+
+    if (user.avatar) {
+      const previousFile = user.avatar.split('/storage/avatars/')[1];
+      if (previousFile) {
+        const previousPath = path.join(avatarsDir, previousFile);
+        if (fs.existsSync(previousPath)) {
+          fs.rmSync(previousPath, { force: true });
+        }
+      }
+    }
+
+    const avatarUrl = `${config.storageBaseUrl}/${relativePath}`;
+    const updated = await this.repository.updateProfile(userId, { avatar: avatarUrl });
     return this.mapUser(updated);
   }
 

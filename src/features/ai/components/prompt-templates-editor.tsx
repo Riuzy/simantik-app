@@ -7,21 +7,21 @@ import { usePromptTemplates, useUpdatePromptTemplate } from '../hooks';
 import { PromptTemplates } from '../types';
 
 const TEMPLATE_TABS: { key: keyof PromptTemplates; label: string; description: string }[] = [
-  { key: 'system', label: 'System Prompt', description: 'Instruksi dasar untuk AI sebagai QA engineer.' },
-  { key: 'scriptGenerator', label: 'Script Generator Prompt', description: 'Prompt untuk menghasilkan script Playwright.' },
-  { key: 'expectedResult', label: 'Expected Result Prompt', description: 'Prompt untuk menghasilkan Expected Result.' },
-  { key: 'testCase', label: 'Test Case Prompt', description: 'Prompt untuk membantu membuat Test Case.' },
-  { key: 'locatorGenerator', label: 'Locator Generator Prompt', description: 'Prompt untuk menghasilkan lokator elemen.' },
-  { key: 'executionAnalysis', label: 'Execution Analysis Prompt', description: 'Prompt untuk menganalisis hasil eksekusi.' },
+  { key: 'system', label: 'System Prompt', description: 'Base instructions for the AI as a QA engineer.' },
+  { key: 'scriptGenerator', label: 'Script Generator Prompt', description: 'Prompt used to generate Playwright scripts.' },
+  { key: 'expectedResult', label: 'Expected Result Prompt', description: 'Prompt used to generate Expected Results.' },
+  { key: 'testCase', label: 'Test Case Prompt', description: 'Prompt used to help create Test Cases.' },
+  { key: 'locatorGenerator', label: 'Locator Generator Prompt', description: 'Prompt used to generate element locators.' },
+  { key: 'executionAnalysis', label: 'Execution Analysis Prompt', description: 'Prompt used to analyze execution results.' },
 ];
 
 const DEFAULTS: Record<keyof PromptTemplates, string> = {
-  system: 'Kamu adalah QA Automation Engineer berpengalaman.\nKamu menghasilkan script Playwright yang lengkap, benar, dan siap dijalankan.\nGunakan lokator yang stabil dan self-healing.\nJangan menambahkan komentar yang tidak perlu.',
-  scriptGenerator: 'Buatkan script automation Playwright untuk test case berikut.\n\nTest Case: {title}\nKode: {code}\nFramework: {framework}\n\nTest Steps:\n{steps}\n\nAturan:\n- Output HANYA kode script mentah, tanpa markdown fence, tanpa penjelasan.\n- Gunakan `const { chromium } = require(\'playwright\');`.\n- Kirim log lewat console.log dengan awalan `LOG:LEVEL:pesan`.\n- Di akhir, kirim `RESULT:{"status":"PASSED"|"FAILED","error":"..."}`.\n- Bungkus semua langkah dalam try/catch.\n- Verifikasi hasil sesuai Expected Result setiap langkah.',
-  expectedResult: 'Buatkan Expected Result untuk setiap langkah test case berikut.\nFormat: per langkah tampilkan nomor, action, dan hasil yang diharapkan secara jelas dan rinci.',
-  testCase: 'Bantu buatkan test case profesional.\nSertakan judul, modul, prioritas, langkah-langkah, dan expected result untuk setiap langkah.',
-  locatorGenerator: 'Buatkan lokator Playwright yang stabil untuk elemen berikut.\nGunakan data-testid bila ada, lalu fallback ke label, role, name, placeholder, dan CSS.',
-  executionAnalysis: 'Analisis hasil eksekusi berikut.\nSebutkan langkah yang gagal, penyebab, dan rekomendasi perbaikan.',
+  system: 'You are an experienced QA Automation Engineer.\nYou produce complete, correct, and runnable Playwright scripts.\nUse stable and self-healing locators.\nDo not add unnecessary comments.',
+  scriptGenerator: 'Generate a Playwright automation script for the following test case.\n\nTest Case: {title}\nCode: {code}\nFramework: {framework}\n\nTest Steps:\n{steps}\n\nRules:\n- Output ONLY the raw script, no markdown fences, no explanations.\n- Use `const { chromium } = require(\'playwright\');`.\n- Log progress via console.log with the prefix `LOG:LEVEL:message`.\n- At the end, output `RESULT:{"status":"PASSED"|"FAILED","error":"..."}`.\n- Wrap every step in try/catch.\n- Verify each step against its Expected Result.',
+  expectedResult: 'Generate an Expected Result for each step of the following test case.\nFormat: per step show the number, action, and the expected outcome clearly and in detail.',
+  testCase: 'Help create a professional test case.\nInclude title, module, priority, steps, and an expected result for every step.',
+  locatorGenerator: 'Generate stable Playwright locators for the following element.\nUse data-testid when available, then fall back to label, role, name, placeholder, and CSS.',
+  executionAnalysis: 'Analyze the following execution result.\nMention the failed step, the cause, and recommendations for improvement.',
 };
 
 export function PromptTemplatesEditor() {

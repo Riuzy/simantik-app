@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Container, Group, Text, Button, Card, TextInput, SimpleGrid, Menu, ActionIcon, rem, Badge, ThemeIcon, Stack, Loader, Center, ScrollArea } from '@mantine/core';
+import { Container, Group, Text, Button, Card, TextInput, SimpleGrid, Menu, ActionIcon, rem, Badge, ThemeIcon, Stack, Loader, Center, ScrollArea, Pagination } from '@mantine/core';
 import { IconPlus, IconSearch, IconFolder, IconDots, IconEye, IconPencil, IconTrash, IconRobot, IconPlayerPlay, IconCircleCheck } from '@tabler/icons-react';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import Link from 'next/link';
 import { useProjects, useDeleteProject } from '../../../features/projects/hooks';
@@ -112,7 +113,11 @@ function ProjectCard({ project }: { project: ProjectList }) {
 
 export default function ProjectsPage() {
   const [search, setSearch] = useState('');
-  const { data, isLoading } = useProjects({ search: search || undefined });
+  const [page, setPage] = useState(1);
+  const [debouncedSearch] = useDebouncedValue(search, 300);
+  const { data, isLoading } = useProjects({ search: debouncedSearch || undefined, page, limit: 12 });
+
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   return (
     <Container size="xl">
@@ -143,13 +148,22 @@ export default function ProjectsPage() {
           />
         </Card>
       ) : (
-        <ScrollArea.Autosize mah="calc(100vh - 220px)" offsetScrollbars>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-            {data.data.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </SimpleGrid>
-        </ScrollArea.Autosize>
+        <>
+          <ScrollArea.Autosize mah="calc(100vh - 300px)" offsetScrollbars>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+              {data.data.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </SimpleGrid>
+          </ScrollArea.Autosize>
+          <Group justify="center" mt="lg">
+            <Pagination
+              value={page}
+              onChange={(p) => { setPage(p); window.scrollTo({ top: 0 }); }}
+              total={totalPages}
+            />
+          </Group>
+        </>
       )}
     </Container>
   );

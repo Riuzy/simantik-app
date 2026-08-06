@@ -11,6 +11,9 @@ import {
 } from '@tabler/icons-react';
 import { useSettings, useUpsertSetting, useDeleteSetting } from '../../../features/settings/hooks';
 import { useCurrentUser, useChangePassword, useUpdateProfile } from '../../../features/auth/hooks/use-auth';
+import { uploadAvatar } from '../../../features/auth/services';
+import { useAuthStore } from '../../../stores/auth-store';
+import { useQueryClient } from '@tanstack/react-query';
 import { AIIntegrationForm } from '../../../features/ai/components/ai-integration-form';
 import { PromptTemplatesEditor } from '../../../features/ai/components/prompt-templates-editor';
 import { AvatarUpload } from '../../../features/auth/components/avatar-upload';
@@ -70,8 +73,8 @@ function GeneralTab() {
                 <Table.Td colSpan={3}><Text c="dimmed" ta="center" py="xl">No settings yet</Text></Table.Td>
               </Table.Tr>
             ) : (
-              settings.map((setting) => (
-                <Table.Tr key={setting.id}>
+              settings.map((setting, index) => (
+                <Table.Tr key={setting.key || `setting-${index}`}>
                   <Table.Td><Badge variant="light" ff="monospace">{setting.key}</Badge></Table.Td>
                   <Table.Td>{String(setting.value)}</Table.Td>
                   <Table.Td>
@@ -93,6 +96,8 @@ function ProfileTab() {
   const { data: user, isLoading } = useCurrentUser();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
+  const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
 
   const profileForm = useForm({
     initialValues: {
@@ -113,7 +118,13 @@ function ProfileTab() {
     },
     validate: {
       currentPassword: (v: string) => (v.trim().length < 6 ? 'Current password required' : null),
-      newPassword: (v: string) => (v.length < 8 ? 'Password must be at least 8 characters' : null),
+      newPassword: (v: string) => {
+        if (v.length < 8) return 'Password must be at least 8 characters';
+        if (!/[A-Z]/.test(v)) return 'Must contain at least one uppercase letter';
+        if (!/[a-z]/.test(v)) return 'Must contain at least one lowercase letter';
+        if (!/[0-9]/.test(v)) return 'Must contain at least one number';
+        return null;
+      },
       confirmPassword: (v: string, values) =>
         v !== values.newPassword ? 'Passwords do not match' : null,
     },
@@ -132,17 +143,10 @@ function ProfileTab() {
   if (!user) return <Center h={200}><Text c="dimmed">Not signed in</Text></Center>;
 
   const handleAvatarUpload = async (file: File): Promise<{ avatarUrl: string }> => {
-    const formData = new FormData();
-    formData.append('avatar', file);
-    
-    // TODO: Implement actual upload to server
-    // For now, create a local preview URL
-    const url = URL.createObjectURL(file);
-    
-    // Call update profile with the new avatar
-    await updateProfile.mutateAsync({ avatar: url });
-    
-    return { avatarUrl: url };
+    const updated = await uploadAvatar(file);
+    setUser(updated);
+    queryClient.setQueryData(['current-user'], updated);
+    return { avatarUrl: updated.avatar ?? '' };
   };
 
   const handleProfileSubmit = (values: typeof profileForm.values) => {

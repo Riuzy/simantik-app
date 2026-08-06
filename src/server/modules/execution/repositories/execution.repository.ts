@@ -56,7 +56,7 @@ export class ExecutionRepository {
           finishedAt: true,
           createdAt: true,
           updatedAt: true,
-          testCase: { select: { id: true, code: true, title: true } },
+          testCase: { select: { id: true, code: true, title: true, module: true } },
           project: { select: { id: true, code: true, name: true, slug: true } },
         },
       }),
