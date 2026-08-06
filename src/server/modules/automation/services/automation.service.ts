@@ -196,7 +196,7 @@ export class AutomationService {
 
   async getScript(testCaseId: string) {
     const script = await this.repository.getStoredScript(testCaseId);
-    if (!script) throw new AppError(404, 'Automation script belum dibuat.');
+    if (!script) throw new AppError(404, 'Automation script not created yet.');
     const testCase = await this.repository.getTestCaseForRun(testCaseId);
     return {
       testCaseId,

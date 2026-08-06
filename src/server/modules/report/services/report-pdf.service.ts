@@ -69,6 +69,7 @@ interface PdfCell {
   fillColor?: string;
   pageBreak?: 'before' | 'after';
   colSpan?: number;
+  rowSpan?: number;
   stack?: PdfCell[];
   columns?: PdfCell[];
   table?: object;
@@ -89,14 +90,14 @@ interface PdfSpan {
 type PdfContent = PdfCell | PdfCell[];
 
 const tableLayout: PdfLayout = {
-  hLineWidth: () => 0.5,
+  hLineWidth: (index) => index === 0 || index === 1 ? 1 : 0.5,
   vLineWidth: () => 0.5,
   hLineColor: () => BORDER,
   vLineColor: () => BORDER,
-  paddingLeft: () => 4,
-  paddingRight: () => 4,
-  paddingTop: () => 4,
-  paddingBottom: () => 4,
+  paddingLeft: () => 6,
+  paddingRight: () => 6,
+  paddingTop: () => 5,
+  paddingBottom: () => 5,
 };
 
 function statusColor(status: ReportStatus): string {
@@ -109,61 +110,112 @@ function statusColor(status: ReportStatus): string {
   }
 }
 
-function tableHeaderCell(text: string): PdfCell {
-  return { text, bold: true, color: 'white', fillColor: DARK_BLUE, fontSize: 10, alignment: 'center' };
+function labelCell(text: string): PdfCell {
+  return {
+    text,
+    bold: true,
+    fontSize: 11,
+    color: DARK_BLUE,
+    fillColor: '#E8F1F7',
+    width: '35%',
+  };
 }
 
-interface ColumnConfig {
-  label: string;
-  width: number;
-  align?: 'left' | 'center' | 'right';
-}
+function buildVerticalTestCaseBlock(row: TestCaseReportRow, options: TestCaseReportOptions, index: number): PdfCell {
+  const rows: PdfCell[][] = [];
 
-function buildColumns(options: TestCaseReportOptions): ColumnConfig[] {
-  const columns: ColumnConfig[] = [
-    { label: 'No', width: 16, align: 'center' },
-    { label: 'Test Case ID', width: 50 },
-    { label: 'Judul Test Case', width: 75 },
-    { label: 'Modul', width: 52 },
-    { label: 'Prioritas', width: 36 },
-    { label: 'Jenis', width: 40 },
-    { label: 'Langkah Pengujian', width: 70 },
-  ];
+  rows.push([
+    labelCell('No'),
+    { text: String(index), fontSize: 9, alignment: 'left' },
+  ]);
 
-  if (options.includeExpectedResult) columns.push({ label: 'Expected Result', width: 64 });
-  if (options.includeActualResult) columns.push({ label: 'Actual Result', width: 64 });
-  if (options.includeStatus) columns.push({ label: 'Status', width: 28, align: 'center' });
+  rows.push([
+    labelCell('Test Case ID'),
+    { text: row.code, fontSize: 9 },
+  ]);
 
-  return columns;
-}
+  rows.push([
+    labelCell('Judul Test Case'),
+    { text: row.title, fontSize: 9 },
+  ]);
 
-function buildRowCells(row: TestCaseReportRow, options: TestCaseReportOptions): PdfCell[] {
-  const body = (text: string): PdfCell => ({ text, fontSize: 8.5 });
-  const centered = (text: string): PdfCell => ({ text, fontSize: 8.5, alignment: 'center' });
+  rows.push([
+    labelCell('Modul'),
+    { text: row.module, fontSize: 9 },
+  ]);
 
-  const cells: PdfCell[] = [
-    centered(String(row.no)),
-    body(row.code),
-    body(row.title),
-    body(row.module),
-    body(row.priority),
-    body(row.type),
-    { text: row.steps, fontSize: 8.5 },
-  ];
+  rows.push([
+    labelCell('Prioritas'),
+    { text: row.priority, fontSize: 9 },
+  ]);
+
+  rows.push([
+    labelCell('Jenis'),
+    { text: row.type, fontSize: 9 },
+  ]);
+
+  rows.push([
+    labelCell('Langkah Pengujian'),
+    { text: row.steps, fontSize: 9 },
+  ]);
 
   if (options.includeExpectedResult) {
-    cells.push({ text: row.expectedResults.map((item) => `\u2022 ${item}`), fontSize: 8.5 });
+    rows.push([
+      labelCell('Expected Result'),
+      { text: row.expectedResults.map((item) => `\u2022 ${item}`), fontSize: 9 },
+    ]);
   }
 
   if (options.includeActualResult) {
-    cells.push({ text: row.actualResult, fontSize: 8.5 });
+    rows.push([
+      labelCell('Actual Result'),
+      { text: row.actualResult, fontSize: 9 },
+    ]);
   }
 
   if (options.includeStatus) {
-    cells.push({ text: row.status, bold: true, color: statusColor(row.status), fontSize: 8.5, alignment: 'center' });
+    rows.push([
+      labelCell('Status'),
+      {
+        text: row.status,
+        fontSize: 9,
+        bold: true,
+        color: statusColor(row.status),
+        alignment: 'left',
+      },
+    ]);
   }
 
-  return cells;
+  return {
+    table: {
+      widths: ['35%', '65%'],
+      body: rows,
+    },
+    layout: tableLayout,
+    margin: [0, 0, 0, 12],
+  };
+}
+
+function buildTestCasesSection(data: TestCaseReportData, options: TestCaseReportOptions): PdfCell[] {
+  if (!options.includeTestCase || data.rows.length === 0) {
+    return [];
+  }
+
+  const content: PdfCell[] = [
+    {
+      text: 'DETAIL TEST CASE',
+      fontSize: 13,
+      bold: true,
+      color: BLUE,
+      margin: [0, 0, 0, 12],
+    },
+  ];
+
+  data.rows.forEach((row, index) => {
+    content.push(buildVerticalTestCaseBlock(row, options, index + 1));
+  });
+
+  return content;
 }
 
 function buildTitleBlock(data: TestCaseReportData): PdfCell {
@@ -196,34 +248,6 @@ function buildTitleBlock(data: TestCaseReportData): PdfCell {
   };
 }
 
-function buildBigTable(data: TestCaseReportData, options: TestCaseReportOptions): PdfCell {
-  const columns = buildColumns(options);
-
-  const headerRow: PdfCell[] = columns.map((column) => tableHeaderCell(column.label));
-  const bodyRows: PdfCell[][] = data.rows.map((row) => buildRowCells(row, options));
-
-  if (data.rows.length === 0) {
-    bodyRows.push([
-      {
-        text: 'Belum ada test case untuk project ini.',
-        fontSize: 9,
-        alignment: 'center',
-        colSpan: columns.length,
-      },
-      ...Array.from({ length: columns.length - 1 }, (): PdfCell => ({})),
-    ]);
-  }
-
-  return {
-    table: {
-      headerRows: 1,
-      widths: columns.map((column) => column.width),
-      body: [headerRow, ...bodyRows],
-    },
-    layout: tableLayout,
-  };
-}
-
 function buildSummary(data: TestCaseReportData): PdfCell {
   const summaryPairs: Array<[string, string]> = [
     ['Total Test Case', String(data.summary.totalTestCases)],
@@ -233,21 +257,26 @@ function buildSummary(data: TestCaseReportData): PdfCell {
     ['Failed', String(data.summary.failed)],
     ['Skipped', String(data.summary.skipped)],
     ['Running', String(data.summary.running)],
-    ['Belum Dieksekusi', String(data.summary.notRun)],
+    ['Not Yet Executed', String(data.summary.notRun)],
     ['Pass Rate', `${data.summary.passRate}%`],
   ];
 
+  const headerRow: PdfCell[] = [
+    { text: 'Metrik', bold: true, color: 'white', fillColor: DARK_BLUE, fontSize: 11 },
+    { text: 'Nilai', bold: true, color: 'white', fillColor: DARK_BLUE, fontSize: 11 },
+  ];
+
   const body: PdfCell[][] = [
-    [tableHeaderCell('Metrik'), tableHeaderCell('Nilai')],
+    headerRow,
     ...summaryPairs.map(([label, value]): PdfCell[] => [
-      { text: label, bold: true, fontSize: 10 },
-      { text: value, fontSize: 10 },
+      { text: label, bold: true, fontSize: 9 },
+      { text: value, fontSize: 9 },
     ]),
   ];
 
   return {
     stack: [
-      { text: 'RINGKASAN', fontSize: 13, bold: true, color: BLUE, margin: [0, 0, 0, 10] },
+      { text: 'RINGKASAN', fontSize: 13, bold: true, color: BLUE, margin: [0, 0, 0, 10], pageBreak: 'before' },
       {
         table: { headerRows: 1, widths: ['50%', '50%'], body },
         layout: tableLayout,
@@ -267,9 +296,8 @@ export class ReportPdfService {
   private buildDocument(data: TestCaseReportData, options: TestCaseReportOptions): Record<string, unknown> {
     const content: PdfContent[] = [buildTitleBlock(data)];
 
-    if (options.includeTestCase) {
-      content.push(buildBigTable(data, options));
-    }
+    const testCasesContent = buildTestCasesSection(data, options);
+    content.push(...testCasesContent);
 
     if (options.includeSummary) {
       content.push(buildSummary(data));

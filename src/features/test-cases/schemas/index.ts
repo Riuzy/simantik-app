@@ -1,17 +1,17 @@
 import { z } from 'zod';
 import { TEST_STEP_ACTIONS, LOCATOR_STRATEGIES } from '../../../constants/test-step-actions';
 
-// Format kode: 2-10 huruf besar (opsional dash + 2-20 huruf besar) + dash + 3 digit.
-// Contoh valid: TC-LOGIN-001, TC-001, AUTH-001, PM-001.
-// Menolak: 001, AAAA, ###, dan spasi.
+// Format code: 2-10 uppercase letters (optional dash + 2-20 uppercase letters) + dash + 3 digits.
+// Valid examples: TC-LOGIN-001, TC-001, AUTH-001, PM-001.
+// Rejects: 001, AAAA, ###, and spaces.
 const codeRegex = /^[A-Z]{2,10}(?:-[A-Z]{2,20})?-\d{3}$/;
-const codePattern = 'Format kode tidak valid. Contoh: TC-LOGIN-001, TC-001, AUTH-001, PM-001';
+const codePattern = 'Invalid code format. Examples: TC-LOGIN-001, TC-001, AUTH-001, PM-001';
 
 export const createTestCaseSchema = z.object({
   code: z
     .string()
     .trim()
-    .min(1, 'Kode Test Case wajib diisi')
+    .min(1, 'Test Case code is required')
     .max(30, 'Kode Test Case maksimal 30 karakter')
     .regex(codeRegex, { message: codePattern })
     .transform((val) => val.toUpperCase()),
@@ -29,7 +29,7 @@ export const updateTestCaseSchema = z.object({
   code: z
     .string()
     .trim()
-    .max(30, 'Kode Test Case maksimal 30 karakter')
+    .max(30, 'Test Case code maximum 30 characters')
     .regex(codeRegex, { message: codePattern })
     .transform((val) => val.toUpperCase())
     .optional(),

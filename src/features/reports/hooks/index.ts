@@ -35,13 +35,13 @@ export function useTestCaseReportDownload() {
       await reportService.downloadTestCaseReport(projectId, format, options, filename);
       notifications.show({
         title: 'Success',
-        message: 'Laporan berhasil diunduh.',
+        message: 'Report downloaded successfully.',
         color: 'green',
       });
     } catch (error) {
       notifications.show({
         title: 'Error',
-        message: format === 'pdf' ? 'Gagal membuat laporan PDF.' : 'Gagal membuat laporan Excel.',
+        message: format === 'pdf' ? 'Failed to create PDF report.' : 'Failed to create Excel report.',
         color: 'red',
       });
     } finally {

@@ -1,8 +1,7 @@
 'use client';
 
-import { ScrollArea, NavLink, Box, Text, Select, Divider, Group, ThemeIcon } from '@mantine/core';
+import { ScrollArea, NavLink, Box, Text, Select, Divider } from '@mantine/core';
 import { useRouter, usePathname } from 'next/navigation';
-import { IconFlame } from '@tabler/icons-react';
 import { MAIN_NAVIGATION, ACCOUNT_NAVIGATION, getProjectNavigation, getActiveNavKey } from '../../constants/navigation';
 import { useProjects } from '../../features/projects/hooks';
 import { useProjectStore } from '../../stores/project-store';
@@ -53,14 +52,7 @@ export function Sidebar() {
 
   return (
     <ScrollArea h="calc(100vh - 60px)" offsetScrollbars>
-      <Box py="md" px="xs">
-        <Group gap="sm" px="xs" mb="md">
-          <ThemeIcon size={30} radius="md" variant="light" color="blue">
-            <IconFlame size={18} stroke={1.8} />
-          </ThemeIcon>
-          <Text fw={700} fz="lg" style={{ letterSpacing: '-0.02em' }}>SIMANTIK</Text>
-        </Group>
-
+      <Box py="md" px="xs" pt={24}>
         <SectionLabel>Main</SectionLabel>
         {MAIN_NAVIGATION.map((item) => (
           <NavItemEl

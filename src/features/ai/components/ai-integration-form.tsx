@@ -88,7 +88,7 @@ export function AIIntegrationForm() {
         },
         onError: () => {
           setConnectionStatus('failed');
-          notifications.show({ title: 'Connection Failed', message: 'Tidak dapat menghubungi provider.', color: 'red' });
+           notifications.show({ title: 'Connection Failed', message: 'Cannot contact provider.', color: 'red' });
         },
       },
     );
@@ -120,7 +120,7 @@ export function AIIntegrationForm() {
             <IconRobot size={20} style={{ color: 'var(--mantine-color-blue-6)' }} />
             <Box>
               <Text fw={600}>AI Integration</Text>
-              <Text size="sm" c="dimmed">AI bersifat opsional. SIMANTIK tetap berjalan tanpa AI.</Text>
+               <Text size="sm" c="dimmed">AI is optional. SIMANTIK runs without AI.</Text>
             </Box>
           </Group>
           <Group gap="sm" wrap="nowrap">
@@ -172,14 +172,14 @@ export function AIIntegrationForm() {
                 label="API Key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.currentTarget.value)}
-                placeholder={apiKeyConfigured ? 'Tersimpan •••••••• (kosongkan untuk mempertahankan)' : 'Masukkan API Key'}
+                 placeholder={apiKeyConfigured ? 'Saved •••••••• (leave empty to keep)' : 'Enter API Key'}
               />
             )}
 
             {modelOptions.length > 0 ? (
               <Select label="Model" data={modelOptions} value={model} onChange={(v) => setModel(v ?? '')} searchable />
             ) : (
-              <TextInput label="Model" value={model} onChange={(e) => setModel(e.currentTarget.value)} placeholder="Nama model" />
+               <TextInput label="Model" value={model} onChange={(e) => setModel(e.currentTarget.value)} placeholder="Model name" />
             )}
 
             <Group gap="md" align="flex-start">
@@ -204,7 +204,7 @@ export function AIIntegrationForm() {
             </Group>
 
             {apiKeyConfigured && !apiKey && (
-              <Badge variant="light" color="blue" size="sm">API Key tersimpan &amp; terenkripsi</Badge>
+               <Badge variant="light" color="blue" size="sm">API Key saved &amp; encrypted</Badge>
             )}
           </Stack>
         )}

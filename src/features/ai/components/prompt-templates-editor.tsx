@@ -45,8 +45,8 @@ export function PromptTemplatesEditor() {
   return (
     <Paper p="md" withBorder>
       <Text fw={600} mb="md">AI Prompt Template</Text>
-      <Text size="sm" c="dimmed" mb="lg">
-        Ubah prompt tanpa mengubah source code. Placeholder yang didukung: {`{title}`}, {`{code}`}, {`{framework}`}, {`{steps}`}.
+       <Text size="sm" c="dimmed" mb="lg">
+        Change prompts without modifying source code. Supported placeholders: {`{title}`}, {`{code}`}, {`{framework}`}, {`{steps}`}.
       </Text>
 
       <Tabs value={activeKey} onChange={(v) => setActiveKey((v as keyof PromptTemplates) ?? 'system')}>

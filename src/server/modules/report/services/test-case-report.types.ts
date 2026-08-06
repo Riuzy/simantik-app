@@ -1,4 +1,4 @@
-export type ReportStatus = 'Passed' | 'Failed' | 'Skipped' | 'Running' | 'Belum Dieksekusi';
+export type ReportStatus = 'Passed' | 'Failed' | 'Skipped' | 'Running' | 'Not Yet Executed';
 
 export interface TestCaseReportRow {
   no: number;

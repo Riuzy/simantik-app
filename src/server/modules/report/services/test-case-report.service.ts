@@ -39,38 +39,38 @@ function statusFromExecution(status: ExecutionStatus | null): ReportStatus {
     case 'CANCELLED': return 'Skipped';
     case 'RUNNING':
     case 'QUEUED': return 'Running';
-    default: return 'Belum Dieksekusi';
+    default: return 'Not Yet Executed';
   }
 }
 
 function actualResultFrom(status: ExecutionStatus | null, errorMessage: string | null): string {
   switch (status) {
     case 'PASSED':
-      return 'Seluruh langkah pengujian berhasil dijalankan dan hasil sesuai dengan expected result.';
+      return 'All testing steps successfully executed and results match expected result.';
     case 'FAILED':
       return errorMessage
         ? truncate(errorMessage, MAX_ACTUAL_RESULT_LENGTH)
-        : 'Eksekusi gagal, hasil tidak sesuai dengan expected result.';
+        : 'Execution failed, results don\'t match expected result.';
     case 'ERROR':
       return errorMessage
         ? truncate(errorMessage, MAX_ACTUAL_RESULT_LENGTH)
-        : 'Eksekusi mengalami error saat menjalankan langkah pengujian.';
+        : 'Execution experienced error while running testing steps.';
     case 'SKIPPED':
-      return 'Eksekusi dilewati (skipped).';
+      return 'Execution skipped.';
     case 'CANCELLED':
-      return 'Eksekusi dibatalkan.';
+      return 'Execution cancelled.';
     case 'RUNNING':
-      return 'Eksekusi sedang berjalan.';
+      return 'Execution is running.';
     case 'QUEUED':
-      return 'Eksekusi dalam antrian.';
+      return 'Execution in queue.';
     default:
-      return 'Belum dieksekusi';
+      return 'Not yet executed';
   }
 }
 
 function buildStepLabel(action: string, target: string | null): string {
   const label = action.replace(/_/g, ' ').toLowerCase();
-  return target ? `${label} pada ${target}` : label;
+  return target ? `${label} on ${target}` : label;
 }
 
 function buildSummary(rows: TestCaseReportRow[]): TestCaseReportSummary {
@@ -78,7 +78,7 @@ function buildSummary(rows: TestCaseReportRow[]): TestCaseReportSummary {
   const failed = rows.filter((row) => row.status === 'Failed').length;
   const skipped = rows.filter((row) => row.status === 'Skipped').length;
   const running = rows.filter((row) => row.status === 'Running').length;
-  const notRun = rows.filter((row) => row.status === 'Belum Dieksekusi').length;
+  const notRun = rows.filter((row) => row.status === 'Not Yet Executed').length;
   const completed = passed + failed + skipped;
   return {
     totalTestCases: rows.length,
@@ -158,7 +158,7 @@ export class TestCaseReportService {
         priority: PRIORITY_LABEL[testCase.priority],
         type: TYPE_LABEL[testCase.type],
         steps,
-        expectedResults: expectedResults.length > 0 ? expectedResults : ['Belum ditentukan'],
+        expectedResults: expectedResults.length > 0 ? expectedResults : ['Not determined'],
         actualResult: actualResultFrom(execution?.status ?? null, execution?.errorMessage ?? null),
         status: statusFromExecution(execution?.status ?? null),
       };

@@ -80,7 +80,7 @@ export function CreateTestCaseModal({ projectId, projectSlug, opened, onClose }:
           <TextInput
             label="Code"
             placeholder="TC-LOGIN-001, TC-001, AUTH-001"
-            description="Format: 2-10 huruf besar (opsional: dash + 2-20 huruf besar) + dash + 3 digit"
+            description="Format: 2-10 uppercase letters (optional: dash + 2-20 uppercase letters) + dash + 3 digits"
             required
             {...form.getInputProps('code')}
           />

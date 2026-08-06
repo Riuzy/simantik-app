@@ -22,7 +22,7 @@ export function ExpectedResultTab({ testCase }: { testCase: TestCase }) {
       <Paper p="xl" ta="center" withBorder>
         <IconCircleDashed size={40} stroke={1} style={{ opacity: 0.3 }} />
         <Text c="dimmed" mt="sm" size="sm">
-          Expected Result dibuat otomatis berdasarkan Test Step.
+          Expected Result automatically created based on Test Step.
         </Text>
       </Paper>
     );

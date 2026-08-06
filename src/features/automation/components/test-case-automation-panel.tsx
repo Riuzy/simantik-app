@@ -78,7 +78,7 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
           });
         },
         onError: () => {
-          notifications.show({ title: 'Connection Failed', message: 'Tidak dapat menghubungi provider.', color: 'red' });
+           notifications.show({ title: 'Connection Failed', message: 'Cannot contact provider.', color: 'red' });
         },
       },
     );
@@ -129,7 +129,7 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
           <Switch label="Headless" checked={headless} onChange={(e) => setHeadless(e.currentTarget.checked)} />
           {aiEnabled && (
             <Badge variant="light" color="violet" leftSection={<IconBrain size={12} />}>
-              AI Assistant aktif · {aiSettings.provider}
+               AI Assistant active · {aiSettings.provider}
             </Badge>
           )}
         </Group>
@@ -144,9 +144,9 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
       {!scriptLoading && !script && (
         <Paper p="xl" ta="center" withBorder>
           <IconFileCode size={40} stroke={1} style={{ opacity: 0.3 }} />
-          <Text c="dimmed" mt="sm" size="sm">
-            Automation script belum dibuat. Klik &quot;Generate Script&quot; untuk membuatnya.
-          </Text>
+           <Text c="dimmed" mt="sm" size="sm">
+             Automation script not created yet. Click &quot;Generate Script&quot; to create it.
+           </Text>
         </Paper>
       )}
 
@@ -202,8 +202,8 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
             label="Metode Generate"
           >
             <Stack mt={8} gap="sm">
-              <Radio value="TEMPLATE" label="Template Engine (Recommended)" description="Generator internal Rule Engine. Tidak butuh API Key." />
-              <Radio value="AI" label="AI Generator" description="AI membantu menghasilkan script Playwright." />
+               <Radio value="TEMPLATE" label="Template Engine (Recommended)" description="Internal Rule Engine. Doesn't need API Key." />
+               <Radio value="AI" label="AI Generator" description="AI helps generate Playwright script." />
             </Stack>
           </Radio.Group>
 
@@ -230,14 +230,14 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
                   value={model || null}
                   searchable
                   onChange={(v) => setModel(v ?? '')}
-                  placeholder="Ketik nama model"
+                  placeholder="Type model name"
                 />
               )}
               <PasswordInput
                 label="API Key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.currentTarget.value)}
-                placeholder={aiSettings?.apiKeyConfigured ? 'Gunakan API Key tersimpan' : 'Masukkan API Key'}
+                 placeholder={aiSettings?.apiKeyConfigured ? 'Use saved API Key' : 'Enter API Key'}
               />
               <Group>
                 <Button
@@ -249,7 +249,7 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
                   Test Connection
                 </Button>
                 {!aiEnabled && (
-                  <Text size="xs" c="dimmed">Tip: aktifkan AI Integration di Settings &gt; AI Integration.</Text>
+                   <Text size="xs" c="dimmed">Tip: enable AI Integration in Settings &gt; AI Integration.</Text>
                 )}
               </Group>
             </>
@@ -257,7 +257,7 @@ export function TestCaseAutomationPanel({ testCaseId }: Props) {
             <Group gap="sm">
               <IconPrompt size={18} style={{ color: 'var(--mantine-color-blue-6)' }} />
               <Text size="sm" c="dimmed">
-                Rule Engine menerjemahkan setiap Test Step menjadi kode Playwright secara otomatis.
+                 Rule Engine translates each Test Step into Playwright code automatically.
               </Text>
             </Group>
           )}

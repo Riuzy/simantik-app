@@ -24,31 +24,31 @@ interface UpdateStepData {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  CLICK: 'Klik',
-  TYPE: 'Ketik',
-  FILL: 'Isi',
-  SELECT: 'Pilih',
-  NAVIGATE: 'Navigasi',
-  WAIT: 'Tunggu',
-  VERIFY: 'Verifikasi',
-  VERIFY_TEXT: 'Verifikasi Teks',
-  SUBMIT: 'Kirim',
-  UPLOAD: 'Unggah',
-  DOWNLOAD: 'Unduh',
-  SWITCH: 'Beralih',
-  CLEAR: 'Bersihkan',
-  HOVER: 'Arahkan',
-  RIGHT_CLICK: 'Klik Kanan',
-  DOUBLE_CLICK: 'Klik Ganda',
-  CHECK: 'Centang',
-  UNCHECK: 'Batal Centang',
-  DRAG: 'Tarik',
-  DROP: 'Lepas',
-  RESIZE: 'Ubah Ukuran',
-  SCROLL: 'Gulir',
-  TAKE_SCREENSHOT: 'Ambil Screenshot',
-  OPEN_BROWSER: 'Buka Browser',
-  CLOSE_BROWSER: 'Tutup Browser',
+  CLICK: 'Click',
+  TYPE: 'Type',
+  FILL: 'Fill',
+  SELECT: 'Select',
+  NAVIGATE: 'Navigate',
+  WAIT: 'Wait',
+  VERIFY: 'Verify',
+  VERIFY_TEXT: 'Verify Text',
+  SUBMIT: 'Submit',
+  UPLOAD: 'Upload',
+  DOWNLOAD: 'Download',
+  SWITCH: 'Switch',
+  CLEAR: 'Clear',
+  HOVER: 'Hover',
+  RIGHT_CLICK: 'Right Click',
+  DOUBLE_CLICK: 'Double Click',
+  CHECK: 'Check',
+  UNCHECK: 'Uncheck',
+  DRAG: 'Drag',
+  DROP: 'Drop',
+  RESIZE: 'Resize',
+  SCROLL: 'Scroll',
+  TAKE_SCREENSHOT: 'Take Screenshot',
+  OPEN_BROWSER: 'Open Browser',
+  CLOSE_BROWSER: 'Close Browser',
 };
 
 function generateExpectedResult(stepNumber: number, action: string, locator?: string | null, input?: string | null): string {
@@ -56,8 +56,8 @@ function generateExpectedResult(stepNumber: number, action: string, locator?: st
   
   let result = `Step ${stepNumber}: ${actionLabel}`;
   if (input) result += ` "${input}"`;
-  if (locator && !input) result += ` pada elemen ${locator}`;
-  result += ` berhasil`;
+  if (locator && !input) result += ` on element ${locator}`;
+  result += ` successful`;
   
   return result;
 }

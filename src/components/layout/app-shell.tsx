@@ -8,6 +8,7 @@ import { UserMenu } from './user-menu';
 import { TopbarSearch } from './topbar-search';
 import { NotificationsMenu } from './notifications-menu';
 import { Breadcrumb } from './breadcrumb';
+import { Brand } from './brand';
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const [opened, { toggle }] = useDisclosure();
@@ -21,8 +22,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-          <Group gap="sm">
+          <Group gap="md" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
+            <Box visibleFrom="sm">
+              <Brand showSubtitle={true} />
+            </Box>
+            <Box hiddenFrom="sm">
+              <Brand showSubtitle={false} />
+            </Box>
           </Group>
           <Group gap="xs" wrap="nowrap">
             <TopbarSearch />

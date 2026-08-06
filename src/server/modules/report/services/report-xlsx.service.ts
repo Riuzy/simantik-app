@@ -10,7 +10,7 @@ const STATUS_STYLE: Record<ReportStatus, { fill: string; font: string }> = {
   Failed: { fill: 'FFFFC7CE', font: 'FF9C0006' },
   Skipped: { fill: 'FFE2E2E2', font: 'FF404040' },
   Running: { fill: 'FFDDEBF7', font: 'FF1F4E79' },
-  'Belum Dieksekusi': { fill: 'FFF2F2F2', font: 'FF808080' },
+  'Not Yet Executed': { fill: 'FFF2F2F2', font: 'FF808080' },
 };
 
 const BASE_COLUMNS: Array<{ label: string; width: number }> = [
@@ -73,13 +73,13 @@ export class ReportXlsxService {
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    const worksheet = workbook.addWorksheet('Laporan Test Case');
+    const worksheet = workbook.addWorksheet('Test Case Report');
 
     const columnCount = options.includeTestCase ? BASE_COLUMNS.length : 2;
 
     worksheet.mergeCells(1, 1, 1, columnCount);
     const titleCell = worksheet.getCell(1, 1);
-    titleCell.value = 'LAPORAN PENGUJIAN BLACK BOX';
+    titleCell.value = 'BLACK BOX TEST REPORT';
     titleCell.font = { bold: true, size: 16, color: { argb: BLUE } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     titleCell.fill = solidFill(LIGHT_BLUE);
@@ -91,7 +91,7 @@ export class ReportXlsxService {
     projectCell.font = { bold: true, size: 11 };
 
     worksheet.mergeCells(3, 1, 3, columnCount);
-    worksheet.getCell(3, 1).value = `Tanggal Generate: ${data.generatedAt}`;
+    worksheet.getCell(3, 1).value = `Generated Date: ${data.generatedAt}`;
 
     let nextRow = 4;
 
@@ -164,7 +164,7 @@ export class ReportXlsxService {
 
       if (data.rows.length === 0) {
         worksheet.mergeCells(headerRowNumber + 1, 1, headerRowNumber + 1, columns.length);
-        worksheet.getCell(headerRowNumber + 1, 1).value = 'Belum ada test case untuk project ini.';
+        worksheet.getCell(headerRowNumber + 1, 1).value = 'No test cases for this project yet.';
         worksheet.getCell(headerRowNumber + 1, 1).alignment = { horizontal: 'center' };
       }
 

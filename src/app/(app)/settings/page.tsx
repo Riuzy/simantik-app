@@ -7,12 +7,13 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
-  IconUserCircle, IconBell, IconPalette, IconRobot, IconSettings, IconInfoCircle, IconDeviceFloppy,
+  IconUserCircle, IconSettings, IconPalette, IconBell, IconRobot, IconInfoCircle, IconDeviceFloppy,
 } from '@tabler/icons-react';
 import { useSettings, useUpsertSetting, useDeleteSetting } from '../../../features/settings/hooks';
 import { useCurrentUser, useChangePassword, useUpdateProfile } from '../../../features/auth/hooks/use-auth';
 import { AIIntegrationForm } from '../../../features/ai/components/ai-integration-form';
 import { PromptTemplatesEditor } from '../../../features/ai/components/prompt-templates-editor';
+import { AvatarUpload } from '../../../features/auth/components/avatar-upload';
 
 function GeneralTab() {
   const { data: settings, isLoading } = useSettings();
@@ -97,7 +98,6 @@ function ProfileTab() {
     initialValues: {
       name: '',
       email: '',
-      avatar: '',
     },
     validate: {
       name: (v: string) => (v.trim().length < 2 ? 'Name must be at least 2 characters' : null),
@@ -123,7 +123,7 @@ function ProfileTab() {
 
   useEffect(() => {
     if (user && !hydratedRef.current) {
-      profileForm.setValues({ name: user.name, email: user.email, avatar: user.avatar ?? '' });
+      profileForm.setValues({ name: user.name, email: user.email });
       hydratedRef.current = true;
     }
   }, [user, profileForm]);
@@ -131,11 +131,24 @@ function ProfileTab() {
   if (isLoading) return <Center h={200}><Loader /></Center>;
   if (!user) return <Center h={200}><Text c="dimmed">Not signed in</Text></Center>;
 
+  const handleAvatarUpload = async (file: File): Promise<{ avatarUrl: string }> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    // TODO: Implement actual upload to server
+    // For now, create a local preview URL
+    const url = URL.createObjectURL(file);
+    
+    // Call update profile with the new avatar
+    await updateProfile.mutateAsync({ avatar: url });
+    
+    return { avatarUrl: url };
+  };
+
   const handleProfileSubmit = (values: typeof profileForm.values) => {
     updateProfile.mutate({
       name: values.name,
       email: values.email,
-      avatar: values.avatar.trim() || null,
     });
   };
 
@@ -149,15 +162,16 @@ function ProfileTab() {
   return (
     <Stack gap="md">
       <Paper p="lg" withBorder>
-        <Group gap="lg">
-          <Avatar src={user.avatar} size={80} radius="xl" color="blue">
-            {user.name.charAt(0).toUpperCase()}
-          </Avatar>
-          <div>
-            <Title order={3}>{user.name}</Title>
-            <Text c="dimmed">{user.email}</Text>
-          </div>
-        </Group>
+        <Title order={4} mb="md">Profile Information</Title>
+        
+        <AvatarUpload
+          currentAvatar={user.avatar}
+          userName={user.name}
+          onUpload={handleAvatarUpload}
+          isLoading={updateProfile.isPending}
+        />
+
+        <Divider my="lg" />
 
         <SimpleGrid cols={{ base: 1, md: 3 }} mt="lg">
           <Paper p="md" withBorder>
@@ -176,15 +190,14 @@ function ProfileTab() {
       </Paper>
 
       <Paper p="lg" withBorder>
-        <Title order={4} mb="md">Edit Profile</Title>
+        <Title order={4} mb="md">Edit Profile Information</Title>
         <form onSubmit={profileForm.onSubmit(handleProfileSubmit)}>
           <Stack gap="md" maw={480}>
             <TextInput label="Name" placeholder="Full name" {...profileForm.getInputProps('name')} />
             <TextInput label="Email" placeholder="you@example.com" {...profileForm.getInputProps('email')} />
-            <TextInput label="Avatar URL" placeholder="https://example.com/avatar.png" {...profileForm.getInputProps('avatar')} />
             <Box>
               <Button type="submit" leftSection={<IconDeviceFloppy size={16} />} loading={updateProfile.isPending}>
-                Save
+                Save Changes
               </Button>
             </Box>
           </Stack>
@@ -213,7 +226,7 @@ function AppearanceTab() {
   return (
     <Paper p="lg" withBorder maw={560}>
       <Title order={4} mb="md">Theme</Title>
-      <Text size="sm" c="dimmed" mb="md">Pilih skema warna untuk antarmuka SIMANTIK.</Text>
+      <Text size="sm" c="dimmed" mb="md">Choose color scheme for SIMANTIK interface.</Text>
       <SegmentedControl
         value={colorScheme}
         onChange={(v) => setColorScheme(v as 'light' | 'dark' | 'auto')}
@@ -246,12 +259,12 @@ function NotificationsTab() {
   return (
     <Paper p="lg" withBorder maw={560}>
       <Title order={4} mb="md">Notifications</Title>
-      <Text size="sm" c="dimmed" mb="lg">Atur notifikasi yang ingin kamu terima.</Text>
+      <Text size="sm" c="dimmed" mb="lg">Configure notifications you want to receive.</Text>
       <Stack gap="lg">
         <Group justify="space-between" wrap="nowrap">
           <Box>
             <Text size="sm" fw={500}>Email Notifications</Text>
-            <Text size="xs" c="dimmed">Kirim ringkasan melalui email.</Text>
+             <Text size="xs" c="dimmed">Send summary via email.</Text>
           </Box>
           <Switch checked={getValue('notifications.email.enabled', true)} onChange={(e) => toggle('notifications.email.enabled', e.currentTarget.checked)} />
         </Group>
@@ -259,7 +272,7 @@ function NotificationsTab() {
         <Group justify="space-between" wrap="nowrap">
           <Box>
             <Text size="sm" fw={500}>Execution Results</Text>
-            <Text size="xs" c="dimmed">Beri tahu saat eksekusi test selesai.</Text>
+             <Text size="xs" c="dimmed">Notify when test execution is complete.</Text>
           </Box>
           <Switch checked={getValue('notifications.execution.enabled', true)} onChange={(e) => toggle('notifications.execution.enabled', e.currentTarget.checked)} />
         </Group>
@@ -267,7 +280,7 @@ function NotificationsTab() {
         <Group justify="space-between" wrap="nowrap">
           <Box>
             <Text size="sm" fw={500}>System Updates</Text>
-            <Text size="xs" c="dimmed">Info tentang pembaruan sistem.</Text>
+             <Text size="xs" c="dimmed">Information about system updates.</Text>
           </Box>
           <Switch checked={getValue('notifications.system.enabled', false)} onChange={(e) => toggle('notifications.system.enabled', e.currentTarget.checked)} />
         </Group>
@@ -299,8 +312,8 @@ function AboutTab() {
         </Group>
         <Divider my="xs" />
         <Text size="sm" c="dimmed">
-          SIMANTIK adalah Software Testing Management System yang dirancang untuk mengelola test case,
-          automation script, dan hasil eksekusi dalam satu tempat.
+          SIMANTIK is a Software Testing Management System designed to manage test cases,
+          automation scripts, and execution results in one place.
         </Text>
       </Stack>
     </Paper>
@@ -313,7 +326,7 @@ export default function SettingsPage() {
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>Settings</Title>
-          <Text c="dimmed" size="sm">Kelola pengaturan aplikasi dan akun</Text>
+           <Text c="dimmed" size="sm">Manage application and account settings</Text>
         </div>
       </Group>
 
