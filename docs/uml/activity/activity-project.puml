@@ -1,0 +1,60 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Project Management
+
+|Tester|
+start
+:Navigate to /projects;
+
+|Frontend|
+:GET /api/projects;
+
+|Backend|
+:ProjectService.list(page=1, limit=20);
+:ProjectRepository.list();
+
+|Database|
+:SELECT * FROM projects ORDER BY created_at DESC LIMIT 20;
+
+|Frontend|
+:Render Project List table;
+if (Click "New Project"?) then (yes)
+  :Show Create Project form;
+  :Enter Name, Slug, Description;
+  :Configure Automation (browser, viewport, baseUrl, etc.);
+  :Configure Auth (enabled, loginUrl, loginEmail, loginMethod);
+  :Click Save;
+  :POST /api/projects {name, slug, description, ...};
+  :ProjectService.create(dto, createdById);
+  :Check slug uniqueness;
+  :Generate next code (PROJ-XXXX);
+  :INSERT INTO projects;
+  :Return created project;
+  :Redirect to project list;
+else
+  :View Project list;
+endif
+
+if (Click "Edit"?) then (yes)
+  :Load project detail;
+  :PUT /api/projects/:id {name, slug, description, ...};
+  :ProjectService.update();
+  :Check slug uniqueness;
+  :UPDATE projects SET ...;
+  :Return updated project;
+endif
+
+if (Click "Delete"?) then (yes)
+  :Confirm deletion;
+  :DELETE /api/projects/:id;
+  :ProjectService.delete();
+  :Soft delete (UPDATE deleted_at);
+endif
+
+stop
+
+@enduml

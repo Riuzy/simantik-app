@@ -1,0 +1,102 @@
+@startuml
+!define RECTANGLE class
+
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+left to right direction
+
+title SIMANTIK - Use Case Diagram (Simplified)
+
+actor "Tester" as Tester
+
+package "Authentication" {
+  usecase "Login" as UC1
+  usecase "Logout" as UC2
+  usecase "Change Password" as UC3
+  usecase "Update Profile" as UC4
+}
+
+package "Dashboard" {
+  usecase "View Dashboard" as UC5
+}
+
+package "Project Management" {
+  usecase "Create Project" as UC6
+  usecase "View Projects" as UC7
+  usecase "Edit Project" as UC8
+  usecase "Delete Project" as UC9
+}
+
+package "Test Case Management" {
+  usecase "Create Test Case" as UC10
+  usecase "View Test Cases" as UC11
+  usecase "Edit Test Case" as UC12
+  usecase "Delete Test Case" as UC13
+  usecase "Duplicate/Clone" as UC14
+}
+
+package "Test Step Management" {
+  usecase "Add Step" as UC15
+  usecase "View Steps" as UC16
+  usecase "Edit Step" as UC17
+  usecase "Delete Step" as UC18
+  usecase "Reorder Steps" as UC19
+}
+
+package "Automation" {
+  usecase "Generate Script (AI)" as UC20
+  usecase "Generate Script (Template)" as UC21
+  usecase "Run Automation" as UC21
+}
+
+package "Execution" {
+  usecase "View Executions" as UC22
+  usecase "View Execution Detail" as UC23
+  usecase "Retry Execution" as UC23
+}
+
+package "Reports" {
+  usecase "View Reports" as UC24
+  usecase "Download PDF" as UC25
+  usecase "Download XLSX" as UC26
+}
+
+package "AI Integration" {
+  usecase "Configure AI" as UC27
+  usecase "Test Connection" as UC28
+  usecase "Manage Prompts" as UC29
+}
+
+Tester --> UC1
+Tester --> UC2
+Tester --> UC3
+Tester --> UC4
+Tester --> UC5
+Tester --> UC6
+Tester --> UC7
+Tester --> UC8
+Tester --> UC9
+Tester --> UC10
+Tester --> UC11
+Tester --> UC12
+Tester --> UC13
+Tester --> UC14
+Tester --> UC15
+Tester --> UC16
+Tester --> UC17
+Tester --> UC18
+Tester --> UC19
+Tester --> UC20
+Tester --> UC21
+Tester --> UC22
+Tester --> UC23
+Tester --> UC24
+Tester --> UC25
+Tester --> UC26
+Tester --> UC27
+Tester --> UC28
+Tester --> UC29
+
+@enduml

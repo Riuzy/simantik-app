@@ -1,0 +1,46 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Sequence: Login
+
+actor Tester
+participant Frontend
+participant API
+participant AuthController
+participant AuthService
+participant AuthRepository
+participant Database
+
+Tester -> Frontend: Open /login
+Frontend -> Tester: Render form
+Tester -> Frontend: Enter email, password
+Tester -> Frontend: Click Sign In
+Frontend -> API: POST /api/auth/login {email, password}
+API -> AuthController: login(req, res)
+AuthController -> AuthService: login(dto)
+AuthService -> AuthRepository: findByEmail(email)
+AuthRepository -> Database: SELECT * FROM users WHERE email = ?
+Database -> AuthRepository: User
+AuthRepository -> AuthService: User
+AuthService -> AuthService: bcrypt.compare(password, hash)
+alt Valid
+  AuthService -> AuthRepository: updateLastLogin(userId)
+  AuthRepository -> Database: UPDATE last_login_at
+  AuthService -> AuthService: generateAccessToken()
+  AuthService -> AuthService: generateRefreshToken()
+  AuthService -> AuthController: AuthResponseDTO {accessToken, refreshToken, user}
+  AuthController -> API: 200 OK {accessToken, refreshToken, user}
+  API -> Frontend: 200 OK
+  Frontend -> Frontend: Store tokens
+  Frontend -> Tester: Redirect /dashboard
+else Invalid
+  AuthService -> AuthController: throw 401
+  AuthController -> API: 401 {success: false, message: "Invalid credentials"}
+  API -> Frontend: 401
+  Frontend -> Tester: Show error
+end
+
+@enduml

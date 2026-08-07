@@ -40,6 +40,7 @@ export const API = {
     DETAIL: (id: string) => `/executions/${id}`,
     LOGS: (id: string) => `/executions/${id}/logs`,
     ARTIFACT: (id: string, name: string) => `/executions/${id}/artifact/${name}`,
+    RETRY: (id: string) => `/executions/${id}/retry`,
   },
   REPORTS: {
     OVERVIEW: '/reports/overview',
@@ -49,6 +50,8 @@ export const API = {
   },
   SETTINGS: {
     BASE: '/settings',
+    TYPED: '/settings/typed',
+    BULK: '/settings/bulk',
     DETAIL: (key: string) => `/settings/${key}`,
   },
 };

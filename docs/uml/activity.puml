@@ -1,0 +1,158 @@
+@startuml
+!define RECTANGLE class
+
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title SIMANTIK - Activity Diagram (Derived from Use Cases)
+
+|Tester|
+start
+
+:Open Login Page;
+:Input Email;
+:Input Password;
+:Click Login;
+
+|Frontend|
+:Send POST /api/auth/login;
+
+|Auth Controller|
+:Validate Credentials;
+if (Valid?) then (yes)
+  :Generate Access Token (15m);
+  :Generate Refresh Token (7d);
+  :Update Last Login;
+  if (mustChangePassword?) then (yes)
+    :Return {accessToken, refreshToken, mustChangePassword: true};
+  else
+    :Return {accessToken, refreshToken, user};
+  endif
+else (no)
+  :Return 401 Invalid Credentials;
+endif
+
+|Frontend|
+:Store Tokens;
+:Redirect to Dashboard;
+
+|Dashboard|
+:Load Overview Report;
+:Load Executions (last 100);
+:Load Test Case Stats;
+:Build Execution Trend (last 14 days);
+:Render Stat Cards;
+:Render Execution Trend Chart;
+:Render Pass/Fail Donut Chart;
+:Render Recent Failed Executions;
+:Render Top Failed Modules;
+
+|Tester|
+:Select Project;
+if (Project Exists?) then (no)
+  :Create Project;
+  :Enter Name, Slug, Description;
+  :Configure Automation (browser, viewport, baseUrl, auth);
+  :Save Project;
+else (yes)
+  :Select Project;
+endif
+
+|Tester|
+:Navigate to Test Cases;
+:View Test Case List;
+if (Create New?) then (yes)
+  :Click Create Test Case;
+  :Enter Code, Title, Description, Module, Priority, Type;
+  :Save Test Case;
+else (no)
+  :Select Existing Test Case;
+endif
+
+|Tester|
+:Navigate to Test Steps Tab;
+if (Add Step?) then (yes)
+  :Click Add Step;
+  :Enter Step Number, Action, Target, Locator, Input, Expected Result;
+  :Save Step;
+else (no)
+  :View/Edit/Delete/Reorder Steps;
+endif
+
+|Tester|
+:Navigate to Automation Tab;
+if (AI Configured?) then (no)
+  :Show Empty State - Configure AI in Settings;
+else (yes)
+  if (Generate with AI?) then (yes)
+    :Click Generate Script (AI);
+    :Backend loads Project Config + Test Case + Steps;
+    :Build Project Context (baseUrl, loginUrl, browser, viewport, timeout, auth);
+    :Build Prompt with Project Context + Test Case + Steps;
+    :Call AI Provider (Gemini/OpenRouter/Ollama/OpenAI/Custom);
+    :Inject BASE_URL + LOGIN_URL constants into generated script;
+    :Store Script in AutomationScript table;
+  else (no)
+    :Click Generate Script (Template);
+    :Rule Engine converts steps to Playwright code deterministically;
+    :Store Script in AutomationScript table;
+  endif
+endif
+
+|Tester|
+:Click Run Test;
+:Backend loads Test Case + Project Config;
+:Build AuthEngine (disable auto-login if login flow detected);
+:Generate Script (from stored AutomationScript);
+:Spawn Playwright Process with Config;
+:Capture Console Logs, Screenshots, Video, Trace;
+:Store Execution Result + Logs + Artifacts;
+:Update Test Case lastExecutionStatus + lastExecutedAt;
+
+|Tester|
+:View Execution List;
+:Select Execution;
+:View Execution Detail (logs, artifacts, status, duration);
+if (Failed?) then (yes)
+  :Click Retry;
+  :Re-run with same/override config;
+endif
+
+|Tester|
+:Navigate to Reports;
+:View Project Report (status breakdown, pass rate);
+if (Download Report?) then (yes)
+  :Select Format (PDF/XLSX);
+  :Select Options (summary, testCase, expectedResult, actualResult, status);
+  :Backend builds TestCaseReportData;
+  if (PDF?) then (yes)
+    :pdfmake generates PDF with title, test case details, summary;
+  else (no)
+    :ExcelJS generates XLSX with styled tables;
+  endif
+  :Return file download;
+endif
+
+|Tester|
+:Navigate to Settings;
+if (AI Tab?) then (yes)
+  :Configure AI Provider, API Key, Model, Temperature, Max Tokens;
+  :Click Test Connection;
+  :Backend calls AI Provider test endpoint;
+  :Save connection status (connected/failed);
+  :Save settings;
+endif
+
+if (Profile Tab?) then (yes)
+  :Update Name, Email, Avatar;
+  :Change Password;
+endif
+
+:Logout;
+:Clear Tokens;
+
+stop
+
+@enduml

@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../../middlewares/auth';
 import { SettingService } from '../services/setting.service';
 import { ApiResponse } from '../../../utils/api-response';
-import { settingKeyParamSchema, upsertSettingBodySchema } from '../validators/setting.validators';
+import { settingKeyParamSchema, settingKeyQuerySchema, upsertSettingBodySchema, bulkUpsertSettingBodySchema } from '../validators/setting.validators';
 
 export class SettingController {
   constructor(private settingService: SettingService) {}
@@ -22,6 +22,21 @@ export class SettingController {
     } catch (error) { next(error); }
   };
 
+  getAllTyped = async (_req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const settings = await this.settingService.getAllTyped();
+      ApiResponse.success(res, settings);
+    } catch (error) { next(error); }
+  };
+
+  findByKeys = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const query = settingKeyQuerySchema.parse(req.query);
+      const settings = await this.settingService.findByKeys(query.keys || []);
+      ApiResponse.success(res, settings);
+    } catch (error) { next(error); }
+  };
+
   upsert = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const params = settingKeyParamSchema.parse(req.params);
@@ -31,11 +46,11 @@ export class SettingController {
     } catch (error) { next(error); }
   };
 
-  delete = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  bulkUpsert = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const params = settingKeyParamSchema.parse(req.params);
-      await this.settingService.delete(params.key);
-      ApiResponse.noContent(res);
+      const body = bulkUpsertSettingBodySchema.parse(req.body);
+      const settings = await this.settingService.bulkUpsert(body.settings);
+      ApiResponse.success(res, settings);
     } catch (error) { next(error); }
   };
 }

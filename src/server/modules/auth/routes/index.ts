@@ -22,6 +22,6 @@ authRouter.patch('/me', requireAuth, validate({ body: updateProfileBodySchema })
 authRouter.post(
   '/avatar',
   requireAuth,
-  raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '6mb' }),
+  raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }),
   controller.uploadAvatar,
 );

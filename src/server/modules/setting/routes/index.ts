@@ -5,7 +5,7 @@ import { SettingService } from '../services/setting.service';
 import { SettingController } from '../controllers/setting.controller';
 import { requireAuth } from '../../../middlewares/auth';
 import { validate } from '../../../middlewares/validate';
-import { settingKeyParamSchema, upsertSettingBodySchema } from '../validators/setting.validators';
+import { settingKeyParamSchema, settingKeyQuerySchema, upsertSettingBodySchema, bulkUpsertSettingBodySchema } from '../validators/setting.validators';
 
 const settingRepository = new SettingRepository(prisma);
 const settingService = new SettingService(settingRepository);
@@ -20,6 +20,19 @@ settingRouter.get(
 );
 
 settingRouter.get(
+  '/typed',
+  requireAuth,
+  settingController.getAllTyped
+);
+
+settingRouter.get(
+  '/bulk',
+  requireAuth,
+  validate({ query: settingKeyQuerySchema }),
+  settingController.findByKeys
+);
+
+settingRouter.get(
   '/:key',
   requireAuth,
   validate({ params: settingKeyParamSchema }),
@@ -27,15 +40,15 @@ settingRouter.get(
 );
 
 settingRouter.put(
+  '/bulk',
+  requireAuth,
+  validate({ body: bulkUpsertSettingBodySchema }),
+  settingController.bulkUpsert
+);
+
+settingRouter.put(
   '/:key',
   requireAuth,
   validate({ params: settingKeyParamSchema, body: upsertSettingBodySchema }),
   settingController.upsert
-);
-
-settingRouter.delete(
-  '/:key',
-  requireAuth,
-  validate({ params: settingKeyParamSchema }),
-  settingController.delete
 );

@@ -30,13 +30,16 @@ const MODEL_LABELS: Record<string, Record<string, string>> = {
   },
 };
 
+const FORM_PROVIDERS: AIProvider[] = ['GEMINI', 'OPENROUTER', 'OPENAI', 'OLLAMA'];
+const FORM_PROVIDER_OPTIONS = AI_PROVIDER_OPTIONS.filter((o) => FORM_PROVIDERS.includes(o.value));
+
 export function AIIntegrationForm() {
   const { data: settings, isLoading } = useAISettings();
   const save = useSaveAISettings();
   const testConn = useTestConnection();
 
   const [enabled, setEnabled] = useState(false);
-  const [provider, setProvider] = useState<AIProvider>('RULE_ENGINE');
+  const [provider, setProvider] = useState<AIProvider>('GEMINI');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
@@ -126,7 +129,7 @@ export function AIIntegrationForm() {
             >
               {connectionStatus === 'success' ? 'Connected' : connectionStatus === 'failed' ? 'Disconnected' : 'Not Tested'}
             </Badge>
-            <Switch label="Enabled" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} />
+            <Switch label="Enable AI Assistant" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} />
           </Group>
         </Group>
       </Paper>
@@ -135,10 +138,10 @@ export function AIIntegrationForm() {
         <Text fw={600} mb="md">Provider</Text>
         <Select
           label="Provider"
-          data={AI_PROVIDER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          data={FORM_PROVIDER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
           value={provider}
           onChange={(v) => {
-            const next = (v as AIProvider) || 'RULE_ENGINE';
+            const next = (v as AIProvider) || 'GEMINI';
             setProvider(next);
             setModel((PROVIDER_MODEL_OPTIONS[next as Exclude<AIProvider, 'RULE_ENGINE'>] ?? [])[0] ?? '');
             setConnectionStatus('idle');
@@ -159,64 +162,71 @@ export function AIIntegrationForm() {
           </Text>
         )}
 
-        {provider !== 'RULE_ENGINE' && (
-          <Stack gap="md">
-            {provider === 'OLLAMA' ? (
-              <TextInput label="Host" value={host} onChange={(e) => setHost(e.currentTarget.value)} placeholder={OLLAMA_DEFAULT_HOST} />
-            ) : (
-              <PasswordInput
-                label="API Key"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.currentTarget.value)}
-                 placeholder={apiKeyConfigured ? 'Saved •••••••• (leave empty to keep)' : 'Enter API Key'}
-              />
-            )}
+        <Stack gap="md">
+          {provider === 'OLLAMA' ? (
+            <TextInput label="Host" value={host} onChange={(e) => setHost(e.currentTarget.value)} placeholder={OLLAMA_DEFAULT_HOST} />
+          ) : (
+            <PasswordInput
+              label="API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.currentTarget.value)}
+              placeholder={apiKeyConfigured ? 'Saved •••••••• (leave empty to keep)' : 'Enter API Key'}
+            />
+          )}
 
-            {modelOptions.length > 0 ? (
-              <Select label="Model" data={modelOptions} value={model} onChange={(v) => setModel(v ?? '')} searchable />
-            ) : (
-               <TextInput label="Model" value={model} onChange={(e) => setModel(e.currentTarget.value)} placeholder="Model name" />
-            )}
+          {modelOptions.length > 0 ? (
+            <Select label="Model" data={modelOptions} value={model} onChange={(v) => setModel(v ?? '')} searchable />
+          ) : (
+            <TextInput label="Model" value={model} onChange={(e) => setModel(e.currentTarget.value)} placeholder="Model name" />
+          )}
 
-            <Group gap="md" align="flex-start">
-              <NumberInput
-                label="Temperature"
-                value={temperature ?? 0}
-                onChange={(v) => setTemperature(typeof v === 'number' ? v : null)}
-                min={0}
-                max={2}
-                step={0.1}
-                decimalScale={1}
-                style={{ flex: 1 }}
-              />
-              <NumberInput
-                label="Max Tokens"
-                value={maxTokens ?? 0}
-                onChange={(v) => setMaxTokens(typeof v === 'number' && v > 0 ? v : null)}
-                min={1}
-                step={64}
-                style={{ flex: 1 }}
-              />
-            </Group>
+          <Group gap="md" align="flex-start">
+            <NumberInput
+              label="Temperature"
+              value={temperature ?? 0}
+              onChange={(v) => setTemperature(typeof v === 'number' ? v : null)}
+              min={0}
+              max={2}
+              step={0.1}
+              decimalScale={1}
+              style={{ flex: 1 }}
+            />
+            <NumberInput
+              label="Max Tokens"
+              value={maxTokens ?? 0}
+              onChange={(v) => setMaxTokens(typeof v === 'number' && v > 0 ? v : null)}
+              min={1}
+              step={64}
+              style={{ flex: 1 }}
+            />
+          </Group>
 
-            {apiKeyConfigured && !apiKey && (
-               <Badge variant="light" color="blue" size="sm">API Key saved &amp; encrypted</Badge>
-            )}
-          </Stack>
-        )}
+          {provider !== 'OLLAMA' && (
+            <TextInput
+              label="Base URL (optional)"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.currentTarget.value)}
+              placeholder="e.g. https://api.openai.com/v1"
+              description="Leave empty to use the provider default."
+            />
+          )}
+
+          {apiKeyConfigured && !apiKey && (
+            <Badge variant="light" color="blue" size="sm">API Key saved &amp; encrypted</Badge>
+          )}
+        </Stack>
 
         <Group mt="lg">
           <Button
             leftSection={<IconPlugConnected size={16} />}
             variant="light"
             loading={testConn.isPending}
-            disabled={provider === 'RULE_ENGINE'}
             onClick={handleTestConnection}
           >
             Test Connection
           </Button>
           <Button leftSection={<IconDeviceFloppy size={16} />} loading={save.isPending} onClick={handleSave}>
-            Save
+            Save Configuration
           </Button>
         </Group>
       </Paper>

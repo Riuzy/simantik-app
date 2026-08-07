@@ -1,0 +1,166 @@
+@startuml
+!define RECTANGLE class
+
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+left to right direction
+
+title SIMANTIK - Use Case Diagram (Implemented Features Only)
+
+actor "Tester" as Tester
+
+package "SIMANTIK" {
+  rectangle "Authentication" {
+    usecase "Login" as UC1
+    usecase "Logout" as UC2
+    usecase "Refresh Token" as UC3
+    usecase "Get Current User" as UC4
+    usecase "Change Password" as UC5
+    usecase "Update Profile" as UC6
+    usecase "Upload Avatar" as UC7
+  }
+
+  rectangle "Dashboard" {
+    usecase "View Dashboard" as UC8
+    usecase "View Execution Trend" as UC9
+    usecase "View Recent Executions" as UC10
+    usecase "View Pass/Fail Distribution" as UC11
+    usecase "View Top Failed Modules" as UC12
+    usecase "View Automation Coverage" as UC13
+  }
+
+  rectangle "Project Management" {
+    usecase "Create Project" as UC14
+    usecase "View Project List" as UC15
+    usecase "View Project Detail" as UC16
+    usecase "Edit Project" as UC17
+    usecase "Delete Project" as UC18
+    usecase "Configure Automation Settings" as UC18a
+    usecase "Configure Authentication" as UC18b
+  }
+
+  rectangle "Test Case Management" {
+    usecase "Create Test Case" as UC19
+    usecase "View Test Case List" as UC20
+    usecase "View Test Case Detail" as UC21
+    usecase "Edit Test Case" as UC22
+    usecase "Delete Test Case" as UC23
+    usecase "Duplicate Test Case" as UC24
+    usecase "Clone Test Case" as UC25
+    usecase "Filter Test Cases" as UC26
+    usecase "View Test Case Modules" as UC27
+  }
+
+  rectangle "Test Step Management" {
+    usecase "Add Test Step" as UC28
+    usecase "View Test Steps" as UC29
+    usecase "Edit Test Step" as UC30
+    usecase "Delete Test Step" as UC31
+    usecase "Reorder Test Steps" as UC32
+  }
+
+  rectangle "Automation" {
+    usecase "Generate Script (AI)" as UC33
+    usecase "Generate Script (Template)" as UC34
+    usecase "View Stored Script" as UC35
+    usecase "Run Automation" as UC36
+    usecase "Reset Execution History" as UC36a
+  }
+
+  rectangle "Execution" {
+    usecase "View Execution List" as UC37
+    usecase "View Execution Detail" as UC38
+    usecase "Retry Execution" as UC39
+    usecase "Delete Execution" as UC40
+    usecase "View Execution Logs" as UC41
+    usecase "View Execution Report" as UC42
+  }
+
+  rectangle "Reports" {
+    usecase "View Overview Report" as UC43
+    usecase "View Project Report" as UC44
+    usecase "Download Test Case Report (PDF)" as UC45
+    usecase "Download Test Case Report (XLSX)" as UC46
+  }
+
+  rectangle "Settings" {
+    usecase "Manage Global Settings" as UC47
+    usecase "Manage Profile" as UC48
+    usecase "Change Password" as UC49
+    usecase "Configure Appearance" as UC50
+    usecase "Configure Notifications" as UC51
+    usecase "Configure AI Integration" as UC52
+    usecase "Manage Prompt Templates" as UC53
+    usecase "Test AI Connection" as UC54
+  }
+}
+
+Tester --> UC1
+Tester --> UC2
+Tester --> UC3
+Tester --> UC4
+Tester --> UC5
+Tester --> UC6
+Tester --> UC7
+
+Tester --> UC8
+Tester --> UC9
+Tester --> UC10
+Tester --> UC11
+Tester --> UC12
+Tester --> UC13
+
+Tester --> UC14
+Tester --> UC15
+Tester --> UC16
+Tester --> UC17
+Tester --> UC18
+Tester --> UC18a
+Tester --> UC18b
+
+Tester --> UC19
+Tester --> UC20
+Tester --> UC21
+Tester --> UC22
+Tester --> UC23
+Tester --> UC24
+Tester --> UC25
+Tester --> UC26
+Tester --> UC27
+
+Tester --> UC28
+Tester --> UC29
+Tester --> UC30
+Tester --> UC31
+Tester --> UC32
+
+Tester --> UC33
+Tester --> UC34
+Tester --> UC35
+Tester --> UC36
+Tester --> UC36a
+
+Tester --> UC37
+Tester --> UC38
+Tester --> UC39
+Tester --> UC40
+Tester --> UC41
+Tester --> UC42
+
+Tester --> UC43
+Tester --> UC44
+Tester --> UC45
+Tester --> UC46
+
+Tester --> UC47
+Tester --> UC48
+Tester --> UC49
+Tester --> UC50
+Tester --> UC51
+Tester --> UC52
+Tester --> UC53
+Tester --> UC54
+
+@enduml

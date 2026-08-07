@@ -1,0 +1,52 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Login & Authentication
+
+|Tester|
+start
+:Open /login page;
+:Enter email;
+:Enter password;
+:Click "Sign In";
+
+|Frontend|
+:POST /api/auth/login {email, password};
+
+|AuthController|
+:Validate email exists;
+if (User exists?) then (no)
+  :Return 401 Invalid credentials;
+  stop
+else (yes)
+  :Verify password (bcrypt);
+  if (Valid?) then (no)
+    :Return 401 Invalid credentials;
+    stop
+  else (yes)
+    if (isActive?) then (no)
+      :Return 403 Account disabled;
+      stop
+    else (yes)
+      :Update lastLoginAt;
+      :Generate Access Token (15m);
+      :Generate Refresh Token (7d);
+      if (mustChangePassword?) then (yes)
+        :Return {accessToken, refreshToken, mustChangePassword: true};
+      else
+        :Return {accessToken, refreshToken, user};
+      endif
+    endif
+  endif
+endif
+
+|Frontend|
+:Store tokens in memory;
+:Redirect to /dashboard;
+
+stop
+
+@enduml

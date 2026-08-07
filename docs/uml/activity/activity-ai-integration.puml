@@ -1,0 +1,68 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: AI Integration Settings
+
+|Tester|
+start
+:Navigate to Settings > AI Integration tab;
+
+|Frontend|
+:GET /api/ai/settings;
+
+|Backend|
+:AIService.getSettings();
+:AIRepository.getSetting();
+:AIRepository.getConnectionStatus();
+
+|Database|
+:SELECT * FROM ai_settings ORDER BY updated_at DESC LIMIT 1;
+:SELECT * FROM settings WHERE key IN ('ai.connection.status', 'ai.connection.message', 'ai.connection.testedAt');
+
+|Frontend|
+:Render AI Form (Provider, Model, API Key, Temperature, Max Tokens);
+:Show Connection Status badge (Connected/Failed/Not Tested);
+if (Click "Test Connection"?) then (yes)
+  :POST /api/ai/test-connection {provider, apiKey, model, ...};
+  :AIService.testConnection(dto);
+  :Use dto values or existing settings;
+  :Get Generator for provider;
+  :Generator.testConnection(config);
+  :Call AI Provider health endpoint (e.g., Gemini models/:model:generateContent);
+  :AIService.saveConnectionStatus(success ? 'connected' : 'failed', message);
+  :UPDATE settings SET value = 'connected/failed' WHERE key = 'ai.connection.status';
+  :UPDATE settings SET value = 'message' WHERE key = 'ai.connection.message';
+  :UPDATE settings SET value = 'timestamp' WHERE key = 'ai.connection.testedAt';
+  :Return {success, message};
+  :Show Toast (Success/Failed);
+  :Invalidate ai-settings query (refetch status);
+endif
+if (Click "Save"?) then (yes)
+  :PUT /api/ai/settings {enabled, provider, apiKey, model, baseUrl, host, temperature, maxTokens};
+  :AIService.saveSettings(dto);
+  :Encrypt API Key (AES-GCM);
+  :AIRepository.upsertSetting({enabled, provider, apiKey: encrypted, model, ...});
+  :INSERT INTO ai_settings ON DUPLICATE KEY UPDATE;
+  :Return saved settings;
+  :Show Toast "AI settings saved";
+endif
+
+|Tester|
+:Navigate to Prompt Templates section;
+:GET /api/ai/prompt-templates;
+:AIService.getPromptTemplates();
+:AIRepository.getPromptTemplates() from settings table;
+
+if (Edit Template?) then (yes)
+  :PUT /api/ai/prompt-templates {key, content};
+  :AIService.updatePromptTemplate(key, content);
+  :AIRepository.upsertPromptTemplate(key, content);
+  :UPSERT INTO settings WHERE key = 'ai.prompt.{key}';
+endif
+
+stop
+
+@enduml

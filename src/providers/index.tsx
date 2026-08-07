@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Notifications } from '@mantine/notifications';
 import { ModalsProvider } from '@mantine/modals';
 import { useAuthStore } from '../stores/auth-store';
-import { theme } from '../theme';
+import { AppearanceBoundary } from './appearance-boundary';
 
 export function Providers({ children }: { children: ReactNode }) {
   const setToken = useAuthStore((s) => s.setToken);
@@ -30,10 +30,10 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="light">
+      <AppearanceBoundary>
         <Notifications position="top-right" limit={5} />
         <ModalsProvider>{children}</ModalsProvider>
-      </MantineProvider>
+      </AppearanceBoundary>
     </QueryClientProvider>
   );
 }

@@ -27,7 +27,7 @@ export function AvatarUpload({ currentAvatar, userName, onUpload, isLoading = fa
     }
 
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 2 * 1024 * 1024;
 
     if (!validTypes.includes(file.type)) {
       notifications.show({
@@ -42,7 +42,7 @@ export function AvatarUpload({ currentAvatar, userName, onUpload, isLoading = fa
     if (file.size > maxSize) {
       notifications.show({
         title: 'Error',
-        message: 'File size must not exceed 5 MB.',
+        message: 'File size must not exceed 2 MB.',
         color: 'red',
         icon: <IconAlertCircle size={16} />,
       });
@@ -116,7 +116,7 @@ export function AvatarUpload({ currentAvatar, userName, onUpload, isLoading = fa
       />
 
       <Text size="xs" c="dimmed">
-        Supported formats: JPG, JPEG, PNG, WEBP. Maximum file size: 5 MB.
+        Supported formats: JPG, JPEG, PNG, WEBP. Maximum file size: 2 MB.
       </Text>
 
       {uploadProgress > 0 && uploadProgress < 100 && (

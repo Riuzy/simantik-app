@@ -1,0 +1,280 @@
+@startuml
+!define RECTANGLE class
+
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title SIMANTIK - Sequence Diagram (Derived from Activity Diagram)
+
+actor Tester
+participant "Frontend (Next.js)" as Frontend
+participant "API Gateway (Express)" as API
+participant "AuthController" as AuthCtrl
+participant "AuthService" as AuthSvc
+participant "AuthRepository" as AuthRepo
+participant "Database (MySQL)" as DB
+
+== Login Flow ==
+Tester -> Frontend: Open /login page
+Frontend -> Tester: Render login form
+Tester -> Frontend: Enter email, password
+Tester -> Frontend: Click "Sign In"
+Frontend -> API: POST /api/auth/login {email, password}
+API -> AuthCtrl: login(req, res)
+AuthCtrl -> AuthSvc: login(dto)
+AuthSvc -> AuthRepo: findByEmail(email)
+AuthRepo -> DB: SELECT * FROM users WHERE email = ?
+DB -> AuthRepo: User record
+AuthRepo -> AuthSvc: User entity
+AuthSvc -> AuthSvc: bcrypt.compare(password, hash)
+alt Valid Credentials
+  AuthSvc -> AuthRepo: updateLastLogin(userId)
+  AuthRepo -> DB: UPDATE users SET last_login_at = NOW()
+  AuthSvc -> AuthSvc: generateAccessToken({id, email})
+  AuthSvc -> AuthSvc: generateRefreshToken(id, tokenVersion)
+  AuthSvc -> AuthCtrl: AuthResponseDTO {accessToken, refreshToken, user}
+  AuthCtrl -> API: ApiResponse.success(res, result)
+  API -> Frontend: 200 OK {accessToken, refreshToken, user}
+  Frontend -> Frontend: Store tokens in memory/localStorage
+  Frontend -> Tester: Redirect to /dashboard
+else Invalid Credentials
+  AuthSvc -> AuthCtrl: throw HttpError(401)
+  AuthCtrl -> API: next(error) -> errorHandler
+  API -> Frontend: 401 {success: false, message: "Invalid credentials"}
+  Frontend -> Tester: Show error toast
+end
+
+== Refresh Token Flow ==
+Frontend -> API: POST /api/auth/refresh {refreshToken}
+API -> AuthCtrl: refreshToken(req, res)
+AuthCtrl -> AuthSvc: refresh(dto)
+AuthSvc -> AuthSvc: jwt.verify(refreshToken)
+AuthSvc -> AuthRepo: findById(decoded.id)
+AuthRepo -> DB: SELECT * FROM users WHERE id = ?
+DB -> AuthRepo: User record
+AuthRepo -> AuthSvc: User entity
+AuthSvc -> AuthSvc: Check tokenVersion match
+alt Valid Token
+  AuthSvc -> AuthSvc: generateAccessToken, generateRefreshToken
+  AuthSvc -> AuthCtrl: AuthTokens {accessToken, refreshToken}
+  AuthCtrl -> API: ApiResponse.success(res, tokens)
+  API -> Frontend: 200 OK {accessToken, refreshToken}
+else Invalid Token
+  AuthSvc -> AuthCtrl: throw HttpError(401)
+  AuthCtrl -> API: 401 {success: false, message: "Invalid refresh token"}
+end
+
+== Dashboard Load ==
+Frontend -> API: GET /api/reports/overview
+API -> ReportCtrl: getOverview()
+ReportCtrl -> ReportSvc: getOverview()
+ReportSvc -> Repo: Aggregate counts (projects, testCases, executions, status)
+Repo -> DB: Multiple COUNT queries
+DB -> Repo: Aggregated data
+Repo -> ReportSvc: Overview data
+ReportSvc -> ReportCtrl: OverviewDTO
+ReportCtrl -> API: ApiResponse.success(res, report)
+API -> Frontend: 200 OK {totalProjects, totalTestCases, ...}
+
+Frontend -> API: GET /api/executions?limit=100
+API -> ExecutionCtrl: list()
+ExecutionCtrl -> ExecutionSvc: list(page=1, limit=100)
+ExecutionSvc -> ExecutionRepo: list(page, limit, filters)
+ExecutionRepo -> DB: SELECT * FROM executions ORDER BY created_at DESC LIMIT 100
+DB -> ExecutionRepo: Execution records
+ExecutionRepo -> ExecutionSvc: Paginated result
+ExecutionSvc -> ExecutionCtrl: Execution list
+ExecutionCtrl -> API: ApiResponse.success(res, data)
+API -> Frontend: 200 OK {data: [...], pagination: {...}}
+
+Frontend -> Frontend: Build Execution Trend (group by date, last 14 days)
+Frontend -> Frontend: Render charts (BarChart, DonutChart)
+
+== Project CRUD ==
+Tester -> Frontend: Click "New Project"
+Frontend -> Frontend: Show create form
+Tester -> Frontend: Fill name, slug, description, automation config, auth config
+Tester -> Frontend: Click Save
+Frontend -> API: POST /api/projects {name, slug, description, baseUrl, browser, ...}
+API -> ProjectCtrl: create(req, res)
+ProjectCtrl -> ProjectSvc: create(dto, createdById)
+ProjectSvc -> ProjectRepo: findBySlug(slug)
+ProjectRepo -> DB: SELECT * FROM projects WHERE slug = ?
+alt Slug Exists
+  ProjectSvc -> ProjectCtrl: throw AppError(409)
+  ProjectCtrl -> API: 409 {success: false, message: "Project with this slug already exists"}
+else Slug Available
+  ProjectSvc -> ProjectSvc: generateNextCode() -> "PROJ-0001"
+  ProjectSvc -> ProjectRepo: create({code, name, slug, ..., createdById})
+  ProjectRepo -> DB: INSERT INTO projects (...)
+  DB -> ProjectRepo: Created project
+  ProjectRepo -> ProjectSvc: Project entity
+  ProjectSvc -> ProjectCtrl: ProjectResponseDTO
+  ProjectCtrl -> API: 201 Created {project}
+end
+
+== Test Case CRUD ==
+Tester -> Frontend: Navigate to /projects/{slug}/test-cases
+Frontend -> API: GET /api/test-cases?projectId={id}&page=1&limit=20
+API -> TestCaseCtrl: list()
+TestCaseCtrl -> TestCaseSvc: list(page, limit, filters)
+TestCaseSvc -> TestCaseRepo: list(page, limit, filters)
+TestCaseRepo -> DB: SELECT * FROM test_cases WHERE project_id = ? ORDER BY created_at DESC LIMIT 20
+DB -> TestCaseRepo: TestCase records
+TestCaseRepo -> TestCaseSvc: Paginated result
+TestCaseSvc -> TestCaseCtrl: Paginated result
+TestCaseCtrl -> API: 200 OK {data: [...], pagination: {...}}
+
+Tester -> Frontend: Click "New Test Case"
+Tester -> Frontend: Fill code, title, description, module, priority, type
+Tester -> Frontend: Click Save
+Frontend -> API: POST /api/test-cases {code, title, description, module, priority, type, projectId}
+API -> TestCaseCtrl: create()
+TestCaseCtrl -> TestCaseSvc: create(dto, createdById)
+TestCaseSvc -> TestCaseRepo: findByCode(code)
+alt Code Exists
+  TestCaseSvc -> TestCaseCtrl: throw AppError(409)
+else Code Available
+  TestCaseSvc -> TestCaseRepo: create({code, title, ..., projectId, createdById})
+  TestCaseRepo -> DB: INSERT INTO test_cases (...)
+  DB -> TestCaseRepo: TestCase entity
+  TestCaseRepo -> TestCaseSvc: TestCase
+  TestCaseSvc -> TestCaseCtrl: TestCase
+  TestCaseCtrl -> API: 201 Created {testCase}
+end
+
+== Test Step Management ==
+Tester -> Frontend: Click "Add Step"
+Tester -> Frontend: Fill action, target, locatorStrategy, locatorValue, inputValue, expectedResult
+Tester -> Frontend: Click Save
+Frontend -> API: POST /api/test-cases/{id}/steps {stepNumber, action, target, locatorStrategy, locatorValue, inputValue, expectedResult}
+API -> TestCaseCtrl: addStep()
+TestCaseCtrl -> TestCaseSvc: addStep(testCaseId, dto)
+TestCaseSvc -> TestCaseRepo: createTestStep(testCaseId, dto)
+TestCaseRepo -> DB: INSERT INTO test_steps (test_case_id, step_number, action, ...)
+DB -> TestCaseRepo: TestStep entity
+TestCaseRepo -> TestCaseSvc: TestStep
+TestCaseSvc -> TestCaseCtrl: TestStep
+TestCaseCtrl -> API: 201 Created {step}
+
+== Automation - Generate Script (AI) ==
+Tester -> Frontend: Navigate to Automation tab
+Tester -> Frontend: Click "Generate Script" -> "AI Generator"
+Frontend -> API: POST /api/automation/test-cases/{id}/generate-script {method: "AI"}
+API -> AutomationCtrl: generateScript()
+AutomationCtrl -> AutomationSvc: generateScript(testCaseId, {method: "AI"})
+AutomationSvc -> AutomationSvc: loadRunConfig(testCaseId)
+AutomationSvc -> AutomationRepo: getTestCaseForRun(testCaseId)
+TestCaseRepo -> DB: SELECT * FROM test_cases tc JOIN projects p ON tc.project_id = p.id WHERE tc.id = ?
+DB -> TestCaseRepo: TestCase + Project config
+TestCaseRepo -> AutomationSvc: {testCase, config: ProjectRunConfig}
+AutomationSvc -> AutomationSvc: buildAuthEngine(testCase, config)
+AutomationSvc -> AutomationSvc: getAISetting()
+AutomationSvc -> AIRepo: getSetting()
+AIRepo -> DB: SELECT * FROM ai_settings ORDER BY updated_at DESC LIMIT 1
+DB -> AIRepo: AISetting
+AIRepo -> AutomationSvc: AISetting
+AutomationSvc -> AutomationSvc: resolve provider (AI + provider from AI settings)
+AutomationSvc -> AutomationSvc: getGenerator(provider) -> AIGenerator
+AutomationSvc -> AutomationSvc: build AIConfig from AI settings
+AutomationSvc -> AIGenerator: generate(context)
+AIGenerator -> AIGenerator: buildProjectContext(context)
+AIGenerator -> AIGenerator: buildPrompt with {projectContext, title, code, framework, steps}
+AIGenerator -> AIGenerator: callModel(resolved, system, prompt)
+AIGenerator -> External AI: POST to AI Provider (Gemini/OpenRouter/etc.)
+External AI -> AIGenerator: Generated script content
+AIGenerator -> AIGenerator: stripCodeFences(content)
+AIGenerator -> AIGenerator: injectBaseURLConstants(script, baseUrl, loginUrl)
+AIGenerator -> AutomationSvc: GeneratedScript {script, generatorType: 'AI', provider, model}
+AutomationSvc -> AutomationRepo: upsertStoredScript({testCaseId, script, generatorType, provider, model})
+AutomationRepo -> DB: INSERT INTO automation_scripts ON DUPLICATE KEY UPDATE
+DB -> AutomationRepo: AutomationScript
+AutomationSvc -> AutomationCtrl: GeneratedScriptResponseDTO
+AutomationCtrl -> API: 200 OK {script, generatorType, provider, model}
+
+== Automation - Run Test ==
+Tester -> Frontend: Click "Run Test"
+Frontend -> API: POST /api/automation/test-cases/{id}/run {headless: true}
+API -> AutomationCtrl: run()
+AutomationCtrl -> AutomationSvc: run(testCaseId, {headless})
+AutomationSvc -> AutomationSvc: loadRunConfig(testCaseId)
+AutomationSvc -> AutomationSvc: getStoredScript(testCaseId)
+AutomationRepo -> DB: SELECT * FROM automation_scripts WHERE test_case_id = ?
+DB -> AutomationRepo: AutomationScript
+AutomationSvc -> AutomationSvc: Create temp script file
+AutomationSvc -> AutomationSvc: spawn('npx', ['playwright', 'test', scriptPath, ...], {cwd, env})
+Playwright -> External App: Execute test steps
+Playwright -> AutomationSvc: Streams stdout/stderr (logs)
+AutomationSvc -> AutomationRepo: Store logs in execution_logs
+Playwright -> AutomationSvc: Exit code, artifacts (screenshots, video, trace)
+AutomationSvc -> AutomationRepo: Update execution (status, duration, artifacts, logs)
+AutomationRepo -> DB: UPDATE executions SET status=?, duration_ms=?, ...; INSERT INTO execution_logs
+DB -> AutomationRepo: Updated
+AutomationSvc -> AutomationCtrl: ExecutionResponseDTO
+AutomationCtrl -> API: 200 OK {execution}
+
+== Reports ==
+Tester -> Frontend: Navigate to Reports
+Frontend -> API: GET /api/reports/projects/{projectId}
+API -> ReportCtrl: getProjectReport()
+ReportCtrl -> ReportSvc: getProjectReport(projectId)
+ReportSvc -> ReportRepo: getProjectReport(projectId)
+ReportRepo -> DB: Complex query (executions by status, test cases by module, pass rate)
+DB -> ReportRepo: Aggregated data
+ReportRepo -> ReportSvc: ProjectReportDTO
+ReportSvc -> ReportCtrl: ProjectReportDTO
+ReportCtrl -> API: 200 OK {report}
+
+Tester -> Frontend: Click "Download PDF"
+Frontend -> API: GET /api/reports/projects/{projectId}/download/pdf?summary=true&testCase=true...
+API -> ReportCtrl: downloadTestCaseReportPdf()
+ReportCtrl -> ReportSvc: getTestCaseReportPdf(projectId, options)
+ReportSvc -> ReportRepo: getTestCaseReportData(projectId)
+ReportRepo -> DB: Complex query (test cases with steps, last execution, status)
+DB -> ReportRepo: TestCaseReportData
+ReportSvc -> ReportPdfService: generate(data, options)
+ReportPdfService -> pdfmake: buildDocument(data, options)
+pdfmake -> ReportPdfService: PDF Buffer
+ReportPdfService -> ReportCtrl: Buffer
+ReportCtrl -> API: res.setHeader('Content-Type', 'application/pdf'); res.end(buffer)
+API -> Frontend: File download
+
+== AI Integration ==
+Tester -> Frontend: Navigate to Settings -> AI Integration
+Tester -> Frontend: Fill provider, API Key, model, temperature, maxTokens
+Tester -> Frontend: Click "Test Connection"
+Frontend -> API: POST /api/ai/test-connection {provider, apiKey, model, ...}
+API -> AICtrl: testConnection()
+AICtrl -> AIService: testConnection(dto)
+AIService -> AIRepo: getSetting()
+AIRepo -> DB: SELECT * FROM ai_settings LIMIT 1
+DB -> AIRepo: AISetting
+AIService -> AIService: build config (use dto or existing settings)
+AIService -> GeneratorFactory: getGenerator(provider)
+GeneratorFactory -> AIService: Generator instance
+AIService -> Generator: testConnection(config)
+Generator -> External AI: POST to provider health endpoint
+External AI -> Generator: {success: true/false, message}
+Generator -> AIService: TestConnectionResult
+AIService -> AIRepo: saveConnectionStatus(result.success ? 'connected' : 'failed', message)
+AIRepo -> DB: UPSERT INTO settings (key, value) for ai.connection.status/message/testedAt
+DB -> AIRepo: OK
+AIService -> AICtrl: TestConnectionResult
+AICtrl -> API: 200 OK {success, message}
+API -> Frontend: 200 OK {success: true, message: "Connected successfully."}
+
+Tester -> Frontend: Click "Save"
+Frontend -> API: PUT /api/ai/settings {enabled, provider, apiKey, model, ...}
+API -> AICtrl: saveSettings()
+AICtrl -> AIService: saveSettings(dto)
+AIService -> AIRepo: getSetting()
+AIService -> AIService: encryptSecret(apiKey)
+AIService -> AIRepo: upsertSetting({enabled, provider, apiKey: encrypted, model, ...})
+AIRepo -> DB: INSERT INTO ai_settings ON DUPLICATE KEY UPDATE
+DB -> AIRepo: Saved AISetting
+AIService -> AICtrl: AISettingsDTO
+AICtrl -> API: 200 OK {settings}
+
+@enduml

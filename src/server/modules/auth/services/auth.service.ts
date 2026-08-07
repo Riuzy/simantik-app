@@ -14,7 +14,7 @@ const ALLOWED_AVATAR_TYPES: Record<string, string> = {
   'image/webp': '.webp',
 };
 
-const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
 
 export class AuthService {
   constructor(private repository: AuthRepository) {}
@@ -104,7 +104,7 @@ export class AuthService {
 
     const extension = ALLOWED_AVATAR_TYPES[file.mimetype];
     if (!extension) throw new HttpError(400, 'Only JPG, PNG, and WEBP formats are supported');
-    if (file.buffer.length > MAX_AVATAR_SIZE) throw new HttpError(400, 'File size must not exceed 5 MB');
+    if (file.buffer.length > MAX_AVATAR_SIZE) throw new HttpError(400, 'File size must not exceed 2 MB');
     if (file.buffer.length === 0) throw new HttpError(400, 'Uploaded file is empty');
 
     const avatarsDir = path.resolve(process.cwd(), 'storage', 'avatars');

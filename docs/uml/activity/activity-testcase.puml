@@ -1,0 +1,62 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Test Case Management
+
+|Tester|
+start
+:Navigate to /projects/{slug}/test-cases;
+
+|Frontend|
+:GET /api/test-cases?projectId={id}&page=1&limit=20;
+
+|Backend|
+:TestCaseService.list(filters);
+
+|Database|
+:SELECT * FROM test_cases WHERE project_id = ? ORDER BY created_at DESC;
+
+|Frontend|
+:Render Test Case table (Code, Title, Module, Priority, Status, Type);
+if (Click "New Test Case"?) then (yes)
+  :Show Create form;
+  :Enter Code, Title, Description, Module, Priority, Type;
+  :Click Save;
+  :POST /api/test-cases {code, title, description, module, priority, type, projectId};
+  :TestCaseService.create(dto, createdById);
+  :Check code uniqueness;
+  :INSERT INTO test_cases;
+  :Return created test case;
+  :Redirect to test case list;
+else
+  if (Click "Edit"?) then (yes)
+    :Load test case detail;
+    :PUT /api/test-cases/:id {title, description, module, priority, status, type, tags};
+    :TestCaseService.update();
+    :UPDATE test_cases SET ...;
+  else
+    if (Click "Duplicate"?) then (yes)
+      :POST /api/test-cases/:id/duplicate {code, title};
+      :TestCaseService.duplicate();
+    else
+      if (Click "Clone"?) then (yes)
+        :POST /api/test-cases/:id/clone {projectId, code, title};
+        :TestCaseService.clone();
+      else
+        if (Click "Delete"?) then (yes)
+          :Confirm;
+          :DELETE /api/test-cases/:id;
+          :TestCaseService.delete();
+          :Soft delete (UPDATE deleted_at);
+        endif
+      endif
+    endif
+  endif
+endif
+
+stop
+
+@enduml

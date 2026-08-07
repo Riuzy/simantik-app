@@ -3,17 +3,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@mantine/notifications';
 import * as settingService from '../services';
+import type { AppSettings, Setting } from '../types';
 
 export function useSettings() {
-  return useQuery({
+  return useQuery<AppSettings>({
     queryKey: ['settings'],
-    queryFn: () => settingService.listSettings(),
+    queryFn: () => settingService.getAllSettings(),
+  });
+}
+
+export function useSetting(key: string) {
+  return useQuery<Setting>({
+    queryKey: ['settings', key],
+    queryFn: () => settingService.getSetting(key),
+    enabled: !!key,
   });
 }
 
 export function useUpsertSetting() {
   const qc = useQueryClient();
-
   return useMutation({
     mutationFn: ({ key, value }: { key: string; value: unknown }) => settingService.upsertSetting(key, value),
     onSuccess: () => {
@@ -24,15 +32,14 @@ export function useUpsertSetting() {
   });
 }
 
-export function useDeleteSetting() {
+export function useBulkUpsertSetting() {
   const qc = useQueryClient();
-
   return useMutation({
-    mutationFn: (key: string) => settingService.deleteSetting(key),
+    mutationFn: (settings: Record<string, unknown>) => settingService.bulkUpsertSettings(settings),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settings'] });
-      notifications.show({ title: 'Success', message: 'Setting deleted', color: 'green' });
+      notifications.show({ title: 'Success', message: 'Settings saved', color: 'green' });
     },
-    onError: () => notifications.show({ title: 'Error', message: 'Failed to delete setting', color: 'red' }),
+    onError: () => notifications.show({ title: 'Error', message: 'Failed to save settings', color: 'red' }),
   });
 }

@@ -1,0 +1,75 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Execution & Reports
+
+|Tester|
+start
+:Navigate to Executions;
+
+|Frontend|
+:GET /api/executions?page=1&limit=20;
+
+|Backend|
+:ExecutionService.list(page, limit, filters);
+
+|Database|
+:SELECT * FROM executions ORDER BY created_at DESC;
+
+|Frontend|
+:Render Execution List (Number, Test Case, Status, Duration, Browser, Started At);
+if (Click Execution?) then (yes)
+  :GET /api/executions/:id;
+  :ExecutionService.getById(id);
+  :Render Execution Detail (Status, Duration, Logs, Artifacts);
+  if (Status = FAILED/ERROR?) then (yes)
+    if (Click "Retry"?) then (yes)
+      :POST /api/executions/:id/retry {headless?, browser?};
+      :ExecutionService.retry();
+      :Re-run automation with same/override config;
+    endif
+  endif
+  if (Click "Delete"?) then (yes)
+    :Confirm;
+    :DELETE /api/executions/:id;
+    :ExecutionService.delete();
+  endif
+endif
+
+|Tester|
+:Navigate to Reports;
+
+|Frontend|
+:GET /api/reports/projects/{projectId};
+
+|Backend|
+:ReportService.getProjectReport(projectId);
+:ReportRepository.getProjectReport();
+
+|Database|
+:Aggregate executions by status;
+:Aggregate test cases by module;
+:Calculate pass rate;
+
+|Frontend|
+:Render Project Report (Status cards, Pass Rate, Module breakdown);
+if (Click "Download PDF"?) then (yes)
+  :GET /api/reports/projects/{projectId}/download/pdf?options;
+  :ReportService.getTestCaseReportPdf();
+  :ReportRepository.getTestCaseReportData();
+  :ReportPdfService.generate() using pdfmake;
+  :Return PDF file download;
+endif
+if (Click "Download XLSX"?) then (yes)
+  :GET /api/reports/projects/{projectId}/download/xlsx?options;
+  :ReportService.getTestCaseReportXlsx();
+  :ReportXlsxService.generate() using ExcelJS;
+  :Return XLSX file download;
+endif
+
+stop
+
+@enduml

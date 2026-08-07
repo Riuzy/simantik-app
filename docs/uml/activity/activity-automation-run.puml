@@ -1,0 +1,54 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Automation - Run Test
+
+|Tester|
+start
+:Click "Run Test" button;
+:Select Headless (true/false);
+
+|Frontend|
+:POST /api/automation/test-cases/{id}/run {headless};
+
+|Backend|
+:AutomationService.run(testCaseId, {headless});
+:loadRunConfig(testCaseId);
+:Get Stored Script from automation_scripts;
+:Create temp script file;
+:Spawn Playwright Process (npx playwright test);
+:PlaywrightScriptService.generatePlaywrightScript();
+:Helper functions (__log, __step, __healed, __makeLocator, __findElement, __verifyText, __clickElement, __fillElement, __goto, __settle, __capture, __waitForFinalState);
+
+|Playwright|
+:Launch browser (Chromium/Firefox/WebKit);
+:Create context (viewport, deviceScaleFactor);
+:Create page;
+:Set default timeout;
+:Execute test steps sequentially;
+:__step(n, fn) wraps each step in try/catch;
+:Log progress (LOG:INFO/STEP/ERROR);
+:__goto(page, url) handles navigation with retry;
+:__findElement tries multiple locator strategies;
+:__verifyText confirms expected results;
+:Capture screenshots (per config);
+:Capture video/trace (if enabled);
+
+|Backend|
+:Stream logs to ExecutionLog table;
+:Capture artifacts (screenshots, video, trace);
+:On completion: Update Execution (status, duration, artifacts);
+:Update TestCase lastExecutionStatus + lastExecutedAt;
+
+|Frontend|
+:Poll execution status;
+:Show real-time logs;
+:Display result (PASSED/FAILED/ERROR);
+:Show artifacts (screenshots, video, trace);
+
+stop
+
+@enduml

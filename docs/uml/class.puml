@@ -1,0 +1,406 @@
+@startuml
+!define RECTANGLE class
+
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title SIMANTIK - Class Diagram (Derived from Prisma Models & Source Code)
+
+package "Domain Models (Prisma)" {
+  class User {
+    +id: String
+    +name: String
+    +email: String
+    +password: String
+    +avatar: String?
+    +isActive: Boolean
+    +mustChangePassword: Boolean
+    +tokenVersion: Int
+    +lastLoginAt: DateTime?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +deletedAt: DateTime?
+    +projectsCreated: Project[]
+    +testCasesCreated: TestCase[]
+  }
+
+  class Project {
+    +id: String
+    +code: String
+    +name: String
+    +slug: String
+    +description: String?
+    +status: ProjectStatus
+    +framework: Framework
+    +baseUrl: String?
+    +browser: Browser
+    +environment: String?
+    +headless: Boolean
+    +timeout: Int
+    +slowMo: Int
+    +viewportWidth: Int
+    +viewportHeight: Int
+    +screenshotTiming: ScreenshotTiming
+    +debugMode: Boolean
+    +authenticationEnabled: Boolean
+    +loginUrl: String?
+    +loginEmail: String?
+    +loginPassword: String?
+    +loginMethod: LoginMethod
+    +sessionStrategy: SessionStrategy
+    +createdById: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +deletedAt: DateTime?
+    +createdBy: User
+    +testCases: TestCase[]
+    +executions: Execution[]
+  }
+
+  class TestCase {
+    +id: String
+    +code: String
+    +title: String
+    +description: String?
+    +module: String?
+    +priority: TestPriority
+    +status: TestCaseStatus
+    +type: TestCaseType
+    +lastExecutionStatus: TestCaseLastResult
+    +lastExecutedAt: DateTime?
+    +lastExecutionId: String?
+    +tags: Json?
+    +projectId: String
+    +createdById: String
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +deletedAt: DateTime?
+    +project: Project
+    +createdBy: User
+    +steps: TestStep[]
+    +executions: Execution[]
+    +scripts: AutomationScript[]
+  }
+
+  class TestStep {
+    +id: String
+    +testCaseId: String
+    +stepNumber: Int
+    +action: String
+    +target: String?
+    +locatorStrategy: String?
+    +locatorValue: String?
+    +locators: Json?
+    +inputValue: String?
+    +expectedResult: String?
+    +description: String?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +deletedAt: DateTime?
+    +testCase: TestCase
+  }
+
+  class Execution {
+    +id: String
+    +number: String
+    +projectId: String
+    +testCaseId: String
+    +status: ExecutionStatus
+    +runCount: Int
+    +durationMs: Int?
+    +lastDurationMs: Int?
+    +lastRunAt: DateTime?
+    +lastResult: ExecutionStatus?
+    +startedAt: DateTime?
+    +finishedAt: DateTime?
+    +browser: String?
+    +environment: String?
+    +screenshotPath: String?
+    +videoPath: String?
+    +tracePath: String?
+    +consoleLog: Json?
+    +errorMessage: String?
+    +generatedScript: String?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +deletedAt: DateTime?
+    +project: Project
+    +testCase: TestCase
+    +logs: ExecutionLog[]
+  }
+
+  class ExecutionLog {
+    +id: String
+    +executionId: String
+    +stepNumber: Int?
+    +action: String?
+    +level: String
+    +message: String
+    +timestamp: DateTime
+    +execution: Execution
+  }
+
+  class AutomationScript {
+    +id: String
+    +testCaseId: String
+    +generatorType: String
+    +provider: String?
+    +model: String?
+    +script: String
+    +language: String
+    +framework: String
+    +version: String
+    +lastRunAt: DateTime?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +testCase: TestCase
+  }
+
+  class AISetting {
+    +id: String
+    +enabled: Boolean
+    +provider: String
+    +apiKey: String?
+    +baseUrl: String?
+    +model: String?
+    +host: String?
+    +temperature: Float?
+    +maxTokens: Int?
+    +apiKeyEncrypted: Boolean
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  class Setting {
+    +key: String
+    +value: Json?
+    +updatedAt: DateTime
+  }
+}
+
+package "Enums" {
+  enum ProjectStatus { ACTIVE, COMPLETED }
+  enum Framework { PLAYWRIGHT, SELENIUM, CYPRESS }
+  enum Browser { CHROMIUM, FIREFOX, WEBKIT }
+  enum LoginMethod { BROWSER, API }
+  enum SessionStrategy { REUSE_CONTEXT, NEW_SESSION }
+  enum ScreenshotTiming { BEFORE_ACTION, AFTER_ACTION, FINAL_STATE }
+  enum TestPriority { LOW, MEDIUM, HIGH, CRITICAL }
+  enum TestCaseStatus { DRAFT, READY, ARCHIVED }
+  enum TestCaseType { MANUAL, AUTOMATION }
+  enum TestCaseLastResult { NOT_RUN, RUNNING, PASSED, FAILED }
+  enum ExecutionStatus { QUEUED, RUNNING, PASSED, FAILED, ERROR, CANCELLED, SKIPPED }
+}
+
+package "Backend Services" {
+  class AuthService {
+    +login(dto: LoginDTO): Promise<AuthResponseDTO>
+    +refresh(dto: {refreshToken: string}): Promise<AuthTokens>
+    +getCurrentUser(userId: string): Promise<UserResponseDTO>
+    +changePassword(userId: string, current: string, newPwd: string): Promise<void>
+    +updateProfile(userId: string, dto: {name?, email?, avatar?}): Promise<UserResponseDTO>
+    +updateAvatar(userId: string, file: {buffer: Buffer, mimetype: string}): Promise<UserResponseDTO>
+    -generateAccessToken(payload: JWTPayload): string
+    -generateRefreshToken(userId: string, tokenVersion: Int): string
+    -mapUser(user): UserResponseDTO
+  }
+
+  class ProjectService {
+    +create(dto: CreateProjectDTO, createdById: string): Promise<ProjectResponseDTO>
+    +getById(id: string): Promise<ProjectResponseDTO>
+    +getBySlug(slug: string): Promise<ProjectResponseDTO>
+    +update(id: string, dto: UpdateProjectDTO): Promise<ProjectResponseDTO>
+    +delete(id: string): Promise<void>
+    +list(page: Int, limit: Int, filters: ProjectFilters): Promise<PaginatedResult>
+    -toResponse(project: ProjectEntity): ProjectResponseDTO
+    -toList(project: ProjectListItem, counts?): ProjectListDTO
+    -generateNextCode(): Promise<String>
+  }
+
+  class TestCaseService {
+    +create(dto: CreateTestCaseDTO, createdById: string): Promise<TestCase>
+    +getById(id: string): Promise<TestCase>
+    +getByCode(code: string): Promise<TestCase?>
+    +update(id: string, dto: UpdateTestCaseDTO): Promise<TestCase>
+    +delete(id: string): Promise<void>
+    +list(page: Int, limit: Int, filters: TestCaseFilters): Promise<PaginatedResult>
+    +listModules(projectId?: String): Promise<String[]>
+    +duplicate(id: String, dto: DuplicateTestCaseDTO): Promise<TestCase>
+    +clone(id: String, projectId: String, dto: CloneTestCaseDTO): Promise<TestCase>
+    +addStep(testCaseId: String, dto: CreateTestStepDTO): Promise<TestStep>
+    +updateStep(testCaseId: String, stepNumber: Int, dto: UpdateTestStepDTO): Promise<TestStep>
+    +deleteStep(testCaseId: String, stepNumber: Int): Promise<void>
+    +getStep(testCaseId: String, stepNumber: Int): Promise<TestStep>
+    +getStepsByTestCase(testCaseId: String): Promise<TestStep[]>
+    +reorderSteps(testCaseId: String, dto: ReorderStepsDTO): Promise<void>
+  }
+
+  class AutomationService {
+    +generateScript(testCaseId: String, dto: GenerateScriptDTO): Promise<GeneratedScriptResponse>
+    +getScript(testCaseId: String): Promise<StoredScript>
+    +run(testCaseId: String, body: {headless?, browser?, viewportWidth?, viewportHeight?}): Promise<RunOutcome>
+    +resetExecutionHistory(testCaseId: String): Promise<void>
+    -loadRunConfig(testCaseId: String, override?): Promise<{testCase, config}>
+    -buildAuthEngine(testCase, config): AuthEngine
+    -redactSecrets(script: String, password: String?): String
+    -generateNextExecutionNumber(): Promise<String>
+  }
+
+  class ExecutionService {
+    +list(page: Int, limit: Int, filters): Promise<PaginatedResult>
+    +getById(id: String): Promise<ExecutionDetail>
+    +delete(id: String): Promise<void>
+    +retry(id: String, body: {headless?, browser?, viewportWidth?, viewportHeight?}): Promise<RunOutcome>
+    +getLogs(executionId: String): Promise<ExecutionLog[]>
+    +getReport(executionId: String): Promise<ExecutionReport>
+  }
+
+  class ReportService {
+    +getOverview(): Promise<OverviewReport>
+    +getProjectReport(projectId: String): Promise<ProjectReport>
+    +getTestCaseReportPdf(projectId: String, options): Promise<Buffer>
+    +getTestCaseReportXlsx(projectId: String, options): Promise<Buffer>
+  }
+
+  class AIService {
+    +getSettings(): Promise<AISettings>
+    +saveSettings(dto: SaveAISettingsForm): Promise<AISettings>
+    +testConnection(dto: TestConnectionForm): Promise<TestConnectionResult>
+    +getPromptTemplates(): Promise<PromptTemplates>
+    +updatePromptTemplate(key: String, content: String): Promise<{key, content}>
+  }
+
+  class ReportPdfService {
+    +generate(data: TestCaseReportData, options?): Promise<Buffer>
+    -buildDocument(data, options): Record<String, unknown>
+  }
+
+  class ReportXlsxService {
+    +generate(data: TestCaseReportData, options?): Promise<Buffer>
+  }
+}
+
+package "Automation Engines" {
+  interface AutomationGenerator {
+    +key: String
+    +generate(context: GeneratorContext): Promise<GeneratedScript>
+    +testConnection(config: AIConnectionConfig): Promise<TestConnectionResult>
+  }
+
+  class TemplateGenerator {
+    +key = "RULE_ENGINE"
+    +generate(context: GeneratorContext): Promise<GeneratedScript>
+    +testConnection(): Promise<TestConnectionResult>
+  }
+
+  class AIGenerator {
+    +key = "AI"
+    +provider: AIProvider
+    +generate(context: GeneratorContext): Promise<GeneratedScript>
+    +testConnection(config: AIConnectionConfig): Promise<TestConnectionResult>
+    -buildProjectContext(context: GeneratorContext): String
+    -injectBaseURLConstants(script: String, baseUrl: String, loginUrl?: String): String
+    -callModel(config, system, prompt): Promise<String>
+    -buildGenerateCall(config, system, prompt): ProviderCall
+    -geminiGenerate(config, prompt, system): ProviderCall
+    -buildHealthCall(config): {url, options}
+    -parseProviderError(config, statusCode, body): ProviderErrorInfo
+    -logProviderRequest/Response(config, url, statusCode, body): void
+  }
+
+  class AuthEngine {
+    +enabled: Boolean
+    +baseUrl: String
+    +loginUrl: String?
+    +email: String?
+    +password: String?
+    +loginMethod: LoginMethod
+    +sessionStrategy: SessionStrategy
+    +timeout: Int
+    +login(page: Page, config: AuthConfig): Promise<void>
+    -browserLogin(page, config): Promise<void>
+    -apiLogin(page, config): Promise<void>
+  }
+
+  class PlaywrightScriptService {
+    +generatePlaywrightScript(title, steps, options, framework, authEngine): String
+    -script boilerplate with helpers (__log, __step, __healed, __makeLocator, __findElement, __verifyText, __clickElement, __fillElement, __goto, __settle, __capture, __waitForFinalState)
+  }
+}
+
+package "Frontend Hooks" {
+  class useAuthStore {
+    +user: User?
+    +setUser(user): void
+    +logout(): void
+  }
+
+  class useProjects {
+    +data: PaginatedResult<Project>
+    +isLoading: Boolean
+  }
+
+  class useTestCases {
+    +data: PaginatedResult<TestCase>
+    +isLoading: Boolean
+  }
+
+  class useTestCaseByCode {
+    +data: TestCase
+    +isLoading: Boolean
+  }
+
+  class useExecutions {
+    +data: PaginatedResult<Execution>
+    +isLoading: Boolean
+  }
+
+  class useAISettings {
+    +data: AISettings
+    +isLoading: Boolean
+  }
+
+  class useGenerateScript {
+    +mutate(options): void
+    +isPending: Boolean
+    +data: GeneratedScript
+  }
+
+  class useRunTest {
+    +mutate({testCaseId, data}): void
+    +isPending: Boolean
+    +data: ExecutionResponse
+  }
+}
+
+' Relationships
+User "1" -- "0..*" Project : creates
+User "1" -- "0..*" TestCase : creates
+Project "1" -- "0..*" TestCase : contains
+Project "1" -- "0..*" Execution : contains
+TestCase "1" -- "0..*" TestStep : has
+TestCase "1" -- "0..*" Execution : executed
+TestCase "1" -- "0..1" AutomationScript : generates
+Execution "1" -- "0..*" ExecutionLog : logs
+Project "1" -- "0..1" AISetting : configures
+Setting -- "0..1" PromptTemplate : stores
+
+AuthService ..> AuthRepository : uses
+ProjectService ..> ProjectRepository : uses
+TestCaseService ..> TestCaseRepository : uses
+AutomationService ..> AutomationRepository : uses
+ExecutionService ..> ExecutionRepository : uses
+ReportService ..> ReportRepository : uses
+AIService ..> AIRepository : uses
+
+AutomationService ..> AIGenerator : uses
+AutomationService ..> TemplateGenerator : uses
+AutomationService ..> PlaywrightScriptService : uses
+AutomationService ..> AuthEngine : uses
+
+TemplateGenerator --|> AutomationGenerator
+AIGenerator --|> AutomationGenerator
+
+@enduml

@@ -1,0 +1,63 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Sequence: Dashboard Load
+
+actor Tester
+participant Frontend
+participant API
+participant ReportController
+participant ReportService
+participant ReportRepository
+participant ExecutionController
+participant ExecutionService
+participant ExecutionRepository
+participant TestCaseController
+participant TestCaseService
+participant TestCaseRepository
+participant Database
+
+Tester -> Frontend: Navigate /dashboard
+Frontend -> API: GET /api/reports/overview
+API -> ReportController: getOverview()
+ReportController -> ReportService: getOverview()
+ReportService -> ReportRepository: aggregate counts
+ReportRepository -> Database: Multiple COUNT queries
+Database -> ReportRepository: Counts
+ReportRepository -> ReportService: Overview data
+ReportService -> ReportController: OverviewDTO
+ReportController -> API: 200 OK
+API -> Frontend: 200 OK {totalProjects, totalTestCases, ...}
+
+par Executions
+  Frontend -> API: GET /api/executions?limit=100
+  API -> ExecutionController: list()
+  ExecutionController -> ExecutionService: list(1, 100)
+  ExecutionService -> ExecutionRepository: list(1, 100, {})
+  ExecutionRepository -> Database: SELECT * FROM executions ORDER BY created_at DESC LIMIT 100
+  Database -> ExecutionRepository: Executions
+  ExecutionRepository -> ExecutionService: Paginated
+  ExecutionService -> ExecutionController: Result
+  ExecutionController -> API: 200 OK
+  API -> Frontend: 200 OK {data: [...], pagination: {...}}
+and Test Cases
+  Frontend -> API: GET /api/test-cases?type=AUTOMATION&limit=1
+  API -> TestCaseController: list()
+  TestCaseController -> TestCaseService: list(filters)
+  TestCaseService -> TestCaseRepository: list()
+  TestCaseRepository -> Database: SELECT * WHERE type='AUTOMATION' LIMIT 1
+  Database -> TestCaseRepository: Count
+  TestCaseRepository -> TestCaseService: Paginated
+  TestCaseService -> TestCaseController: Result
+  TestCaseController -> API: 200 OK
+  API -> Frontend: 200 OK {pagination: {total: N}}
+end
+
+Frontend -> Frontend: Build Execution Trend (group by date, last 14 days)
+Frontend -> Frontend: Calculate Pass Rate, Automation Coverage
+Frontend -> Tester: Render Dashboard (Stats, Charts, Tables)
+
+@enduml

@@ -1,0 +1,43 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Dashboard View
+
+|Tester|
+start
+:Navigate to /dashboard;
+
+|Frontend|
+:GET /api/reports/overview;
+:GET /api/executions?limit=100;
+:GET /api/test-cases?type=AUTOMATION&limit=1;
+:GET /api/test-cases?limit=1;
+
+|Backend|
+:ReportService.getOverview();
+:ExecutionService.list(limit=100);
+:TestCaseService.list(type=AUTOMATION, limit=1);
+:TestCaseService.list(limit=1);
+
+|Database|
+:Aggregate counts (projects, testCases, executions);
+:Select recent 100 executions;
+:Count AUTOMATION test cases;
+:Count total test cases;
+
+|Frontend|
+:Build Execution Trend (group by date, last 14 days);
+:Calculate Pass Rate;
+:Calculate Automation Coverage;
+:Render Stat Cards (Projects, Test Cases, Executions, Pass Rate, Automation);
+:Render Execution Trend Bar Chart;
+:Render Pass/Fail Donut Chart;
+:Render Recent Failed Executions table;
+:Render Top Failed Modules;
+
+stop
+
+@enduml

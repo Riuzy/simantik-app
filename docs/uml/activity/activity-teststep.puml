@@ -1,0 +1,58 @@
+@startuml
+skinparam shadowing false
+skinparam dpi 180
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Activity: Test Step Management
+
+|Tester|
+start
+:Navigate to Test Case Detail > Steps tab;
+
+|Frontend|
+:GET /api/test-cases/{id}/steps;
+
+|Backend|
+:TestCaseService.getStepsByTestCase(testCaseId);
+
+|Database|
+:SELECT * FROM test_steps WHERE test_case_id = ? ORDER BY step_number;
+
+|Frontend|
+:Render Steps table (Step, Action, Locator, Input, Expected Result);
+if (Click "Add Step"?) then (yes)
+  :Show Add Step modal;
+  :Enter Step Number, Action, Target, Locator Strategy, Locator Value, Input Value, Expected Result;
+  :Click Save;
+  :POST /api/test-cases/{id}/steps {stepNumber, action, target, locatorStrategy, locatorValue, inputValue, expectedResult};
+  :TestCaseService.addStep();
+  :INSERT INTO test_steps;
+  :Refresh steps list;
+else
+  if (Click "Edit"?) then (yes)
+    :Show Edit modal;
+    :Modify fields;
+    :PUT /api/test-cases/:id/steps/:stepNumber {action, target, locatorStrategy, locatorValue, inputValue, expectedResult};
+    :TestCaseService.updateStep();
+    :UPDATE test_steps SET ...;
+  else
+    if (Click "Delete"?) then (yes)
+      :Confirm;
+      :DELETE /api/test-cases/:id/steps/:stepNumber;
+      :TestCaseService.deleteStep();
+      :DELETE FROM test_steps;
+    else
+      if (Click "Reorder"?) then (yes)
+        :Drag & drop to reorder;
+        :PUT /api/test-cases/:id/steps/reorder {stepIds: [...]};
+        :TestCaseService.reorderSteps();
+        :UPDATE test_steps SET step_number = ...;
+      endif
+    endif
+  endif
+endif
+
+stop
+
+@enduml
